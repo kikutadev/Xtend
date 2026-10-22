@@ -1,92 +1,90 @@
-<p align="center">
-  <img src="./Logo.svg" alt="Xtend ロゴ" width="144">
-</p>
+<div align="center">
+  <img src="./Logo.svg" alt="Xtend ロゴ" width="136">
 
-# Xtend - Chrome拡張をiPhoneで使えるX専用アプリ
+  <h1>Xtend</h1>
 
-- Chrome拡張機能を追加してXを閲覧するiPhoneアプリです。拡張機能をインストールせずにXを見ることもできます。
+  <p><strong>X向けのChrome拡張機能を、iPhoneでも。</strong></p>
 
-## ご紹介
+  <p>iPhoneでXを閲覧するための、WebKitベースの専用アプリです。<br>拡張機能を入れずに、そのままXを使うこともできます。</p>
+</div>
 
-- [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng) ：このChrome拡張機能を使うためだけに作ったアプリでした。ぜひダウンロードして使ってみましょう
- 作者様：[@karou2rikon](https://x.com/karou2rikon)
-- 
+---
 
-注意！
-- Googleアカウント経由のXログインは、埋め込みWebViewに対するGoogleのOAuth制限で動作を保証できません。Xのユーザー名・メールアドレス・電話番号でのログインを利用してください。（アプリ側で制限をかけています）
-- Webkitベースの標準的なブラウザとして動作しています。しかし普通のアプリやWebブラウザとしては認識されない可能性もあります（作者本人が常用していてBAN等はされていませんが、X側の判断に依るため保証できません）。ご利用には十分ご注意をお願いいたします。
-- Chrome拡張機能はPC上のChromeでの利用が通常であるところを、このアプリではiPhoneでの利用を可能にしています。Chrome拡張機能自体の安全性については本アプリの責務外であるとのご認識の上でご利用ください。
+## できること
 
-## iPhone実機へのインストール
+| 機能 | 内容 |
+| --- | --- |
+| **Xを閲覧** | iPhoneのWebKitでXを開き、ログイン状態を端末内に保持します。 |
+| **拡張機能を追加** | 対応するChrome拡張機能をChrome Web StoreまたはローカルZIPから導入できます。 |
+| **設定・更新** | 右上の設定から、拡張機能の一覧・削除・再読み込み・個別の設定を操作できます。 |
 
-1. `xcodegen generate` を実行し、`open Xtend.xcodeproj` でXcodeを開く。
-2. `Xtend` ターゲットの **Signing & Capabilities** で自分のTeamを選ぶ。
-3. **Bundle Identifier** をサンプルの `org.example.xtend` から自分だけのID（例: `dev.example.xtend.mybuild`）に変更する。
-4. iPhoneを接続し、`Xtend` スキームの **Run** でビルド・インストールする。
-5. 初回画面でおすすめの「にゃっとランドforX」を必要に応じてインストールするか、そのままXを開く。
+Xtendは**X専用**です。一般的なブラウザのアドレスバー、複数タブ、ブックマークはありません。すべてのChrome拡張機能やChrome APIに対応するものではありません。
 
-署名設定は各自のXcode上で管理してください。`xcodegen generate` を再実行するとXcodeで変更した署名値が戻る場合があります。
+## おすすめの拡張機能
 
-`.build/`、`DerivedData/`、`xcuserdata/`、`.ipa`、`.xcarchive`、証明書関連ファイルはGit管理対象外です。アプリ内のXログインCookieはWebKitがインストール先の端末内で保持してください。Simulatorの端末データや実機バックアップを配布しないでください。
+### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
 
-## ZIPから拡張機能を更新
+Xのタイムラインを猫たちが歩き、フォロー関係やいいね履歴なども表示するChrome拡張機能です。Xtendは、この拡張機能をiPhoneでも使うために作りました。初回画面または設定から任意で追加できます。
 
-右上の設定画面では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Web Storeからの取得、ZIPからのインストールができます。にゃっとランドの設定はインストール済み一覧の設定アイコンから開きます。ZIPはにゃっとランドforXかx-home-anchorのどちらかを検証して個別に導入します。
+**作者：** [@karou2rikon](https://x.com/karou2rikon) · **配布：** [Chrome Web Store](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
 
-x-home-anchorのGitHubソースZIPはTypeScriptのままなので読み込めません。[上流の公開ソース](https://github.com/akiweb8528/x-home-anchor)からビルド済みZIPを作る例（Node.js 22.18以降）:
+### 📍 [x-home-anchor](https://github.com/akiweb8528/x-home-anchor)
 
-```sh
-mkdir -p .build
-git clone --depth 1 https://github.com/akiweb8528/x-home-anchor.git .build/x-home-anchor-src
-cd .build/x-home-anchor-src
-npm ci
-npm run check
-cd dist
-zip -r ../../x-home-anchor.zip .
-```
+Xホームで「新しいポストを表示」を押した後の閲覧位置を保持する補助拡張機能です。任意で導入できます。
 
-作成した `.build/x-home-anchor.zip` をiPhoneの「ファイル」に移して、「ZIPから読み込む」で選んでください。Xtend本体にはx-home-anchorの配布物を同梱しないので、使いたい場合はZIPからインストールします。
+GitHubリポジトリの**Releasesからビルド済みZIPをダウンロード**し、Xtendの設定にある「ZIPから読み込む」で追加してください。GitHubのソースZIPはそのままでは動きません。
 
-**ZIPの署名は確認されません。** manifest形式が正しくても安全性の保証にはならないので、信頼できるZIPだけ利用してください。
+## iPhoneへのインストール
 
+**必要なもの：** macOS、iOS 18以降に対応するXcode、Apple IDでサインイン済みのXcode、USBまたはペアリング済みのiPhone（開発者モード有効）、[Homebrew](https://brew.sh/)。
 
-## Simulatorビルド
-
-必要: macOS、iOS 18以降に対応したXcode、[XcodeGen](https://github.com/yonaskolb/XcodeGen)。
-
+1. このリポジトリをMacにダウンロードし、ターミナルでそのフォルダに移動します。
+2. iPhoneをMacに接続して信頼設定を済ませ、下記の `xcrun devicectl list devices` で**端末ID**を確認します。Xcodeの **Settings → Accounts** で**Team ID**を確認します。
+3. 以下の `TEAM_ID` と `DEVICE_ID` を自分の値に置き換え、リポジトリ直下でまとめて実行します。
 
 ```sh
-brew install xcodegen        # 未インストールの場合
+brew install xcodegen
 xcodegen generate
+xcrun devicectl list devices
+
+TEAM_ID="YOUR_TEAM_ID"
+DEVICE_ID="YOUR_DEVICE_ID"
+BUNDLE_ID="dev.$(whoami).xtend"
+
 xcodebuild -project Xtend.xcodeproj -scheme Xtend \
-  -configuration Debug -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO build
+  -configuration Debug \
+  -destination "platform=iOS,id=$DEVICE_ID" \
+  -derivedDataPath .build/DerivedData \
+  -allowProvisioningUpdates \
+  DEVELOPMENT_TEAM="$TEAM_ID" \
+  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+  CODE_SIGN_STYLE=Automatic build
+
+xcrun devicectl device install app --device "$DEVICE_ID" \
+  .build/DerivedData/Build/Products/Debug-iphoneos/Xtend.app
+xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID"
 ```
 
-生成物: `.build/DerivedData/Build/Products/Debug-iphonesimulator/Xtend.app`
+アプリが起動したら、必要に応じて「にゃっとランドforX」を追加するか、インストールせずにXを開けます。
 
-Releaseビルドは `-configuration Release` に変更します。生成物は `.build/DerivedData/Build/Products/Release-iphonesimulator/Xtend.app` です。**これらはSimulator専用で、iPhone実機用の署名はありません。**
+> [!NOTE]
+> 署名のために自分のApple IDとTeamが必要です。Bundle IDが他と重複する場合は `BUNDLE_ID` を変更してください。無料のPersonal Teamでは署名・プロビジョニングに制限があります。コマンドで署名が通らない場合は `open Xtend.xcodeproj` でXcodeを開き、**Signing & Capabilities** を確認してください。
 
-起動済みのSimulatorに入れる例:
+Simulatorでのビルド、Xcodeによる実機インストール、ZIPのビルド手順は [開発者向けドキュメント](docs/DEVELOPMENT.md) にまとめています。
 
-```sh
-xcrun simctl install booted .build/DerivedData/Build/Products/Debug-iphonesimulator/Xtend.app
-xcrun simctl launch booted org.example.xtend
-```
+## 利用前の注意
 
+> [!IMPORTANT]
+> - **Googleアカウントを使ったXログイン**は、埋め込みWebViewに対するGoogleのOAuth制限により利用できない場合があります。Xのユーザー名・メールアドレス・電話番号でログインしてください。
+> - WebKitベースでXにアクセスしますが、**X側によるアクセス制限やアカウントへの措置が生じないことは保証できません**。
+> - Chrome拡張機能は第三者のプログラムです。配布元・権限・プライバシー条件を確認したうえで導入してください。**ローカルZIPはChrome Web Storeの署名検証を行いません**。
 
-## ライセンス
+## ライセンスとプライバシー
 
-MIT
+Xtendの独自コードは [MIT License](LICENSE) です。ZIPの展開に利用する [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) もMITライセンスで、必要な表示は [LICENSE](LICENSE) に収録しています。外部の拡張機能にはそれぞれの配布条件が適用されます。
 
-※拡張機能は、アプリの起動後、利用者がChrome Web Storeから取得する設計です。配信元が変わった場合には取得できない可能性があります。
+アプリ独自の分析サーバー、アカウントシステム、テレメトリーはありません。XのCookieと拡張機能の設定は端末内に保存されます。X閲覧時はXなどのWebサイトへ、拡張機能の取得時はGoogleの配信サービスなどへ通信します。拡張機能本体の動作や通信については各配布元の説明を確認してください。
 
-ローカルZIPは利用者が内容と配布元を確認したファイルだけに使用してください。ZIP経路はChrome Web StoreのCRX署名検証を行いません。
+XtendはX、Google、にゃっとランドforXの公式アプリではありません。にゃっとランドforXなどの第三者拡張機能の本体・画像・音声はリポジトリやアプリに同梱していません。
 
-このプロジェクトはX、Google、にゃっとランドforXの公式アプリではありません。
-
-## プライバシー
-
-アプリ独自の分析サーバー、アカウントシステム、テレメトリーはありません。X閲覧時はXなどのWebサイト、拡張機能の取得・更新時はGoogleの配信サービスに通信します。XのCookieはWebKitの永続データストア、拡張機能の設定は端末内に保存されます。
-
-X上で動く「にゃっとランドforX」は外部から取得する第三者のプログラムです。インストールする際には配布元の説明やプライバシー条件を確認してください。
+現行の実装仕様は [docs/SPEC.md](docs/SPEC.md) を参照してください。

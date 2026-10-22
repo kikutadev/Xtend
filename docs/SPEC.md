@@ -72,4 +72,4 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、対応するChrome拡張機能
 4. x-home-anchorを導入した場合の、実際の「新着ポストを表示」操作後の閲覧位置維持。
 5. 外部リンクのSafari遷移、認証画面、WebView標準User-Agentでの動作。
 
-ビルド方法、実機へのインストール方法、ZIP作成手順は[README](../README.md)を参照する。将来のUX改善計画はこの初回リリース用仕様とは別管理とする。
+一般利用者向けの実機インストール方法は[README](../README.md)、開発用のSimulatorビルド・Xcodeでの実機実行・ZIP作成手順は[開発者向けドキュメント](DEVELOPMENT.md)を参照する。将来のUX改善計画はこの初回リリース用仕様とは別管理とする。
