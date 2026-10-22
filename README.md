@@ -39,8 +39,11 @@ GitHubリポジトリの**Releasesからビルド済みZIPをダウンロード*
 **必要なもの：** macOS、iOS 18以降に対応するXcode、Apple IDでサインイン済みのXcode、USBまたはペアリング済みのiPhone（開発者モード有効）、[Homebrew](https://brew.sh/)。
 
 1. このリポジトリをMacにダウンロードし、ターミナルでそのフォルダに移動します。
-2. iPhoneをMacに接続して信頼設定を済ませ、下記の `xcrun devicectl list devices` で**端末ID**を確認します。Xcodeの **Settings → Accounts** で**Team ID**を確認します。
-3. 以下の `TEAM_ID` と `DEVICE_ID` を自分の値に置き換え、リポジトリ直下でまとめて実行します。
+2. **Team ID（10文字）**：Xcodeの **Settings → Accounts** にApple Accountを追加します。
+   - Apple Developer Program加入者： [Apple Developerのアカウント](https://developer.apple.com/account/) → **メンバーシップの詳細** に表示されます。
+   - 無料の **Personal Team**：下のコードの `brew install xcodegen` と `xcodegen generate` を先に実行し、`open Xtend.xcodeproj` → **Xtend → Signing & Capabilities → Team** でPersonal Teamを選択。その後 `xcodebuild -project Xtend.xcodeproj -scheme Xtend -showBuildSettings | grep DEVELOPMENT_TEAM` に表示されるIDを使います。
+3. **端末ID**：iPhoneをMacに接続し「信頼」を選択します。`xcrun devicectl list devices` の一覧で、iPhoneの行の **Identifier** をコピーします（**physical** の端末を選び、**simulated** は選ばない）。
+4. 下の `TEAM_ID="YOUR_TEAM_ID"` と `DEVICE_ID="YOUR_DEVICE_ID"` を取得した値に書き換え、コマンドを実行します。
 
 ```sh
 brew install xcodegen
