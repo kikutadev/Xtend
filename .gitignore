@@ -1,0 +1,27 @@
+# Exclude credentials, dependencies, and generated files
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.mobileprovision
+*.keystore
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.build/
+**/DerivedData/
+**/.cache/
+**/tmp/
+**/.tmp/
+
+**/.wrangler/
+**/*.xcuserstate
+
+# Local IDE data and credentials
+**/xcuserdata/
+*.ipa
+*.xcarchive/

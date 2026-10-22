@@ -1,0 +1,416 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */; };
+		01BF2A583CF97702899D482D /* ExtensionStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */; };
+		086B1ED70583781DE6387302 /* ExtensionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */; };
+		10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A678E57174F3902A4809A96 /* ExtensionHost.swift */; };
+		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
+		41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */; };
+		4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */; };
+		4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5523AE88483B76D72E8E474B /* ChromeShim.swift */; };
+		571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */; };
+		58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B884C456033A9D3781F2BC /* CRX3Package.swift */; };
+		63EAA3269941DF7058CD6FC1 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 4C808A67CB794F23FE6E1456 /* ZIPFoundation */; };
+		6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14307402EA85E945B44C3A40 /* Assets.xcassets */; };
+		6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */; };
+		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
+		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
+		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
+		C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */; };
+		DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledExtensionsListView.swift; sourceTree = "<group>"; };
+		0B65B670E94294446AA43DB6 /* BrowserViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewController.swift; sourceTree = "<group>"; };
+		14307402EA85E945B44C3A40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackedAssetStore.swift; sourceTree = "<group>"; };
+		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
+		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
+		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
+		7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionWelcomeViewController.swift; sourceTree = "<group>"; };
+		89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeBridge.swift; sourceTree = "<group>"; };
+		9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallStore.swift; sourceTree = "<group>"; };
+		A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSettingsViewController.swift; sourceTree = "<group>"; };
+		AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionStorage.swift; sourceTree = "<group>"; };
+		B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionResourceSchemeHandler.swift; sourceTree = "<group>"; };
+		C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoSupport.swift; sourceTree = "<group>"; };
+		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4B884C456033A9D3781F2BC /* CRX3Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRX3Package.swift; sourceTree = "<group>"; };
+		FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XHomeAnchorInstallStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		436693AC91E8F50EB87F5CAF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				63EAA3269941DF7058CD6FC1 /* ZIPFoundation in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3748C9D11D4BF6B5C36B0AEC /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */,
+				0B65B670E94294446AA43DB6 /* BrowserViewController.swift */,
+				89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */,
+				5523AE88483B76D72E8E474B /* ChromeShim.swift */,
+				F4B884C456033A9D3781F2BC /* CRX3Package.swift */,
+				4A678E57174F3902A4809A96 /* ExtensionHost.swift */,
+				763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */,
+				9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */,
+				B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */,
+				A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */,
+				AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */,
+				7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */,
+				06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */,
+				C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */,
+				3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */,
+				FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */,
+			);
+			name = Sources;
+			path = Xtend/Sources;
+			sourceTree = "<group>";
+		};
+		57AA167181370387B33A8621 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				14307402EA85E945B44C3A40 /* Assets.xcassets */,
+			);
+			name = Resources;
+			path = Xtend/Resources;
+			sourceTree = "<group>";
+		};
+		E1F81FC9C41AF904A347EA87 = {
+			isa = PBXGroup;
+			children = (
+				57AA167181370387B33A8621 /* Resources */,
+				3748C9D11D4BF6B5C36B0AEC /* Sources */,
+				E9655FC6D303DA29F5ABF79F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E9655FC6D303DA29F5ABF79F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DC87E259B9E47A6BC7598A0F /* Xtend.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B68C336EF33449591F6BBAD7 /* Xtend */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B229521F68CE71398419BFF4 /* Build configuration list for PBXNativeTarget "Xtend" */;
+			buildPhases = (
+				E5A129DFD536E285C7DE36EA /* Sources */,
+				33B662768518587BF1850E9D /* Resources */,
+				436693AC91E8F50EB87F5CAF /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Xtend;
+			packageProductDependencies = (
+				4C808A67CB794F23FE6E1456 /* ZIPFoundation */,
+			);
+			productName = Xtend;
+			productReference = DC87E259B9E47A6BC7598A0F /* Xtend.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		115E0247FEEAE4C2C3DD8F64 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					B68C336EF33449591F6BBAD7 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6B54F8A1C820C752D0FEE9E1 /* Build configuration list for PBXProject "Xtend" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E1F81FC9C41AF904A347EA87;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BEFB7288E776A8303EEA03E8 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = E9655FC6D303DA29F5ABF79F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B68C336EF33449591F6BBAD7 /* Xtend */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		33B662768518587BF1850E9D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E5A129DFD536E285C7DE36EA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */,
+				AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */,
+				58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */,
+				705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */,
+				4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */,
+				10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */,
+				DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */,
+				26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */,
+				BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */,
+				086B1ED70583781DE6387302 /* ExtensionSettingsViewController.swift in Sources */,
+				01BF2A583CF97702899D482D /* ExtensionStorage.swift in Sources */,
+				6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */,
+				41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */,
+				571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */,
+				C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */,
+				002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		05532FA670E44E785693FC4D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Xtend;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.example.xtend;
+				PRODUCT_NAME = Xtend;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7F5EB6ECC280FA57E7FA4CE0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Xtend;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.example.xtend;
+				PRODUCT_NAME = Xtend;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		93681180482B7B2DDCF76AD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		F874615404C9BCA7F81FA5F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6B54F8A1C820C752D0FEE9E1 /* Build configuration list for PBXProject "Xtend" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93681180482B7B2DDCF76AD1 /* Debug */,
+				F874615404C9BCA7F81FA5F4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B229521F68CE71398419BFF4 /* Build configuration list for PBXNativeTarget "Xtend" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7F5EB6ECC280FA57E7FA4CE0 /* Debug */,
+				05532FA670E44E785693FC4D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BEFB7288E776A8303EEA03E8 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.9.20;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4C808A67CB794F23FE6E1456 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BEFB7288E776A8303EEA03E8 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 115E0247FEEAE4C2C3DD8F64 /* Project object */;
+}
