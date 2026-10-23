@@ -27,23 +27,46 @@ struct ExtensionPackage {
 @MainActor
 final class ExtensionRuntime {
     let packages: [ExtensionPackage]
+    let loadIssues: [String: String]
     private let storageByID: [String: ExtensionStorage]
 
-    init() throws {
+    init(installedRoots: [String: URL]? = nil) {
         var packages: [ExtensionPackage] = []
+        var issues: [String: String] = [:]
         let store = ExtensionInstallStore()
-        if let root = store.installedExtensionRoot {
-            let manifest = try ExtensionInstallStore.readAndValidateManifest(at: root)
-            packages.append(ExtensionPackage(
-                id: ExtensionInstallStore.supportedExtensionID,
-                root: root,
-                manifest: manifest
-            ))
+        if installedRoots == nil, let issue = store.recoveryIssue {
+            issues[ExtensionInstallStore.supportedExtensionID] = issue
         }
-        if let root = XHomeAnchorInstallStore().installedRoot {
-            packages.append(try ExtensionPackage.installed(id: ExtensionPackage.homeAnchorID, root: root))
+        let nyattoRoot = installedRoots == nil
+            ? store.existingRoot : installedRoots?[ExtensionInstallStore.supportedExtensionID]
+        if let root = nyattoRoot {
+            do {
+                let manifest = try ExtensionInstallStore.readAndValidateManifest(at: root)
+                packages.append(ExtensionPackage(
+                    id: ExtensionInstallStore.supportedExtensionID,
+                    root: root,
+                    manifest: manifest
+                ))
+            } catch {
+                issues[ExtensionInstallStore.supportedExtensionID] = error.localizedDescription
+            }
+        }
+        let homeStore = XHomeAnchorInstallStore()
+        if installedRoots == nil, let issue = homeStore.recoveryIssue {
+            issues[ExtensionPackage.homeAnchorID] = issue
+        }
+        let homeAnchorRoot = installedRoots == nil
+            ? homeStore.existingRoot : installedRoots?[ExtensionPackage.homeAnchorID]
+        if let root = homeAnchorRoot {
+            do {
+                _ = try XHomeAnchorInstallStore.validateManifest(at: root)
+                packages.append(try ExtensionPackage.installed(id: ExtensionPackage.homeAnchorID, root: root))
+            } catch {
+                issues[ExtensionPackage.homeAnchorID] = error.localizedDescription
+            }
         }
         self.packages = packages
+        self.loadIssues = issues
         storageByID = Dictionary(uniqueKeysWithValues: packages.map {
             ($0.id, ExtensionStorage(extensionID: $0.id))
         })
@@ -90,15 +113,12 @@ final class ExtensionHost: NSObject {
             rootsByID: Dictionary(uniqueKeysWithValues: packages.map { ($0.id, $0.root) })
         )
         super.init()
-        for package in packages {
-            guard let storage = storageByID[package.id] else { throw RuntimeError.missingStorage(package.id) }
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(storageDidChange(_:)),
-                name: ExtensionStorage.didChangeNotification,
-                object: storage
-            )
-        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(storageDidChange(_:)),
+            name: ExtensionStorage.didChangeNotification,
+            object: nil
+        )
     }
 
     deinit { NotificationCenter.default.removeObserver(self) }
@@ -188,15 +208,15 @@ final class ExtensionHost: NSObject {
 
     @objc private func storageDidChange(_ notification: Notification) {
         guard let webView,
-              let storage = notification.object as? ExtensionStorage,
-              let entry = storageByID.first(where: { $0.value === storage }),
+              let extensionID = notification.userInfo?["extensionID"] as? String,
+              storageByID[extensionID] != nil,
               let area = notification.userInfo?["area"] as? String,
               let changes = notification.userInfo?["changes"] as? [String: [String: Any]],
               let changesJSON = try? jsonLiteral(changes),
               let areaJSON = try? jsonLiteral(area) else { return }
 
-        let world: WKContentWorld = settingsExtensionID == entry.key
-            ? .page : ExtensionPackage.contentWorld(for: entry.key)
+        let world: WKContentWorld = settingsExtensionID == extensionID
+            ? .page : ExtensionPackage.contentWorld(for: extensionID)
         let script = """
         if (typeof globalThis.__xtendDispatchStorageChange === 'function') {
           globalThis.__xtendDispatchStorageChange(\(changesJSON), \(areaJSON));

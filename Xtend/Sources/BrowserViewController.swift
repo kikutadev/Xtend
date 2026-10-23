@@ -2,12 +2,18 @@ import UIKit
 import WebKit
 
 @MainActor
-final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, UIAdaptivePresentationControllerDelegate {
     private let initialURL: URL?
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
     private weak var navigationBackButton: UIButton?
+    private var pendingExtensionChanges = false
+    private var hasShownExtensionWarning = false
+    private var pendingRestoration: (webView: WKWebView, y: Double)?
+    private var runtimeError: String?
+    private var lastWebProcessTermination: Date?
+    private var isShowingNavigationError = false
 
     init(initialURL: URL? = nil) {
         self.initialURL = initialURL
@@ -21,23 +27,65 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
 
+        installSettingsButton()
+        installBackButton()
+        buildBrowser(initialURL ?? URL(string: "https://x.com/home")!)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard !hasShownExtensionWarning, presentedViewController == nil else { return }
+        let issues = runtime?.loadIssues ?? [:]
+        guard !issues.isEmpty || runtimeError != nil else { return }
+        hasShownExtensionWarning = true
+        let names = issues.keys.map {
+            $0 == ExtensionPackage.homeAnchorID ? "X ホームの閲覧位置" : "にゃっとランドforX"
+        }.sorted()
+        let message = names.isEmpty
+            ? (runtimeError ?? "拡張機能の読み込みに失敗しました。")
+            : "\(names.joined(separator: "、"))を無効化しました。Xは引き続き利用できます。設定画面から修復できます。"
+        let alert = UIAlertController(title: "拡張機能の読み込みに失敗しました", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "あとで", style: .cancel))
+        alert.addAction(UIAlertAction(title: "設定へ", style: .default) { [weak self] _ in
+            self?.openSettings()
+        })
+        present(alert, animated: true)
+    }
+
+    private func buildBrowser(_ url: URL, restoring scrollY: Double? = nil) {
+        let runtime = ExtensionRuntime()
+        let configuration: WKWebViewConfiguration
+        let host: ExtensionHost?
         do {
-            let runtime = try ExtensionRuntime()
-            let (configuration, host) = try runtime.makeBrowserConfiguration()
-            let webView = WKWebView(frame: .zero, configuration: configuration)
-            host?.attach(to: webView)
-
-            self.runtime = runtime
-            self.extensionHost = host
-            self.webView = webView
-
-            configure(webView)
-            installSettingsButton()
-            installBackButton()
-            loadXHome()
+            (configuration, host) = try runtime.makeBrowserConfiguration()
+            runtimeError = nil
         } catch {
-            showFatalError(error)
+            // Even an unexpected host failure must never lock the user out of X.
+            let fallback = WKWebViewConfiguration()
+            fallback.websiteDataStore = .default()
+            fallback.applicationNameForUserAgent = "Safari/604.1"
+            fallback.allowsInlineMediaPlayback = true
+            configuration = fallback
+            host = nil
+            runtimeError = error.localizedDescription
+            hasShownExtensionWarning = false
         }
+        let browser = WKWebView(frame: .zero, configuration: configuration)
+        host?.attach(to: browser)
+        webView?.navigationDelegate = nil
+        webView?.uiDelegate = nil
+        webView?.removeFromSuperview()
+        self.runtime = runtime
+        self.extensionHost = host
+        self.webView = browser
+        configure(browser)
+        view.sendSubviewToBack(browser)
+        if let scrollY, scrollY > 0, canRestoreReadingPosition(at: url) {
+            pendingRestoration = (browser, scrollY)
+        } else {
+            pendingRestoration = nil
+        }
+        browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
     }
 
     private func configure(_ webView: WKWebView) {
@@ -113,29 +161,72 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         }
     }
 
-    private func loadXHome() {
-        guard let webView, let url = initialURL ?? URL(string: "https://x.com/home") else { return }
-        webView.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
-    }
-
     @objc
     private func openSettings() {
-        let settings = ExtensionSettingsViewController { [weak self] in
-            guard let self, let window = self.view.window else { return }
-            let url = self.webView?.url
-            self.dismiss(animated: true) {
-                UIView.transition(with: window, duration: 0.22, options: .transitionCrossDissolve) {
-                    window.rootViewController = BrowserViewController(initialURL: url)
+        let settings = ExtensionSettingsViewController(
+            onReload: { [weak self] in
+                self?.dismiss(animated: true) { [weak self] in
+                    self?.applyExtensionChanges(force: true)
                 }
-            }
-        }
+            },
+            onChange: { [weak self] in self?.pendingExtensionChanges = true },
+            onFinish: { [weak self] in self?.applyExtensionChanges() }
+        )
         let navigation = UINavigationController(rootViewController: settings)
         navigation.modalPresentationStyle = .pageSheet
         if let sheet = navigation.sheetPresentationController {
             sheet.detents = [.large()]
             sheet.prefersGrabberVisible = true
         }
+        navigation.presentationController?.delegate = self
         present(navigation, animated: true)
+    }
+
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        applyExtensionChanges()
+    }
+
+    private func applyExtensionChanges(force: Bool = false) {
+        guard pendingExtensionChanges || force, let old = webView else { return }
+        pendingExtensionChanges = false
+        let url = old.url ?? URL(string: "https://x.com/home")!
+        let fallbackY = Double(old.scrollView.contentOffset.y)
+        old.evaluateJavaScript("Number(document.scrollingElement?.scrollTop || window.scrollY || 0)") { [weak self] result, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.webView === old else { return }
+                let y = (result as? NSNumber)?.doubleValue ?? fallbackY
+                self.buildBrowser(url, restoring: y)
+            }
+        }
+    }
+
+    private func restoreReadingPosition(in browser: WKWebView, y: Double, attempt: Int) {
+        guard webView === browser, let state = pendingRestoration,
+              state.webView === browser, attempt <= 3 else { return }
+        // The X feed can grow after didFinish, so retry a bounded number of times.
+        let script = """
+        (() => {
+          const target = \(y);
+          window.scrollTo(0, target);
+          const element = document.scrollingElement;
+          if (element) element.scrollTop = target;
+          return Number(element?.scrollTop ?? window.scrollY ?? 0);
+        })();
+        """
+        browser.evaluateJavaScript(script) { [weak self, weak browser] result, _ in
+            Task { @MainActor [weak self, weak browser] in
+                guard let self, let browser, self.webView === browser else { return }
+                let actualY = (result as? NSNumber)?.doubleValue ?? 0
+                if abs(actualY - y) < 32 || attempt == 3 {
+                    self.pendingRestoration = nil
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 1 ? 0.5 : 1.0)) { [weak self, weak browser] in
+                        guard let self, let browser else { return }
+                        self.restoreReadingPosition(in: browser, y: y, attempt: attempt + 1)
+                    }
+                }
+            }
+        }
     }
 
     func webView(
@@ -192,12 +283,68 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         navigationBackButton?.isHidden = isXURL(webView.url)
+        if let state = pendingRestoration, state.webView === webView {
+            if canRestoreReadingPosition(at: webView.url) {
+                restoreReadingPosition(in: webView, y: state.y, attempt: 1)
+            } else {
+                pendingRestoration = nil
+            }
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        reportNavigationFailure(error, in: webView)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        reportNavigationFailure(error, in: webView)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        webView.reload()
+        guard self.webView === webView else { return }
+        let now = Date()
+        if let previous = lastWebProcessTermination, now.timeIntervalSince(previous) < 30 {
+            // A repeating WebContent crash must not turn into an endless reload loop.
+            showNavigationError("Webページが繰り返し終了しました。", in: webView)
+        } else {
+            lastWebProcessTermination = now
+            webView.reload()
+        }
     }
 
+    private func reportNavigationFailure(_ error: Error, in webView: WKWebView) {
+        guard self.webView === webView,
+              (error as NSError).code != NSURLErrorCancelled else { return }
+        showNavigationError(error.localizedDescription, in: webView)
+    }
+
+    private func showNavigationError(_ message: String, in webView: WKWebView) {
+        guard !isShowingNavigationError, presentedViewController == nil else { return }
+        isShowingNavigationError = true
+        let alert = UIAlertController(
+            title: "Xのページを読み込めませんでした",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "閉じる", style: .cancel) { [weak self] _ in
+            self?.isShowingNavigationError = false
+        })
+        alert.addAction(UIAlertAction(title: "再試行", style: .default) { [weak self, weak webView] _ in
+            guard let self, let webView else { return }
+            self.isShowingNavigationError = false
+            self.lastWebProcessTermination = nil
+            webView.reload()
+        })
+        present(alert, animated: true)
+    }
+
+
+    private func canRestoreReadingPosition(at url: URL?) -> Bool {
+        guard isXURL(url), let path = url?.path else { return false }
+        return !path.hasPrefix("/i/flow/login") &&
+               !path.hasPrefix("/login") &&
+               !path.hasPrefix("/account/login")
+    }
 
     private func isXURL(_ url: URL?) -> Bool {
         guard let url, url.scheme == "https", let host = url.host?.lowercased() else { return false }

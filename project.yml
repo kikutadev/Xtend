@@ -33,4 +33,16 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         CODE_SIGN_STYLE: Automatic
     scheme:
-      testTargets: []
+      testTargets:
+        - XtendTests
+  XtendTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: XtendTests
+    dependencies:
+      - target: Xtend
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.example.xtend.tests
+        GENERATE_INFOPLIST_FILE: YES

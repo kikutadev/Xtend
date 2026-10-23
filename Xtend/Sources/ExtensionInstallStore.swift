@@ -1,12 +1,43 @@
 import Foundation
 import ZIPFoundation
 
+/// Cancels the transfer as soon as the CRX download exceeds the limit.
+private final class LimitedPackageDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let limit: Int64
+    private let lock = NSLock()
+    private var exceeded = false
+
+    init(limit: Int64) { self.limit = limit }
+
+    var didExceedLimit: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return exceeded
+    }
+
+    func urlSession(
+        _ session: URLSession, downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesWritten > limit || totalBytesExpectedToWrite > limit else { return }
+        lock.lock()
+        exceeded = true
+        lock.unlock()
+        downloadTask.cancel()
+    }
+
+    func urlSession(
+        _ session: URLSession, downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {}
+}
+
 /// Installs the one Chrome Web Store extension supported by this app.
 ///
 /// The app intentionally does not expose a general-purpose extension runtime.
 /// Both the Web Store path and local ZIP path converge on the same validated,
 /// unpacked extension directory under Application Support.
-@MainActor
 final class ExtensionInstallStore {
     static let supportedExtensionID = "kchlmbffcbaambfigakeiamkhgacemng"
     static let defaultStoreURL = URL(
@@ -19,17 +50,56 @@ final class ExtensionInstallStore {
 
     private let fileManager: FileManager
     private let extensionsDirectory: URL
+    private(set) var recoveryIssue: String?
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         self.extensionsDirectory = applicationSupport.appendingPathComponent("Extensions", isDirectory: true)
+        do {
+            try Self.recoverInterruptedReplacement(
+                directory: extensionsDirectory, name: Self.supportedExtensionID,
+                backupPrefix: ".previous-", fileManager: fileManager
+            )
+        } catch {
+            recoveryIssue = error.localizedDescription
+        }
+    }
+
+    static func recoverInterruptedReplacement(
+        directory: URL, name: String, backupPrefix: String, fileManager: FileManager
+    ) throws {
+        let destination = directory.appendingPathComponent(name, isDirectory: true)
+        guard !fileManager.fileExists(atPath: destination.path),
+              fileManager.fileExists(atPath: directory.path) else { return }
+        let backups = try fileManager.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.contentModificationDateKey]
+        ).filter { $0.lastPathComponent.hasPrefix(backupPrefix) }
+        guard let newest = backups.max(by: {
+            let left = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let right = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return left < right
+        }) else { return }
+        try fileManager.moveItem(at: newest, to: destination)
+    }
+
+    static func discardBackups(directory: URL, prefix: String, fileManager: FileManager) throws {
+        guard fileManager.fileExists(atPath: directory.path) else { return }
+        for item in try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: []) {
+            if item.lastPathComponent.hasPrefix(prefix) {
+                try fileManager.removeItem(at: item)
+            }
+        }
+    }
+
+    var existingRoot: URL? {
+        let root = extensionsDirectory.appendingPathComponent(Self.supportedExtensionID, isDirectory: true)
+        return fileManager.fileExists(atPath: root.path) ? root : nil
     }
 
     var installedExtensionRoot: URL? {
-        let root = extensionsDirectory.appendingPathComponent(Self.supportedExtensionID, isDirectory: true)
-        let manifest = root.appendingPathComponent("manifest.json")
-        return fileManager.fileExists(atPath: manifest.path) ? root : nil
+        guard let root = existingRoot else { return nil }
+        return fileManager.fileExists(atPath: root.appendingPathComponent("manifest.json").path) ? root : nil
     }
 
     func installedManifest() throws -> InstalledExtensionManifest? {
@@ -46,7 +116,18 @@ final class ExtensionInstallStore {
         }
 
         let downloadURL = try Self.chromeWebStoreDownloadURL(extensionID: extensionID)
-        let (crxData, response) = try await URLSession.shared.data(from: downloadURL)
+        // Stream to disk and cancel oversized CRX transfers before they complete.
+        let limiter = LimitedPackageDownload(limit: Int64(Self.maximumPackageBytes + (1 << 18)))
+        let temporaryURL: URL
+        let response: URLResponse
+        do {
+            (temporaryURL, response) = try await URLSession.shared.download(
+                for: URLRequest(url: downloadURL), delegate: limiter
+            )
+        } catch {
+            if limiter.didExceedLimit { throw ExtensionInstallError.packageTooLarge }
+            throw error
+        }
 
         guard let http = response as? HTTPURLResponse,
               (200..<300).contains(http.statusCode),
@@ -55,6 +136,11 @@ final class ExtensionInstallStore {
             throw ExtensionInstallError.untrustedDownloadResponse
         }
 
+        let byteCount = (try FileManager.default.attributesOfItem(atPath: temporaryURL.path)[.size] as? NSNumber)?.intValue ?? 0
+        guard byteCount > 0, byteCount <= Self.maximumPackageBytes + (1 << 18) else {
+            throw ExtensionInstallError.packageTooLarge
+        }
+        let crxData = try Data(contentsOf: temporaryURL, options: [.mappedIfSafe])
         let zipPayload = try CRX3Package.verifiedZIPPayload(from: crxData, expectedExtensionID: extensionID)
         return try installZIPData(
             zipPayload,
@@ -81,8 +167,8 @@ final class ExtensionInstallStore {
     }
 
     func uninstall() throws {
-        guard let root = installedExtensionRoot else { return }
-        try fileManager.removeItem(at: root)
+        if let root = existingRoot { try fileManager.removeItem(at: root) }
+        try Self.discardBackups(directory: extensionsDirectory, prefix: ".previous-", fileManager: fileManager)
     }
 
     private func installZIPData(
@@ -133,19 +219,33 @@ final class ExtensionInstallStore {
             )
             if hadPrevious { try? fileManager.removeItem(at: previous) }
         } catch {
-            try? fileManager.removeItem(at: destination)
-            if hadPrevious, fileManager.fileExists(atPath: previous.path) {
-                try? fileManager.moveItem(at: previous, to: destination)
+            let installationError = error
+            do {
+                if fileManager.fileExists(atPath: destination.path) {
+                    try fileManager.removeItem(at: destination)
+                }
+                if hadPrevious, fileManager.fileExists(atPath: previous.path) {
+                    try fileManager.moveItem(at: previous, to: destination)
+                }
+            } catch {
+                // Keep the .previous directory for manual recovery.
+                throw ExtensionInstallError.rollbackFailed(installationError.localizedDescription, error.localizedDescription)
             }
-            throw error
+            throw installationError
         }
 
         return manifest
     }
 
     private static func extensionID(from storeURL: URL) throws -> String {
-        let candidate = storeURL.pathComponents.last(where: { $0.count == 32 })
-            ?? (storeURL.absoluteString.count == 32 ? storeURL.absoluteString : nil)
+        let rawID = storeURL.scheme == nil && storeURL.absoluteString.count == 32
+        guard rawID || (storeURL.scheme == "https" &&
+                        storeURL.host?.lowercased() == "chromewebstore.google.com") else {
+            throw ExtensionInstallError.invalidChromeWebStoreURL
+        }
+        let candidate = rawID
+            ? storeURL.absoluteString
+            : storeURL.pathComponents.last(where: { $0.count == 32 })
         guard let candidate,
               candidate.count == 32,
               candidate.allSatisfy({ ("a"..."p").contains(String($0)) }) else {
@@ -254,15 +354,24 @@ final class ExtensionInstallStore {
             throw ExtensionInstallError.missingRequiredCapability("x.com host match")
         }
 
+        // The WebKit runtime always loads these Nyatto resources, even if
+        // the manifest itself does not explicitly reference them.
         let referencedFiles = scripts.flatMap(\.js)
             + scripts.flatMap { $0.css ?? [] }
             + [manifest.background?.serviceWorker].compactMap { $0 }
+            + ["popup.html", "xff-assets.js"]
         for relativePath in referencedFiles {
-            guard safeExistingFile(relativePath, under: root) != nil else {
+            guard let file = safeExistingFile(relativePath, under: root),
+                  (try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]))?.isRegularFile == true else {
                 throw ExtensionInstallError.missingReferencedFile(relativePath)
             }
+            if relativePath.hasSuffix(".js") || relativePath.hasSuffix(".css") {
+                guard (try? String(contentsOf: file, encoding: .utf8)) != nil else {
+                    throw ExtensionInstallError.missingReferencedFile(relativePath)
+                }
+            }
         }
-
+        _ = try PackedAssetStore(root: root)
         return manifest
     }
 
@@ -361,6 +470,7 @@ enum ExtensionInstallError: LocalizedError {
     case expandedPackageTooLarge
     case unsafeArchivePath(String)
     case symbolicLinkNotAllowed(String)
+    case rollbackFailed(String, String)
 
     var errorDescription: String? {
         switch self {
@@ -392,6 +502,8 @@ enum ExtensionInstallError: LocalizedError {
             "ZIP内に安全でないパスがあります: \(path)"
         case .symbolicLinkNotAllowed(let path):
             "ZIP内のシンボリックリンクは許可されていません: \(path)"
+        case .rollbackFailed(let install, let recovery):
+            "更新に失敗し、旧版の復元にも失敗しました（更新: \(install)、復元: \(recovery)）。修復が必要です。"
         }
     }
 }

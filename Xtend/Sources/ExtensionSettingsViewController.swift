@@ -6,6 +6,8 @@ import WebKit
 @MainActor
 final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerDelegate {
     private let onReload: () -> Void
+    private let onChange: () -> Void
+    private let onFinish: () -> Void
     private let scrollView = UIScrollView()
     private let stack = UIStackView()
     private let installedList = InstalledExtensionsListView()
@@ -15,8 +17,10 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private let status = UILabel()
     private var busy = false
 
-    init(onReload: @escaping () -> Void) {
+    init(onReload: @escaping () -> Void, onChange: @escaping () -> Void, onFinish: @escaping () -> Void) {
         self.onReload = onReload
+        self.onChange = onChange
+        self.onFinish = onFinish
         super.init(nibName: nil, bundle: nil)
         title = "Xtendの設定"
     }
@@ -29,7 +33,11 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         view.backgroundColor = .systemGroupedBackground
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             systemItem: .done,
-            primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) }
+            primaryAction: UIAction { [weak self] _ in
+                guard let self else { return }
+                let onFinish = self.onFinish
+                self.dismiss(animated: true, completion: onFinish)
+            }
         )
         setup()
         refreshInstalled(animated: false)
@@ -109,7 +117,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         stack.addArrangedSubview(reloadButton)
 
         let hint = UILabel()
-        hint.text = "拡張機能の追加・削除は、ページの再読み込み後に反映されます。"
+        hint.text = "拡張機能の追加・更新・削除は、設定画面を閉じると自動反映されます。"
         hint.font = .preferredFont(forTextStyle: .footnote)
         hint.numberOfLines = 0
         hint.textColor = .secondaryLabel
@@ -126,6 +134,8 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
     private func setBusy(_ busy: Bool, message: String?) {
         self.busy = busy
+        isModalInPresentation = busy
+        navigationItem.rightBarButtonItem?.isEnabled = !busy
         installForm.setBusy(busy)
         reloadButton.isEnabled = !busy
         status.text = message
@@ -147,6 +157,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
                 _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
                 setBusy(false, message: nil)
                 refreshInstalled(animated: true)
+                onChange()
             } catch {
                 setBusy(false, message: nil)
                 showError(error)
@@ -163,19 +174,25 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let url = urls.first else { return }
+        guard let url = urls.first, !busy else { return }
         setBusy(true, message: "ZIPファイルを検証しています…")
-        do {
+        Task { [weak self] in
             do {
-                _ = try XHomeAnchorInstallStore().installFromZIP(url)
-            } catch XHomeAnchorInstallError.unsupportedPackage {
-                _ = try ExtensionInstallStore().installFromZIP(url)
+                try await Task.detached(priority: .userInitiated) {
+                    do {
+                        _ = try XHomeAnchorInstallStore().installFromZIP(url)
+                    } catch XHomeAnchorInstallError.unsupportedPackage {
+                        _ = try ExtensionInstallStore().installFromZIP(url)
+                    }
+                }.value
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+                onChange()
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
             }
-            setBusy(false, message: nil)
-            refreshInstalled(animated: true)
-        } catch {
-            setBusy(false, message: nil)
-            showError(error)
         }
     }
 
@@ -190,6 +207,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
             do {
                 try InstalledExtensionCatalog.remove(id: item.id)
                 self?.refreshInstalled(animated: true)
+                self?.onChange()
             } catch {
                 self?.showError(error)
             }
@@ -229,7 +247,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
         guard extensionID == ExtensionInstallStore.supportedExtensionID else {
             throw RuntimeError.missingResource(extensionID)
         }
-        let runtime = try ExtensionRuntime()
+        let runtime = ExtensionRuntime()
         let (configuration, host) = try runtime.makeSettingsConfiguration()
         self.configuration = configuration
         self.host = host

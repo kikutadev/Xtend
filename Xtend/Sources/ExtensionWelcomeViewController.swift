@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 @MainActor
 final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDelegate {
-    private let installStore = ExtensionInstallStore()
     private let onContinue: () -> Void
 
     private let scrollView = UIScrollView()
@@ -147,7 +146,9 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await installStore.installFromChromeWebStore(url)
+                _ = try await Task.detached(priority: .userInitiated) {
+                    try await ExtensionInstallStore().installFromChromeWebStore(url)
+                }.value
                 setBusy(false, message: nil)
                 refreshInstalled(animated: true)
             } catch {
@@ -166,19 +167,24 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let url = urls.first else { return }
+        guard let url = urls.first, !busy else { return }
         setBusy(true, message: "ZIPファイルを検証しています…")
-        do {
+        Task { [weak self] in
             do {
-                _ = try XHomeAnchorInstallStore().installFromZIP(url)
-            } catch XHomeAnchorInstallError.unsupportedPackage {
-                _ = try installStore.installFromZIP(url)
+                try await Task.detached(priority: .userInitiated) {
+                    do {
+                        _ = try XHomeAnchorInstallStore().installFromZIP(url)
+                    } catch XHomeAnchorInstallError.unsupportedPackage {
+                        _ = try ExtensionInstallStore().installFromZIP(url)
+                    }
+                }.value
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
             }
-            setBusy(false, message: nil)
-            refreshInstalled(animated: true)
-        } catch {
-            setBusy(false, message: nil)
-            showError(error)
         }
     }
 

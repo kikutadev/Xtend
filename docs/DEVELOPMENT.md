@@ -43,6 +43,18 @@ xcrun simctl launch booted org.example.xtend
 
 Releaseビルドは `-configuration Release` に変更します。生成先は `.build/DerivedData/Build/Products/Release-iphonesimulator/Xtend.app` です。いずれもSimulator専用で、iPhone実機にインストールできません。
 
+## 自動テスト（Phase 2）
+
+`xcodegen generate`後、`xcrun simctl list devices available`でSimulatorのIDを確認して実行します。
+
+```sh
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -configuration Debug -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \
+  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO test
+```
+
+合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。Xへのログイン、Chrome Web Storeからの実ダウンロード、実拡張機能とスクロール位置の復元は別途実機で確認します。
+
 ## x-home-anchorのビルド済みZIPを作る場合
 
 一般の利用者は [x-home-anchorのGitHubリポジトリ](https://github.com/akiweb8528/x-home-anchor) のReleasesで配布されるビルド済みZIPを利用してください。ソースから作成する場合はNode.js 22.18以降を用意します。
