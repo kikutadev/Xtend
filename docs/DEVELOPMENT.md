@@ -57,6 +57,19 @@ xcodebuild -project Xtend.xcodeproj -scheme Xtend \
 
 Mac上でSimulatorのGUIを開かずに実行する場合は、既存のSimulatorを`xcrun simctl boot <SimulatorのUUID>`（未起動時のみ）と`xcrun simctl bootstatus <SimulatorのUUID> -b`で起動し、上記の`xcodebuild`を実行します。UIテストが起動するXtendのデータコンテナは変わる場合があるため、手動で外部ファイルをアプリコンテナへ置いておく方式をテストの前提にしないでください。Xのログイン状態やWebサイトのデータはリポジトリに保存しません。
 
+### ログイン済みSimulatorでx-home-anchorを再配置する
+
+配布用ZIPをアプリに同梱せず、ローカルの `.build/x-home-anchor.zip` から、既存のXtendデータコンテナにx-home-anchorだけを配置できます。XのCookie、設定、他の拡張機能は変更しません。既にx-home-anchorがある場合も上書きしません。
+
+```sh
+scripts/seed-simulator-x-home-anchor.sh <SimulatorのUUID>  # .build/x-home-anchor.zip を使用
+# ほかのZIPなら scripts/seed-simulator-x-home-anchor.sh <SimulatorのUUID> /path/to/x-home-anchor.zip
+xcrun simctl terminate <SimulatorのUUID> org.example.xtend
+xcrun simctl launch <SimulatorのUUID> org.example.xtend
+```
+
+このスクリプトは**拡張機能を自動削除しません**。UIテストの再インストールによりアプリデータコンテナが変わった場合は再実行できます。配布用ZIPがなくなった場合は下記の手順で再作成してください。これはXCUITestによるインストール操作の検証ではありません。
+
 Chrome Web Storeからの実ダウンロード、拡張機能変更直後の自動再読み込み、スクロール位置の精度は別途実機またはログイン済みSimulatorで検証が必要です。
 
 ## x-home-anchorのビルド済みZIPを作る場合
