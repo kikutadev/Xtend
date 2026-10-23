@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./Logo.svg" alt="Xtend ロゴ" width="144">
+  <img src="./Logo-readme.svg" alt="Xtend ロゴ" width="144">
   <h1>Xtend</h1>
   <p><strong>Chrome拡張機能をインストールできるX専用アプリ✨</strong></p>
 </div>
@@ -22,8 +22,6 @@
 Xホームの「新しいポストを表示」を押したあとも、閲覧位置を保持する拡張機能です。
 
 GitHubリポジトリのReleasesからビルド済みZIPをダウンロードし、Xtendの設定から「ZIPから読み込む」で追加してください。
-
-## 注意事項
 
 > [!WARNING]
 > - Googleアカウント経由のXログインは、埋め込みWebViewに対するGoogleのOAuth制限で動作を保証できません。Xのユーザー名・メールアドレス・電話番号でのログインを利用してください。（アプリ側で制限をかけています）
