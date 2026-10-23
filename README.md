@@ -8,14 +8,24 @@
 
 ## おすすめの拡張機能
 
-[にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng) ：このChrome拡張機能を使うためだけに作ったアプリでした。ぜひダウンロードして使ってみましょう
- 作者様：[@karou2rikon](https://x.com/karou2rikon)
+### [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
+
+このChrome拡張機能をiPhoneで使うためにXtendを作りました。ぜひダウンロードして使ってみてください。
+
+作者：[@karou2rikon](https://x.com/karou2rikon)
+
+### [x-home-anchor](https://github.com/akiweb8528/x-home-anchor)
+
+Xホームの「新しいポストを表示」を押したあとも、閲覧位置を保持する拡張機能です。
+
+GitHubリポジトリのReleasesからビルド済みZIPをダウンロードし、Xtendの設定から「ZIPから読み込む」で追加してください。
 
 ## 注意事項
 
-- Googleアカウント経由のXログインは、埋め込みWebViewに対するGoogleのOAuth制限で動作を保証できません。Xのユーザー名・メールアドレス・電話番号でのログインを利用してください。（アプリ側で制限をかけています）
-- Webkitベースの標準的なブラウザとして動作しています。しかし普通のアプリやWebブラウザとしては認識されない可能性もあります（作者本人が常用していてBAN等はされていませんが、X側の判断に依るため保証できません）。ご利用には十分ご注意をお願いいたします。
-- Chrome拡張機能はPC上のChromeでの利用が通常であるところを、このアプリではiPhoneでの利用を可能にしています。Chrome拡張機能自体の安全性については本アプリの責務外であるとのご認識の上でご利用ください。
+> [!WARNING]
+> - Googleアカウント経由のXログインは、埋め込みWebViewに対するGoogleのOAuth制限で動作を保証できません。Xのユーザー名・メールアドレス・電話番号でのログインを利用してください。（アプリ側で制限をかけています）
+> - Webkitベースの標準的なブラウザとして動作しています。しかし普通のアプリやWebブラウザとしては認識されない可能性もあります（作者本人が常用していてBAN等はされていませんが、X側の判断に依るため保証できません）。ご利用には十分ご注意をお願いいたします。
+> - Chrome拡張機能はPC上のChromeでの利用が通常であるところを、このアプリではiPhoneでの利用を可能にしています。Chrome拡張機能自体の安全性については本アプリの責務外であるとのご認識の上でご利用ください。
 
 ## iPhoneへのインストール
 
@@ -62,7 +72,7 @@ Simulatorでのビルド、Xcodeによる実機インストール、ZIPのビル
 
 右上の設定画面では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Web Storeからの取得、ZIPからのインストールができます。にゃっとランドの設定はインストール済み一覧の設定アイコンから開きます。ZIPはにゃっとランドforXかx-home-anchorのどちらかを検証して個別に導入します。
 
-x-home-anchorは[GitHubリポジトリ](https://github.com/akiweb8528/x-home-anchor)のReleasesからビルド済みZIPを取得し、「ZIPから読み込む」で追加できます。ソースからのZIP作成手順は[開発者向けドキュメント](docs/DEVELOPMENT.md)を参照してください。
+ソースからのZIP作成手順は[開発者向けドキュメント](docs/DEVELOPMENT.md)を参照してください。
 
 ## ライセンス
 
