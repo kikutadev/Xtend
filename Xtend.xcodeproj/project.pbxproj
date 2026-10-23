@@ -21,6 +21,7 @@
 		6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14307402EA85E945B44C3A40 /* Assets.xcassets */; };
 		6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */; };
 		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
+		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
@@ -29,6 +30,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		17C4A5C9FADC37E53163121C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 115E0247FEEAE4C2C3DD8F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B68C336EF33449591F6BBAD7;
+			remoteInfo = Xtend;
+		};
 		30B9F966621356FB11F0D408 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 115E0247FEEAE4C2C3DD8F64 /* Project object */;
@@ -43,11 +51,13 @@
 		0B65B670E94294446AA43DB6 /* BrowserViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewController.swift; sourceTree = "<group>"; };
 		14307402EA85E945B44C3A40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackedAssetStore.swift; sourceTree = "<group>"; };
+		3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42C7F7272D498831080B4BEC /* XtendTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
 		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
+		77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendBrowserUITests.swift; sourceTree = "<group>"; };
 		7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionWelcomeViewController.swift; sourceTree = "<group>"; };
 		89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeBridge.swift; sourceTree = "<group>"; };
 		9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallStore.swift; sourceTree = "<group>"; };
@@ -97,6 +107,14 @@
 			path = Xtend/Sources;
 			sourceTree = "<group>";
 		};
+		4051977E6210164EEE720487 /* XtendUITests */ = {
+			isa = PBXGroup;
+			children = (
+				77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */,
+			);
+			path = XtendUITests;
+			sourceTree = "<group>";
+		};
 		43D9CD062EC997D2759C99F3 /* XtendTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -120,6 +138,7 @@
 				57AA167181370387B33A8621 /* Resources */,
 				3748C9D11D4BF6B5C36B0AEC /* Sources */,
 				43D9CD062EC997D2759C99F3 /* XtendTests */,
+				4051977E6210164EEE720487 /* XtendUITests */,
 				E9655FC6D303DA29F5ABF79F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -129,6 +148,7 @@
 			children = (
 				DC87E259B9E47A6BC7598A0F /* Xtend.app */,
 				42C7F7272D498831080B4BEC /* XtendTests.xctest */,
+				3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,6 +156,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		14A3E675434A453501AC3FFC /* XtendUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E2F6D6B32858DA6D5A14F746 /* Build configuration list for PBXNativeTarget "XtendUITests" */;
+			buildPhases = (
+				BAF582935D786059E6C68695 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F9A0F0D6F0D1382C88D74970 /* PBXTargetDependency */,
+			);
+			name = XtendUITests;
+			packageProductDependencies = (
+			);
+			productName = XtendUITests;
+			productReference = 3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		3A34742F05E9A452C3792805 /* XtendTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 173CAB92B6709BC951C16C57 /* Build configuration list for PBXNativeTarget "XtendTests" */;
@@ -183,6 +221,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					14A3E675434A453501AC3FFC = {
+						TestTargetID = B68C336EF33449591F6BBAD7;
+					};
 					B68C336EF33449591F6BBAD7 = {
 						ProvisioningStyle = Automatic;
 					};
@@ -206,6 +247,7 @@
 			projectRoot = "";
 			targets = (
 				B68C336EF33449591F6BBAD7 /* Xtend */,
+				14A3E675434A453501AC3FFC /* XtendUITests */,
 				3A34742F05E9A452C3792805 /* XtendTests */,
 			);
 		};
@@ -228,6 +270,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BAF582935D786059E6C68695 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -261,6 +311,11 @@
 			isa = PBXTargetDependency;
 			target = B68C336EF33449591F6BBAD7 /* Xtend */;
 			targetProxy = 30B9F966621356FB11F0D408 /* PBXContainerItemProxy */;
+		};
+		F9A0F0D6F0D1382C88D74970 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B68C336EF33449591F6BBAD7 /* Xtend */;
+			targetProxy = 17C4A5C9FADC37E53163121C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -300,6 +355,40 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Xtend.app/Xtend";
+			};
+			name = Debug;
+		};
+		59401A5CE571BDEB10AE0EBB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.example.xtend.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Xtend;
+			};
+			name = Release;
+		};
+		594B8456F3F05F3800C88D4A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.example.xtend.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Xtend;
 			};
 			name = Debug;
 		};
@@ -488,6 +577,15 @@
 			buildConfigurations = (
 				7F5EB6ECC280FA57E7FA4CE0 /* Debug */,
 				05532FA670E44E785693FC4D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E2F6D6B32858DA6D5A14F746 /* Build configuration list for PBXNativeTarget "XtendUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				594B8456F3F05F3800C88D4A /* Debug */,
+				59401A5CE571BDEB10AE0EBB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -50,6 +50,17 @@
                ReferencedContainer = "container:Xtend.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "14A3E675434A453501AC3FFC"
+               BuildableName = "XtendUITests.xctest"
+               BlueprintName = "XtendUITests"
+               ReferencedContainer = "container:Xtend.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

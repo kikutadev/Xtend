@@ -53,7 +53,11 @@ xcodebuild -project Xtend.xcodeproj -scheme Xtend \
   -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO test
 ```
 
-合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。Xへのログイン、Chrome Web Storeからの実ダウンロード、実拡張機能とスクロール位置の復元は別途実機で確認します。
+合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。`XtendUITests`は既存のSimulator上でブラウザーが開ける場合に、設定画面の往復と手動再読み込みのUI操作を検証します。初回案内画面のままなら該当UIテストはスキップします。
+
+Mac上でSimulatorのGUIを開かずに実行する場合は、既存のSimulatorを`xcrun simctl boot <SimulatorのUUID>`（未起動時のみ）と`xcrun simctl bootstatus <SimulatorのUUID> -b`で起動し、上記の`xcodebuild`を実行します。UIテストが起動するXtendのデータコンテナは変わる場合があるため、手動で外部ファイルをアプリコンテナへ置いておく方式をテストの前提にしないでください。Xのログイン状態やWebサイトのデータはリポジトリに保存しません。
+
+Chrome Web Storeからの実ダウンロード、拡張機能変更直後の自動再読み込み、スクロール位置の精度は別途実機またはログイン済みSimulatorで検証が必要です。
 
 ## x-home-anchorのビルド済みZIPを作る場合
 

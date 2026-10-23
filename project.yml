@@ -35,6 +35,18 @@ targets:
     scheme:
       testTargets:
         - XtendTests
+        - XtendUITests
+  XtendUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: XtendUITests
+    dependencies:
+      - target: Xtend
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.example.xtend.uitests
+        GENERATE_INFOPLIST_FILE: YES
   XtendTests:
     type: bundle.unit-test
     platform: iOS
