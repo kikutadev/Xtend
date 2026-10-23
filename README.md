@@ -3,9 +3,9 @@
 
   <h1>Xtend</h1>
 
-  <p><strong>X向けのChrome拡張機能を、iPhoneでも。</strong></p>
+  <p><strong>X専用のiPhoneアプリ</strong></p>
 
-  <p>iPhoneでXを閲覧するための、WebKitベースの専用アプリです。<br>拡張機能を入れずに、そのままXを使うこともできます。</p>
+  <p>WebKitでXを閲覧し、対応するChrome拡張機能を利用できます。<br>拡張機能のインストールは任意です。</p>
 </div>
 
 ---
@@ -24,7 +24,7 @@ Xtendは**X専用**です。一般的なブラウザのアドレスバー、複�
 
 ### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
 
-Xのタイムラインを猫たちが歩き、フォロー関係やいいね履歴なども表示するChrome拡張機能です。Xtendは、この拡張機能をiPhoneでも使うために作りました。初回画面または設定から任意で追加できます。
+Xtendは、にゃっとランドforXをiPhoneで使うために作りました。初回画面または設定から任意でインストールできます。
 
 **作者：** [@karou2rikon](https://x.com/karou2rikon) · **配布：** [Chrome Web Store](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
 
