@@ -1,6 +1,6 @@
 # ADR 0001：拡張機能の障害隔離と自動反映
 
-- 状態：Accepted
+- 状態：Superseded（[ADR 0002](0002-simple-extension-reload.md)）
 - 決定日：2026-10-23
 - 関連仕様：[SPEC.md](../SPEC.md)
 - 実装・検証計画：[PHASE2_PLAN.md](../PHASE2_PLAN.md)

@@ -10,13 +10,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private weak var navigationBackButton: UIButton?
     private var pendingExtensionChanges = false
     private var hasShownExtensionWarning = false
-    private struct ReadingPosition {
-        let scrollY: Double
-        let postPath: String?
-        let postTop: Double?
-    }
-
-    private var pendingRestoration: (webView: WKWebView, position: ReadingPosition)?
     private var runtimeError: String?
     private var lastWebProcessTermination: Date?
     private var isShowingNavigationError = false
@@ -62,7 +55,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         present(alert, animated: true)
     }
 
-    private func buildBrowser(_ url: URL, restoring position: ReadingPosition? = nil) {
+    private func buildBrowser(_ url: URL) {
         let runtime = ExtensionRuntime()
         let configuration: WKWebViewConfiguration
         let host: ExtensionHost?
@@ -90,13 +83,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.webView = browser
         configure(browser)
         view.sendSubviewToBack(browser)
-        if let position,
-           (position.scrollY > 0 || position.postPath != nil),
-           canRestoreReadingPosition(at: url) {
-            pendingRestoration = (browser, position)
-        } else {
-            pendingRestoration = nil
-        }
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
     }
 
@@ -199,101 +185,11 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func applyExtensionChanges(force: Bool = false) {
-        guard pendingExtensionChanges || force, let old = webView else { return }
+        guard pendingExtensionChanges || force, let browser = webView else { return }
         pendingExtensionChanges = false
-        let url = old.url ?? URL(string: "https://x.com/home")!
-        // X can scroll its native WKScrollView while document.scrollingElement
-        // reports zero. Never prefer a zero JavaScript result to a real offset.
-        let nativeY = max(0, Double(old.scrollView.contentOffset.y))
-        let capture = """
-        (() => {
-          const y = Number(window.scrollY || document.scrollingElement?.scrollTop || 0);
-          const article = [...document.querySelectorAll('article[data-testid="tweet"]')]
-            .find(node => {
-              const rect = node.getBoundingClientRect();
-              return rect.bottom > 120 && rect.top < Math.min(window.innerHeight, 600);
-            });
-          const link = article?.querySelector('a[href*="/status/"]');
-          return {
-            y: Number.isFinite(y) ? y : 0,
-            postPath: link?.getAttribute('href') ?? null,
-            postTop: article?.getBoundingClientRect().top ?? null
-          };
-        })();
-        """
-        old.evaluateJavaScript(capture) { [weak self, weak old] result, _ in
-            Task { @MainActor [weak self, weak old] in
-                guard let self, let old, self.webView === old else { return }
-                let values = result as? [String: Any] ?? [:]
-                let scriptY = (values["y"] as? NSNumber)?.doubleValue ?? 0
-                let y = max(nativeY, scriptY.isFinite ? scriptY : 0)
-                let position = ReadingPosition(
-                    scrollY: y,
-                    postPath: values["postPath"] as? String,
-                    postTop: (values["postTop"] as? NSNumber)?.doubleValue
-                )
-                self.buildBrowser(url, restoring: position)
-            }
-        }
-    }
-
-    private func restoreReadingPosition(in browser: WKWebView, attempt: Int) {
-        guard webView === browser, let state = pendingRestoration,
-              state.webView === browser, attempt <= 6 else { return }
-        if browser.scrollView.isDragging || browser.scrollView.isDecelerating {
-            pendingRestoration = nil // Never fight a new user gesture.
-            return
-        }
-        let position = state.position
-        let pathLiteral = (try? JSONEncoder().encode(position.postPath))
-            .flatMap { String(data: $0, encoding: .utf8) } ?? "null"
-        let targetTop = position.postTop ?? 120
-        let script = """
-        (() => {
-          const targetPath = \(pathLiteral);
-          const targetTop = \(targetTop);
-          let found = false;
-          if (targetPath) {
-            const link = [...document.querySelectorAll('a[href*="/status/"]')]
-              .find(node => node.getAttribute('href') === targetPath);
-            const article = link?.closest('article');
-            if (article) {
-              window.scrollBy(0, article.getBoundingClientRect().top - targetTop);
-              found = true;
-            }
-          }
-          if (!found) window.scrollTo(0, \(position.scrollY));
-          return {
-            y: Number(window.scrollY || document.scrollingElement?.scrollTop || 0),
-            anchorFound: found
-          };
-        })();
-        """
-        browser.evaluateJavaScript(script) { [weak self, weak browser] result, _ in
-            Task { @MainActor [weak self, weak browser] in
-                guard let self, let browser, self.webView === browser else { return }
-                // WebKit's native scroll offset is needed for sites whose DOM
-                // root does not own the scroll container.
-                let scriptY = ((result as? [String: Any])?["y"] as? NSNumber)?.doubleValue ?? 0
-                let anchorFound = ((result as? [String: Any])?["anchorFound"] as? Bool) ?? false
-                if !anchorFound && scriptY < position.scrollY - 30,
-                   browser.scrollView.contentSize.height > browser.scrollView.bounds.height {
-                    let maxY = max(0, browser.scrollView.contentSize.height - browser.scrollView.bounds.height)
-                    browser.scrollView.setContentOffset(
-                        CGPoint(x: 0, y: min(position.scrollY, maxY)), animated: false
-                    )
-                }
-                if attempt == 6 {
-                    self.pendingRestoration = nil
-                } else {
-                    let delay = 0.5 + Double(attempt - 1) * 0.3
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak browser] in
-                        guard let self, let browser else { return }
-                        self.restoreReadingPosition(in: browser, attempt: attempt + 1)
-                    }
-                }
-            }
-        }
+        // Installed content scripts belong to the WebView configuration.
+        // Rebuild only when the extension package changes (or on explicit retry).
+        buildBrowser(browser.url ?? URL(string: "https://x.com/home")!)
     }
 
     func webView(
@@ -350,13 +246,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         navigationBackButton?.isHidden = isXURL(webView.url)
-        if let state = pendingRestoration, state.webView === webView {
-            if canRestoreReadingPosition(at: webView.url) {
-                restoreReadingPosition(in: webView, attempt: 1)
-            } else {
-                pendingRestoration = nil
-            }
-        }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -405,13 +294,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         present(alert, animated: true)
     }
 
-
-    private func canRestoreReadingPosition(at url: URL?) -> Bool {
-        guard isXURL(url), let path = url?.path else { return false }
-        return !path.hasPrefix("/i/flow/login") &&
-               !path.hasPrefix("/login") &&
-               !path.hasPrefix("/account/login")
-    }
 
     private func isXURL(_ url: URL?) -> Bool {
         guard let url, url.scheme == "https", let host = url.host?.lowercased() else { return false }

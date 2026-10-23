@@ -10,7 +10,6 @@
 		002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */; };
 		01BF2A583CF97702899D482D /* ExtensionStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */; };
 		086B1ED70583781DE6387302 /* ExtensionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */; };
-		0BB294D3580054A52F240E4A /* XtendContinuityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 260616ED3274BC07DD6B2B78 /* XtendContinuityUITests.swift */; };
 		10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A678E57174F3902A4809A96 /* ExtensionHost.swift */; };
 		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
 		41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */; };
@@ -52,7 +51,6 @@
 		06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledExtensionsListView.swift; sourceTree = "<group>"; };
 		0B65B670E94294446AA43DB6 /* BrowserViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewController.swift; sourceTree = "<group>"; };
 		14307402EA85E945B44C3A40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		260616ED3274BC07DD6B2B78 /* XtendContinuityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendContinuityUITests.swift; sourceTree = "<group>"; };
 		3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackedAssetStore.swift; sourceTree = "<group>"; };
 		3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42C7F7272D498831080B4BEC /* XtendTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -116,7 +114,6 @@
 			isa = PBXGroup;
 			children = (
 				77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */,
-				260616ED3274BC07DD6B2B78 /* XtendContinuityUITests.swift */,
 			);
 			path = XtendUITests;
 			sourceTree = "<group>";
@@ -284,7 +281,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */,
-				0BB294D3580054A52F240E4A /* XtendContinuityUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
