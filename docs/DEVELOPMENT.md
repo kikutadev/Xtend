@@ -88,6 +88,34 @@ zip -r ../../x-home-anchor.zip .
 
 作成される `.build/x-home-anchor.zip` をiPhoneの「ファイル」に移して、Xtendの設定画面から「ZIPから読み込む」を選びます。GitHubからダウンロードしたソースZIPはTypeScriptのままなので使えません。
 
+## X向けWXT拡張機能の共通開発用Chrome
+
+X向けの小規模Chrome拡張機能は、**X専用Chromeプロファイル `~/.wxt-shared-chrome`** を共有します。通常のChromeプロファイルや他用途のWXT開発用プロファイルには影響させません。ログイン情報はこのChrome内に保持し、リポジトリや各拡張機能へCookieをコピーしません。
+
+対象の独立したWXTプロジェクトは `../x-ad-hider/`、`../x-swipe-navigation/`、`../x-timeline-filter/` です。Timeline Filterは現状WXT開発環境だけの雛形で、投稿のフィルターは未実装です。
+
+```sh
+# pj/apps/Xtend から起動。既存のXログイン状態を再利用する
+scripts/open-x-wxt-chrome.sh
+
+# 各拡張機能ディレクトリのターミナルから
+pnpm dev
+```
+
+WXT側の `web-ext.config.ts` は `disabled: true` とし、プロジェクトごとに新しいChromeを自動起動しません。表示中のX専用Chromeで `chrome://extensions/` を開き、デベロッパーモードをONにして各プロジェクトの `.output/chrome-mv3-dev/` を**それぞれ**「パッケージ化されていない拡張機能を読み込む」で追加します。ビルド済みの配布版を確認する場合は `.output/chrome-mv3/` を別途読み込みます。複数の拡張機能を同時に有効化できますが、設定は各拡張機能IDごとに独立します。
+
+Chromeの拡張機能は一度読み込めば専用プロファイルに保存されます。更新時は必要に応じて拡張機能の再読み込みとXページの再読み込みを行います。単一のChromeプロファイルを別々のブラウザープロセスで同時起動しません。
+
+**X向け拡張機能を今後追加する場合：** そのWXTプロジェクトに次の設定を追加し、上記のX専用Chromeへ読み込みます。これにより他用途のWXTプロジェクトへ共有設定を広げず、X向けだけを明示的に参加させます。
+
+```ts
+// web-ext.config.ts
+import { defineWebExtConfig } from 'wxt';
+export default defineWebExtConfig({ disabled: true });
+```
+
+`x-swipe-navigation/qa/live-smoke.mjs` は、既存の別プロファイル（`.dev/chrome-profile`、CDP 9317）に依存する検証スクリプトです。これは共通プロファイルへ自動移行しません。**X向けの手動・統合検証**では上記の共通Chromeを使い、CDP検証のプロファイルは用途を分けます。
+
 ## X Swipe Navigation（独立WXT拡張機能）
 
 ソースはXtendと同じ親ディレクトリの `../x-swipe-navigation/` にあります。Xtendへソースコードは同梱しません。
@@ -102,7 +130,7 @@ pnpm zip
 # .output/x-swipe-navigation-0.1.0-chrome.zip が生成されます
 ```
 
-WXT開発サーバー `pnpm dev` を起動している場合は `node qa/e2e.mjs --dev` で開発ビルドも検証できます。ログイン済みXをCDPポート9317で開いている開発環境では `node qa/live-smoke.mjs` でXの実DOMに対するテストを実施できます。開発用Chromeプロファイルは `.dev/` 以下でGit対象外です。
+WXT開発サーバー `pnpm dev` を起動している場合は `node qa/e2e.mjs --dev` で開発ビルドも検証できます。ログイン済みXをCDPポート9317で開いている開発環境では `node qa/live-smoke.mjs` でXの実DOMに対するテストを実施できます。ライブスモーク検証専用のChromeプロファイルは `.dev/` 以下でGit対象外です。通常のX向けWXT開発は上記の共通プロファイルを利用します。
 
 iPhoneの「ファイル」にZIPを保存し、Xtendの設定または初回案内の「ZIPでインストール」から選択します。3種類の拡張機能は別々に検証・保存・削除されます。ソースZIPや `.output/chrome-mv3-dev` を指定せず、本番の `pnpm zip` で生成したZIPを使います。
 
