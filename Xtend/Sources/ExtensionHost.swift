@@ -80,7 +80,6 @@ final class ExtensionHost: NSObject {
     private let storageByID: [String: ExtensionStorage]
     private let resources: ExtensionResourceSchemeHandler
     private var bridges: [ChromeBridge] = []
-    private var nyattoSupport: NyattoSupport?
     private var settingsExtensionID: String?
     private weak var webView: WKWebView?
 
@@ -175,7 +174,6 @@ final class ExtensionHost: NSObject {
         let handler: (([String: Any]) throws -> [String: Any])?
         if package.id == ExtensionInstallStore.supportedExtensionID {
             let support = try NyattoSupport(root: package.root)
-            nyattoSupport = support
             handler = { message in try support.handleRuntimeMessage(message) }
         } else {
             handler = nil
@@ -185,14 +183,6 @@ final class ExtensionHost: NSObject {
         controller.addScriptMessageHandler(
             bridge, contentWorld: world,
             name: ChromeShim.bridgeName(for: package.id)
-        )
-    }
-
-    func runNyattoAcceptanceProbe() {
-        guard let webView, let nyattoSupport else { return }
-        nyattoSupport.runAcceptanceProbe(
-            on: webView,
-            in: ExtensionPackage.contentWorld(for: ExtensionInstallStore.supportedExtensionID)
         )
     }
 

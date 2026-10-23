@@ -172,7 +172,10 @@ final class ExtensionInstallStore {
     }
 
     static func validateArchive(at archiveURL: URL) throws {
-        guard let archive = Archive(url: archiveURL, accessMode: .read) else {
+        let archive: Archive
+        do {
+            archive = try Archive(url: archiveURL, accessMode: .read)
+        } catch {
             throw ExtensionInstallError.invalidZIPArchive
         }
 

@@ -192,30 +192,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         navigationBackButton?.isHidden = isXURL(webView.url)
-        guard isXURL(webView.url) else { return }
-        #if DEBUG
-        let probe = "document.documentElement.getAttribute('data-xff-cat-recovery-ready') || '0'"
-        webView.evaluateJavaScript(probe) { [weak self] result, error in
-            if let error {
-                print("NYATTO_ACCEPTANCE probe_error=\(error.localizedDescription)")
-            } else {
-                print("NYATTO_ACCEPTANCE cat_recovery_ready=\(result ?? "nil")")
-                self?.extensionHost?.runNyattoAcceptanceProbe()
-                webView.evaluateJavaScript(
-                    "typeof globalThis[Symbol.for('x-home-anchor.instance')]",
-                    in: nil,
-                    in: ExtensionPackage.contentWorld(for: ExtensionPackage.homeAnchorID)
-                ) { result in
-                    switch result {
-                    case .success(let value):
-                        print("X_HOME_ANCHOR_ACCEPTANCE installed=\(value)")
-                    case .failure(let error):
-                        print("X_HOME_ANCHOR_ACCEPTANCE error=\(error.localizedDescription)")
-                    }
-                }
-            }
-        }
-        #endif
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
