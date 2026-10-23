@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */; };
 		01BF2A583CF97702899D482D /* ExtensionStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */; };
+		05A80BEDA40B7B544A6D6480 /* BrowserExtensionReloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */; };
 		086B1ED70583781DE6387302 /* ExtensionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */; };
 		10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A678E57174F3902A4809A96 /* ExtensionHost.swift */; };
 		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
@@ -70,6 +71,7 @@
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSafetyTests.swift; sourceTree = "<group>"; };
 		F4B884C456033A9D3781F2BC /* CRX3Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRX3Package.swift; sourceTree = "<group>"; };
+		F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserExtensionReloadTests.swift; sourceTree = "<group>"; };
 		FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XHomeAnchorInstallStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -121,6 +123,7 @@
 		43D9CD062EC997D2759C99F3 /* XtendTests */ = {
 			isa = PBXGroup;
 			children = (
+				F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
 			);
 			path = XtendTests;
@@ -272,6 +275,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				05A80BEDA40B7B544A6D6480 /* BrowserExtensionReloadTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

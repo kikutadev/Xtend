@@ -167,7 +167,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
                     self?.applyExtensionChanges(force: true)
                 }
             },
-            onChange: { [weak self] in self?.pendingExtensionChanges = true },
+            onChange: { [weak self] in self?.markExtensionConfigurationChanged() },
             onFinish: { [weak self] in self?.applyExtensionChanges() }
         )
         let navigation = UINavigationController(rootViewController: settings)
@@ -184,7 +184,11 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         applyExtensionChanges()
     }
 
-    private func applyExtensionChanges(force: Bool = false) {
+    func markExtensionConfigurationChanged() {
+        pendingExtensionChanges = true
+    }
+
+    func applyExtensionChanges(force: Bool = false) {
         guard pendingExtensionChanges || force, let browser = webView else { return }
         pendingExtensionChanges = false
         // Installed content scripts belong to the WebView configuration.
