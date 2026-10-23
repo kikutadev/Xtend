@@ -4,17 +4,17 @@
   <p><strong>Chrome拡張をiPhoneで使えるX専用アプリ</strong></p>
 </div>
 
-- Chrome拡張機能を追加してXを閲覧するiPhoneアプリです。拡張機能をインストールせずにXを見ることもできます。
+<p>Chrome拡張機能を追加してXを閲覧するiPhoneアプリ✨<br>拡張機能をインストールせずにXを見ることもできます。</p>
 
 ## おすすめの拡張機能
 
-### [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
+### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
 
 このChrome拡張機能をiPhoneで使うためにXtendを作りました。ぜひダウンロードして使ってみてください。
 
-作者：[@karou2rikon](https://x.com/karou2rikon)
+作者様：[@karou2rikon](https://x.com/karou2rikon)
 
-### [x-home-anchor](https://github.com/akiweb8528/x-home-anchor)
+### 📍 [x-home-anchor](https://github.com/akiweb8528/x-home-anchor)
 
 Xホームの「新しいポストを表示」を押したあとも、閲覧位置を保持する拡張機能です。
 
