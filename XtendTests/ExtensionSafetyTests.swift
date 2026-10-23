@@ -76,6 +76,47 @@ final class ExtensionPackageValidationTests: XCTestCase {
         }
     }
 
+    func testWXTSwipePackageRequiresItsOwnBuiltScript() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let manifest = """
+        {
+          "manifest_version": 3, "name": "X Swipe Navigation", "version": "0.1.0",
+          "permissions": [], "content_scripts": [
+            {"matches": ["https://twitter.com/*", "https://x.com/*"],
+             "js": ["content-scripts/content.js"], "run_at": "document_idle"}
+          ]
+        }
+        """
+        try manifest.write(to: dir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        XCTAssertThrowsError(try XSwipeNavigationInstallStore.validateManifest(at: dir))
+        let scripts = dir.appendingPathComponent("content-scripts", isDirectory: true)
+        try FileManager.default.createDirectory(at: scripts, withIntermediateDirectories: true)
+        try "// fixture".write(to: scripts.appendingPathComponent("content.js"), atomically: true, encoding: .utf8)
+        XCTAssertEqual(try XSwipeNavigationInstallStore.validateManifest(at: dir), "0.1.0")
+        let unauthorized = manifest.replacingOccurrences(of: "\"permissions\": []", with: "\"permissions\": [\"tabs\"]")
+        try unauthorized.write(to: dir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        XCTAssertThrowsError(try XSwipeNavigationInstallStore.validateManifest(at: dir))
+    }
+
+    func testSwipeZIPInstallsAndRemovesWithoutOtherExtensions() throws {
+        let archiveBase64 = "UEsDBBQAAAAIAF0LWF3rbsN3ngAAAO0AAAANAAAAbWFuaWZlc3QuanNvbkWOzQrCMBCEXyXkKJpWvPUhvHgRpJSQrnbF/JBsW6H03c3WiLfdb2ZndpFWO7xDom6CmNA72YjTXkinLeRRXsVlxgDirCd8aGJDVv9eWaujqpkFiBYT45T5rc3IeEfgqEsmYqANL7mQzADbIgeikJqqohmJICrjbbXjsJ/wLojTnt+bEnoooVXZVZbZFUfXaeLPem9Gy/XYv0Cu7foBUEsDBBQAAAAIAF0LWF3ZLmxKEQAAAA8AAAAaAAAAY29udGVudC1zY3JpcHRzL2NvbnRlbnQuanPT11coTkxLVUjLrCgpLUoFAFBLAQIUAxQAAAAIAF0LWF3rbsN3ngAAAO0AAAANAAAAAAAAAAAAAACAAQAAAABtYW5pZmVzdC5qc29uUEsBAhQDFAAAAAgAXQtYXdkubEoRAAAADwAAABoAAAAAAAAAAAAAAIAByQAAAGNvbnRlbnQtc2NyaXB0cy9jb250ZW50LmpzUEsFBgAAAAACAAIAgwAAABIBAAAAAA=="
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let extensions = base.appendingPathComponent("Extensions", isDirectory: true)
+        let archive = base.appendingPathComponent("swipe.zip")
+        try XCTUnwrap(Data(base64Encoded: archiveBase64)).write(to: archive)
+        let store = XSwipeNavigationInstallStore(directoryOverride: extensions)
+        XCTAssertEqual(try store.installFromZIP(archive), "0.1.0")
+        let root = try XCTUnwrap(store.existingRoot)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("content-scripts/content.js").path))
+        XCTAssertEqual(try XSwipeNavigationInstallStore.validateManifest(at: root), "0.1.0")
+        try store.uninstall()
+        XCTAssertNil(store.existingRoot)
+    }
+
     func testIncompleteHomeAnchorPackageIsRejected() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -131,6 +172,31 @@ final class ExtensionRuntimeRecoveryTests: XCTestCase {
         XCTAssertNil(runtime.loadIssues[ExtensionPackage.homeAnchorID])
         let (_, host) = try runtime.makeBrowserConfiguration()
         XCTAssertNotNil(host)
+    }
+
+    func testBrokenSwipePackageDoesNotDisableHealthyHomeAnchor() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let badSwipe = base.appendingPathComponent("swipe")
+        let goodAnchor = base.appendingPathComponent("anchor")
+        try FileManager.default.createDirectory(at: badSwipe, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: goodAnchor, withIntermediateDirectories: true)
+        let manifest = """
+        {
+          "manifest_version": 3, "name": "X ホームの閲覧位置", "version": "1.0",
+          "content_scripts": [
+            {"matches": ["https://x.com/*"], "js": ["content.js"], "run_at": "document_idle"}
+          ]
+        }
+        """
+        try manifest.write(to: goodAnchor.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        try "// fixture".write(to: goodAnchor.appendingPathComponent("content.js"), atomically: true, encoding: .utf8)
+        let runtime = ExtensionRuntime(installedRoots: [
+            ExtensionPackage.swipeNavigationID: badSwipe,
+            ExtensionPackage.homeAnchorID: goodAnchor
+        ])
+        XCTAssertEqual(runtime.packages.map(\.id), [ExtensionPackage.homeAnchorID])
+        XCTAssertNotNil(runtime.loadIssues[ExtensionPackage.swipeNavigationID])
     }
 
     func testBothBrokenExtensionsAllowPlainWebView() throws {

@@ -41,6 +41,47 @@ final class XtendBrowserUITests: XCTestCase {
         returnToBrowser()
     }
 
+    func testSwipeNavigationOnLoggedInX() throws {
+        _ = try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        // Simulator evidence is captured for visual inspection because X's tab
+        // selection is not consistently exposed through WebKit accessibility.
+        func evidence(_ name: String) {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        // Let the X home feed hydrate before receiving synthetic touch input.
+        sleep(5)
+        evidence("01-before")
+        let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.34))
+        let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.34))
+        leftStart.press(forDuration: 0.1, thenDragTo: leftEnd)
+        sleep(3)
+        evidence("02-timeline-left")
+        XCTAssertTrue(web.exists)
+
+        let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.34))
+        let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.34))
+        rightStart.press(forDuration: 0.1, thenDragTo: rightEnd)
+        sleep(3)
+        evidence("03-timeline-right")
+
+        // X mobile owns the drawer DOM, the extension owns the edge gesture.
+        let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+        edge.press(forDuration: 0.1, thenDragTo: open)
+        sleep(2)
+        evidence("04-menu-open")
+        let close = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
+        let closeEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
+        close.press(forDuration: 0.1, thenDragTo: closeEnd)
+        sleep(2)
+        evidence("05-menu-close")
+        XCTAssertTrue(web.exists)
+    }
+
     func testManualReloadReturnsToXBrowser() throws {
         let settings = try launchExistingBrowser()
         openSettings(settings)

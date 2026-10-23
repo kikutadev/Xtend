@@ -88,6 +88,42 @@ zip -r ../../x-home-anchor.zip .
 
 作成される `.build/x-home-anchor.zip` をiPhoneの「ファイル」に移して、Xtendの設定画面から「ZIPから読み込む」を選びます。GitHubからダウンロードしたソースZIPはTypeScriptのままなので使えません。
 
+## X Swipe Navigation（独立WXT拡張機能）
+
+ソースはXtendと同じ親ディレクトリの `../x-swipe-navigation/` にあります。Xtendへソースコードは同梱しません。
+
+```sh
+cd ../x-swipe-navigation
+pnpm install
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm zip
+# .output/x-swipe-navigation-0.1.0-chrome.zip が生成されます
+```
+
+WXT開発サーバー `pnpm dev` を起動している場合は `node qa/e2e.mjs --dev` で開発ビルドも検証できます。ログイン済みXをCDPポート9317で開いている開発環境では `node qa/live-smoke.mjs` でXの実DOMに対するテストを実施できます。開発用Chromeプロファイルは `.dev/` 以下でGit対象外です。
+
+iPhoneの「ファイル」にZIPを保存し、Xtendの設定または初回案内の「ZIPでインストール」から選択します。3種類の拡張機能は別々に検証・保存・削除されます。ソースZIPや `.output/chrome-mv3-dev` を指定せず、本番の `pnpm zip` で生成したZIPを使います。
+
+### Simulatorによるスワイプ検証
+
+ログイン済みでXtendのXブラウザ画面が表示できるSimulatorに限り、`XtendUITests/XtendBrowserUITests.swift` の `testSwipeNavigationOnLoggedInX` がスワイプ操作と5枚のスクリーンショットを記録します。
+
+```sh
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \\
+  -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \\
+  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO \\
+  -only-testing:XtendUITests/XtendBrowserUITests/testSwipeNavigationOnLoggedInX \\
+  -resultBundlePath .build/SwipeEvidence.xcresult test
+
+xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \\
+  --output-path .build/SwipeEvidenceAttachments
+python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
+```
+
+画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。既存アプリコンテナへの拡張機能の一時配置は、ZIP選択画面を通した導入の検証には含めません。
+
 ## 配布時の注意
 
 - `.build/`、`DerivedData/`、`xcuserdata/`、`.ipa`、`.xcarchive`、署名鍵・証明書・プロビジョニングファイルをGitに追加しないでください。

@@ -45,6 +45,24 @@ enum InstalledExtensionCatalog {
                 version: "不明", icon: nil, issue: "復旧に失敗: \(issue)"
             ))
         }
+        let swipeStore = XSwipeNavigationInstallStore()
+        if let root = swipeStore.existingRoot {
+            if (try? XSwipeNavigationInstallStore.validateManifest(at: root)) != nil,
+               let package = try? ExtensionPackage.installed(id: ExtensionPackage.swipeNavigationID, root: root) {
+                result.append(info(id: package.id, root: root, manifest: package.manifest))
+            } else {
+                result.append(InstalledExtensionInfo(
+                    id: ExtensionPackage.swipeNavigationID,
+                    name: "X Swipe Navigation", version: "不明", icon: nil,
+                    issue: "拡張機能のファイルを読み込めません"
+                ))
+            }
+        } else if let issue = swipeStore.recoveryIssue {
+            result.append(InstalledExtensionInfo(
+                id: ExtensionPackage.swipeNavigationID, name: "X Swipe Navigation",
+                version: "不明", icon: nil, issue: "復旧に失敗: \(issue)"
+            ))
+        }
         return result
     }
 
@@ -54,6 +72,8 @@ enum InstalledExtensionCatalog {
             try ExtensionInstallStore().uninstall()
         case ExtensionPackage.homeAnchorID:
             try XHomeAnchorInstallStore().uninstall()
+        case ExtensionPackage.swipeNavigationID:
+            try XSwipeNavigationInstallStore().uninstall()
         default:
             return
         }

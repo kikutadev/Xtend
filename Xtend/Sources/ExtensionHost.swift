@@ -4,6 +4,7 @@ import WebKit
 /// WebKit 上で利用する、検証済みの拡張機能パッケージ。
 struct ExtensionPackage {
     static let homeAnchorID = "x-home-anchor"
+    static let swipeNavigationID = "x-swipe-navigation"
 
     let id: String
     let root: URL
@@ -63,6 +64,20 @@ final class ExtensionRuntime {
                 packages.append(try ExtensionPackage.installed(id: ExtensionPackage.homeAnchorID, root: root))
             } catch {
                 issues[ExtensionPackage.homeAnchorID] = error.localizedDescription
+            }
+        }
+        let swipeStore = XSwipeNavigationInstallStore()
+        if installedRoots == nil, let issue = swipeStore.recoveryIssue {
+            issues[ExtensionPackage.swipeNavigationID] = issue
+        }
+        let swipeRoot = installedRoots == nil
+            ? swipeStore.existingRoot : installedRoots?[ExtensionPackage.swipeNavigationID]
+        if let root = swipeRoot {
+            do {
+                _ = try XSwipeNavigationInstallStore.validateManifest(at: root)
+                packages.append(try ExtensionPackage.installed(id: ExtensionPackage.swipeNavigationID, root: root))
+            } catch {
+                issues[ExtensionPackage.swipeNavigationID] = error.localizedDescription
             }
         }
         self.packages = packages

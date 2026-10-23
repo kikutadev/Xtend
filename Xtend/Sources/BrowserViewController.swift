@@ -38,8 +38,12 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let issues = runtime?.loadIssues ?? [:]
         guard !issues.isEmpty || runtimeError != nil else { return }
         hasShownExtensionWarning = true
-        let names = issues.keys.map {
-            $0 == ExtensionPackage.homeAnchorID ? "X ホームの閲覧位置" : "にゃっとランドforX"
+        let names = issues.keys.map { id in
+            switch id {
+            case ExtensionPackage.homeAnchorID: "X ホームの閲覧位置"
+            case ExtensionPackage.swipeNavigationID: "X Swipe Navigation"
+            default: "にゃっとランドforX"
+            }
         }.sorted()
         let message = names.isEmpty
             ? (runtimeError ?? "拡張機能の読み込みに失敗しました。")
