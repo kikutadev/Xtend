@@ -4,6 +4,11 @@
   <p><strong>Chrome拡張機能をインストールできるX専用アプリ✨</strong></p>
 </div>
 
+<p align="center">
+  <a href="./docs/images/app-store/02-add-extensions.png"><img src="./docs/images/app-store/02-add-extensions.png" alt="Chrome拡張機能を追加" width="45%"></a>
+  <a href="./docs/images/app-store/03-manage-extensions.png"><img src="./docs/images/app-store/03-manage-extensions.png" alt="拡張機能を設定・管理" width="45%"></a>
+</p>
+
 ## おすすめの拡張機能
 
 ### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
