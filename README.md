@@ -1,10 +1,8 @@
 <div align="center">
   <img src="./Logo.svg" alt="Xtend ロゴ" width="144">
   <h1>Xtend</h1>
-  <p><strong>Chrome拡張をiPhoneで使えるX専用アプリ</strong></p>
+  <p><strong>Chrome拡張機能をインストールできるX専用アプリ✨</strong></p>
 </div>
-
-<p>Chrome拡張機能を追加してXを閲覧するiPhoneアプリ✨<br>拡張機能をインストールせずにXを見ることもできます。</p>
 
 ## おすすめの拡張機能
 
