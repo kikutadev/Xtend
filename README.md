@@ -1,38 +1,21 @@
 <div align="center">
-  <img src="./Logo.svg" alt="Xtend ロゴ" width="136">
-
+  <img src="./Logo.svg" alt="Xtend ロゴ" width="144">
   <h1>Xtend</h1>
-
-  <p><strong>X専用のiPhoneアプリ</strong></p>
-
-  <p>WebKitでXを閲覧し、対応するChrome拡張機能を利用できます。<br>拡張機能のインストールは任意です。</p>
+  <p><strong>Chrome拡張をiPhoneで使えるX専用アプリ</strong></p>
 </div>
 
----
-
-## できること
-
-| 機能 | 内容 |
-| --- | --- |
-| **Xを閲覧** | iPhoneのWebKitでXを開き、ログイン状態を端末内に保持します。 |
-| **拡張機能を追加** | 対応するChrome拡張機能をChrome Web StoreまたはローカルZIPから導入できます。 |
-| **設定・更新** | 右上の設定から、拡張機能の一覧・削除・再読み込み・個別の設定を操作できます。 |
-
-Xtendは**X専用**です。一般的なブラウザのアドレスバー、複数タブ、ブックマークはありません。すべてのChrome拡張機能やChrome APIに対応するものではありません。
+- Chrome拡張機能を追加してXを閲覧するiPhoneアプリです。拡張機能をインストールせずにXを見ることもできます。
 
 ## おすすめの拡張機能
 
-### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
+[にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng) ：このChrome拡張機能を使うためだけに作ったアプリでした。ぜひダウンロードして使ってみましょう
+ 作者様：[@karou2rikon](https://x.com/karou2rikon)
 
-Xtendは、にゃっとランドforXをiPhoneで使うために作りました。初回画面または設定から任意でインストールできます。
+## 注意事項
 
-**作者：** [@karou2rikon](https://x.com/karou2rikon) · **配布：** [Chrome Web Store](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
-
-### 📍 [x-home-anchor](https://github.com/akiweb8528/x-home-anchor)
-
-Xホームで「新しいポストを表示」を押した後の閲覧位置を保持する補助拡張機能です。任意で導入できます。
-
-GitHubリポジトリの**Releasesからビルド済みZIPをダウンロード**し、Xtendの設定にある「ZIPから読み込む」で追加してください。GitHubのソースZIPはそのままでは動きません。
+- Googleアカウント経由のXログインは、埋め込みWebViewに対するGoogleのOAuth制限で動作を保証できません。Xのユーザー名・メールアドレス・電話番号でのログインを利用してください。（アプリ側で制限をかけています）
+- Webkitベースの標準的なブラウザとして動作しています。しかし普通のアプリやWebブラウザとしては認識されない可能性もあります（作者本人が常用していてBAN等はされていませんが、X側の判断に依るため保証できません）。ご利用には十分ご注意をお願いいたします。
+- Chrome拡張機能はPC上のChromeでの利用が通常であるところを、このアプリではiPhoneでの利用を可能にしています。Chrome拡張機能自体の安全性については本アプリの責務外であるとのご認識の上でご利用ください。
 
 ## iPhoneへのインストール
 
@@ -75,19 +58,24 @@ xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID"
 
 Simulatorでのビルド、Xcodeによる実機インストール、ZIPのビルド手順は [開発者向けドキュメント](docs/DEVELOPMENT.md) にまとめています。
 
-## 利用前の注意
+## ZIPから拡張機能を更新
 
-> [!IMPORTANT]
-> - **Googleアカウントを使ったXログイン**は、埋め込みWebViewに対するGoogleのOAuth制限により利用できない場合があります。Xのユーザー名・メールアドレス・電話番号でログインしてください。
-> - WebKitベースでXにアクセスしますが、**X側によるアクセス制限やアカウントへの措置が生じないことは保証できません**。
-> - Chrome拡張機能は第三者のプログラムです。配布元・権限・プライバシー条件を確認したうえで導入してください。**ローカルZIPはChrome Web Storeの署名検証を行いません**。
+右上の設定画面では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Web Storeからの取得、ZIPからのインストールができます。にゃっとランドの設定はインストール済み一覧の設定アイコンから開きます。ZIPはにゃっとランドforXかx-home-anchorのどちらかを検証して個別に導入します。
 
-## ライセンスとプライバシー
+x-home-anchorは[GitHubリポジトリ](https://github.com/akiweb8528/x-home-anchor)のReleasesからビルド済みZIPを取得し、「ZIPから読み込む」で追加できます。ソースからのZIP作成手順は[開発者向けドキュメント](docs/DEVELOPMENT.md)を参照してください。
 
-Xtendの独自コードは [MIT License](LICENSE) です。ZIPの展開に利用する [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) もMITライセンスで、必要な表示は [LICENSE](LICENSE) に収録しています。外部の拡張機能にはそれぞれの配布条件が適用されます。
+## ライセンス
 
-アプリ独自の分析サーバー、アカウントシステム、テレメトリーはありません。XのCookieと拡張機能の設定は端末内に保存されます。X閲覧時はXなどのWebサイトへ、拡張機能の取得時はGoogleの配信サービスなどへ通信します。拡張機能本体の動作や通信については各配布元の説明を確認してください。
+MIT
 
-XtendはX、Google、にゃっとランドforXの公式アプリではありません。にゃっとランドforXなどの第三者拡張機能の本体・画像・音声はリポジトリやアプリに同梱していません。
+※拡張機能は、アプリの起動後、利用者がChrome Web Storeから取得する設計です。配信元が変わった場合には取得できない可能性があります。
 
-現行の実装仕様は [docs/SPEC.md](docs/SPEC.md) を参照してください。
+ローカルZIPは利用者が内容と配布元を確認したファイルだけに使用してください。ZIP経路はChrome Web StoreのCRX署名検証を行いません。
+
+このプロジェクトはX、Google、にゃっとランドforXの公式アプリではありません。
+
+## プライバシー
+
+アプリ独自の分析サーバー、アカウントシステム、テレメトリーはありません。X閲覧時はXなどのWebサイト、拡張機能の取得・更新時はGoogleの配信サービスに通信します。XのCookieはWebKitの永続データストア、拡張機能の設定は端末内に保存されます。
+
+X上で動く「にゃっとランドforX」は外部から取得する第三者のプログラムです。インストールする際には配布元の説明やプライバシー条件を確認してください。
