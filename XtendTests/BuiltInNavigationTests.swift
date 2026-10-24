@@ -16,6 +16,24 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertTrue(scripts.first?.source.contains("ScrollSnap-List") == true)
     }
 
+    func testSettingsMenuUsesBundledScriptInIsolatedWorld() throws {
+        for showTip in [false, true] {
+            let configuration = WKWebViewConfiguration()
+            try XtendSettingsMenu.install(into: configuration, showTip: showTip) { _ in }
+
+            let script = try XCTUnwrap(configuration.userContentController.userScripts.first)
+            XCTAssertEqual(configuration.userContentController.userScripts.count, 1)
+            XCTAssertEqual(script.injectionTime, .atDocumentEnd)
+            XCTAssertTrue(script.isForMainFrameOnly)
+            XCTAssertTrue(script.source.hasPrefix(
+                "const __xtendShowSettingsTip = \(showTip ? "true" : "false");\n"
+            ))
+            XCTAssertTrue(script.source.contains("xtend-native-settings-entry"))
+            XCTAssertTrue(script.source.contains("xtend-settings-tip"))
+            XCTAssertTrue(script.source.contains("bridge.postMessage({ action: 'open' })"))
+        }
+    }
+
     func testInstalledLegacySwipeIsIgnoredWithoutDisablingHealthyExtensions() throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: base) }

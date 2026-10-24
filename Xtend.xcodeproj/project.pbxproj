@@ -28,11 +28,13 @@
 		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
 		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
 		9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */; };
+		AEF4BFC76B0BE903C441E01E /* XtendSettingsMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE9117B560F9E342F5886CF /* XtendSettingsMenu.swift */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
 		C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */; };
 		CCF88D48826BAA16E03CEE49 /* ExtensionSettingsPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */; };
+		D4C44E27F5B62EC7A4B757A3 /* xtend-settings-menu.js in Resources */ = {isa = PBXBuildFile; fileRef = C50277585CDC12B8F20701C1 /* xtend-settings-menu.js */; };
 		DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */; };
 		E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */; };
 /* End PBXBuildFile section */
@@ -67,6 +69,7 @@
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
 		595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericExtensionSettingsUITests.swift; sourceTree = "<group>"; };
+		5DE9117B560F9E342F5886CF /* XtendSettingsMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendSettingsMenu.swift; sourceTree = "<group>"; };
 		7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStoreTests.swift; sourceTree = "<group>"; };
 		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
 		77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendBrowserUITests.swift; sourceTree = "<group>"; };
@@ -78,6 +81,7 @@
 		B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionResourceSchemeHandler.swift; sourceTree = "<group>"; };
 		C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInNavigationTests.swift; sourceTree = "<group>"; };
 		C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoSupport.swift; sourceTree = "<group>"; };
+		C50277585CDC12B8F20701C1 /* xtend-settings-menu.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xtend-settings-menu.js"; sourceTree = "<group>"; };
 		C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendNavigation.swift; sourceTree = "<group>"; };
 		D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStore.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -120,6 +124,7 @@
 				3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */,
 				FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */,
 				C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */,
+				5DE9117B560F9E342F5886CF /* XtendSettingsMenu.swift */,
 			);
 			name = Sources;
 			path = Xtend/Sources;
@@ -150,6 +155,7 @@
 			isa = PBXGroup;
 			children = (
 				14307402EA85E945B44C3A40 /* Assets.xcassets */,
+				C50277585CDC12B8F20701C1 /* xtend-settings-menu.js */,
 				15B3445714A6922592008694 /* xtend-swipe.js */,
 			);
 			name = Resources;
@@ -283,6 +289,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */,
+				D4C44E27F5B62EC7A4B757A3 /* xtend-settings-menu.js in Resources */,
 				037A3A2416EE96AF84E24BE5 /* xtend-swipe.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -333,6 +340,7 @@
 				C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */,
 				002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */,
 				9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */,
+				AEF4BFC76B0BE903C441E01E /* XtendSettingsMenu.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
