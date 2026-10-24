@@ -100,7 +100,7 @@ pnpm dev:shared
 
 `pnpm dev:shared` はWXT開発サーバーを起動し、ChromeのCDP（localhost:9341）で拡張機能を自動読み込みします。複数プロジェクトから同時利用でき、Chromeは1つです。Cookieは各拡張機能にはコピーしません。
 
-WXT標準のChrome自動起動はmacOSのCookie復号に影響するため無効化します。通常の `pnpm dev` はビルドのみです。新しいX用WXTプロジェクトも `../x-timeline-filter/scripts/dev-shared.mjs` を利用します。
+WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使えなくする可能性があるため無効化します。通常の `pnpm dev` はビルドのみです。**共通ランチャーはChromeを自動起動せず**、CDP 9341の接続先が指定プロファイルの通常版Chromeかを検証してから拡張機能を読み込みます。起動スクリプトも既存Chromeが動作中なら二重起動しません。起動状態・プロファイル・WXT設定が不正な場合は停止します。新しいX用WXTプロジェクトも `../x-timeline-filter/scripts/dev-shared.mjs` を利用します。 開発サーバーのポートはプロジェクト名から割り当て、同時起動時の衝突を避けます。変更が必要なら `X_WXT_PORT` を指定します。
 
 ## X Swipe Navigation（独立WXT拡張機能）
 
