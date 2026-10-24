@@ -8,6 +8,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
     private weak var navigationBackButton: UIButton?
+    private weak var settingsButton: UIButton?
+    private var pageLoadFailed = false
     private var pendingExtensionChanges = false
     private var hasShownExtensionWarning = false
     private var runtimeError: String?
@@ -75,6 +77,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             runtimeError = error.localizedDescription
             hasShownExtensionWarning = false
         }
+        installSettingsMenu(into: configuration)
         let browser = WKWebView(frame: .zero, configuration: configuration)
         host?.attach(to: browser)
         webView?.navigationDelegate = nil
@@ -106,6 +109,121 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         ])
     }
 
+    private func installSettingsMenu(into configuration: WKWebViewConfiguration) {
+        let controller = configuration.userContentController
+        let world = WKContentWorld.world(name: "Xtend.Settings")
+        controller.add(SettingsMenuBridge(browser: self), contentWorld: world, name: "xtendSettings")
+        controller.addUserScript(WKUserScript(
+            source: Self.settingsMenuScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true,
+            in: world
+        ))
+    }
+
+    fileprivate func handleSettingsMessage(_ message: WKScriptMessage) {
+        guard message.webView === webView,
+              message.frameInfo.isMainFrame,
+              ["x.com", "twitter.com"].contains(message.frameInfo.securityOrigin.host),
+              let command = message.body as? [String: Any],
+              let action = command["action"] as? String else { return }
+        switch action {
+        case "open":
+            guard presentedViewController == nil else { return }
+            openSettings()
+        case "login":
+            guard let visible = command["visible"] as? Bool else { return }
+            settingsButton?.isHidden = !pageLoadFailed && !visible
+        default:
+            break
+        }
+    }
+
+    private static let settingsMenuScript = #"""
+    (() => {
+      if (!['x.com', 'twitter.com'].includes(location.hostname)) return;
+      const bridge = window.webkit?.messageHandlers?.xtendSettings;
+      if (!bridge) return;
+      const entryID = 'xtend-native-settings-entry';
+      const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
+      let lastLogin = null;
+      let queued = false;
+
+      function loginVisible() {
+        const path = location.pathname;
+        if (loginPaths.some(p => path === p || path.startsWith(p + '/'))) return true;
+        // X can show a signed-out landing page without navigating to /login.
+        return path === '/' &&
+          !document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"]') &&
+          !!document.querySelector('a[href="/i/flow/login"], a[href="/login"], [data-testid="loginButton"]');
+      }
+
+      function findDrawer() {
+        if (innerWidth > 600) return null;
+        const toggle = document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"][aria-expanded="true"]');
+        if (!toggle || !toggle.getBoundingClientRect().width) return null;
+        return [...document.querySelectorAll('[role="dialog"]')].find(panel => {
+          const r = panel.getBoundingClientRect();
+          return r.width > 160 && r.width < innerWidth && r.height >= innerHeight * .8 && r.left < 12 && !!panel.querySelector('a[href]');
+        }) || null;
+      }
+
+      function insertSettings(drawer) {
+        if (drawer.querySelector('#' + entryID)) return;
+        const row = document.createElement('div');
+        row.id = entryID;
+        // Keep the footer on screen even when X's navigation links scroll.
+        row.style.cssText = 'position:absolute;left:0;right:0;bottom:max(64px,env(safe-area-inset-bottom));z-index:10;border-top:1px solid rgba(128,128,128,.25);background:Canvas;color:CanvasText;';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.setAttribute('aria-label', 'Xtendの設定');
+        button.style.cssText = 'box-sizing:border-box;display:flex;align-items:center;gap:16px;width:100%;min-height:52px;padding:12px 16px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-align:left;cursor:pointer;';
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        icon.setAttribute('viewBox', '0 0 24 24');
+        icon.setAttribute('width', '23');
+        icon.setAttribute('height', '23');
+        icon.setAttribute('fill', 'none');
+        icon.setAttribute('stroke', 'currentColor');
+        icon.setAttribute('stroke-width', '2');
+        icon.setAttribute('stroke-linecap', 'round');
+        icon.setAttribute('stroke-linejoin', 'round');
+        for (const d of ['M4 7h16', 'M4 17h16', 'M8 4v6', 'M16 14v6']) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          line.setAttribute('d', d);
+          icon.appendChild(line);
+        }
+        button.append(icon, document.createTextNode('Xtendの設定'));
+        button.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          bridge.postMessage({ action: 'open' });
+        });
+        row.appendChild(button);
+        drawer.appendChild(row);
+      }
+
+
+      function sync() {
+        const visible = loginVisible();
+        if (visible !== lastLogin) {
+          lastLogin = visible;
+          bridge.postMessage({ action: 'login', visible });
+        }
+        const drawer = findDrawer();
+        if (drawer) insertSettings(drawer);
+      }
+      function schedule() {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => { queued = false; sync(); });
+      }
+      new MutationObserver(schedule).observe(document.documentElement, {
+        childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded']
+      });
+      schedule();
+    })();
+    """#
+
     private func installSettingsButton() {
         var configuration = UIButton.Configuration.filled()
         configuration.image = UIImage(systemName: "slider.horizontal.3")
@@ -116,6 +234,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let button = UIButton(configuration: configuration)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityLabel = "Xtendの拡張機能設定"
+        button.isHidden = true
+        settingsButton = button
         button.layer.shadowOpacity = 0.16
         button.layer.shadowRadius = 6
         button.layer.shadowOffset = CGSize(width: 0, height: 2)
@@ -247,11 +367,15 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        pageLoadFailed = false
         updateNavigationControls(for: webView)
+        updateSettingsButton(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        pageLoadFailed = false
         updateNavigationControls(for: webView)
+        updateSettingsButton(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -267,6 +391,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let now = Date()
         if let previous = lastWebProcessTermination, now.timeIntervalSince(previous) < 30 {
             // A repeating WebContent crash must not turn into an endless reload loop.
+            pageLoadFailed = true
+            updateSettingsButton(for: webView)
             showNavigationError("Webページが繰り返し終了しました。", in: webView)
         } else {
             lastWebProcessTermination = now
@@ -277,6 +403,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private func reportNavigationFailure(_ error: Error, in webView: WKWebView) {
         guard self.webView === webView,
               (error as NSError).code != NSURLErrorCancelled else { return }
+        pageLoadFailed = true
+        updateSettingsButton(for: webView)
         showNavigationError(error.localizedDescription, in: webView)
     }
 
@@ -300,6 +428,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         present(alert, animated: true)
     }
 
+
+    private func updateSettingsButton(for webView: WKWebView, url: URL? = nil) {
+        let currentURL = url ?? webView.url
+        let path = currentURL?.path ?? ""
+        let loginPaths = ["/i/flow/login", "/i/flow/signup", "/i/flow/password_reset", "/login", "/signup", "/account/access"]
+        let isLogin = isXURL(currentURL) && loginPaths.contains { path == $0 || path.hasPrefix($0 + "/") }
+        settingsButton?.isHidden = !pageLoadFailed && !isLogin
+    }
 
     private func updateNavigationControls(for webView: WKWebView, url: URL? = nil) {
         let onX = isXURL(url ?? webView.url)
@@ -336,5 +472,19 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+}
+
+@MainActor
+private final class SettingsMenuBridge: NSObject, WKScriptMessageHandler {
+    weak var browser: BrowserViewController?
+
+    init(browser: BrowserViewController) {
+        self.browser = browser
+        super.init()
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        browser?.handleSettingsMessage(message)
     }
 }

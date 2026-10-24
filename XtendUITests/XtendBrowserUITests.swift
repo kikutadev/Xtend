@@ -8,21 +8,31 @@ final class XtendBrowserUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launchExistingBrowser() throws -> XCUIElement {
+    private func launchExistingBrowser() throws {
         app.launch()
-        let settings = app.buttons["Xtendの拡張機能設定"]
-        guard settings.waitForExistence(timeout: 15) else {
-            throw XCTSkip("Open X from Xtend's welcome screen before running the browser UI tests.")
+        guard app.webViews.firstMatch.waitForExistence(timeout: 20) else {
+            throw XCTSkip("Open X from Xtend's welcome screen before running browser UI tests.")
         }
-        XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 20),
-                      "The X browser should be available.")
-        // Login is independently verified with a headless simulator screenshot.
-        // X's WebKit accessibility text is not reliably exposed as StaticText.
-        return settings
     }
 
-    private func openSettings(_ button: XCUIElement) {
-        button.tap()
+    private func settingsEntry() -> XCUIElement {
+        let native = app.buttons["Xtendの拡張機能設定"]
+        if native.exists && native.isHittable { return native }
+
+        let web = app.webViews.firstMatch
+        let entry = web.buttons["Xtendの設定"]
+        if !entry.exists {
+            // Xtend's ordinary settings entry belongs to X's profile drawer.
+            let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+            let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+            edge.press(forDuration: 0.1, thenDragTo: open)
+        }
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Xtend settings must appear in the X drawer.")
+        return entry
+    }
+
+    private func openSettings() {
+        settingsEntry().tap()
         XCTAssertTrue(app.navigationBars["Xtendの設定"].waitForExistence(timeout: 10))
     }
 
@@ -30,14 +40,13 @@ final class XtendBrowserUITests: XCTestCase {
         let done = app.navigationBars["Xtendの設定"].buttons.firstMatch
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         done.tap()
-        XCTAssertTrue(app.buttons["Xtendの拡張機能設定"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 15),
                       "X's WebView should remain visible after closing settings.")
     }
 
     func testBrowserSettingsRoundTrip() throws {
-        let settings = try launchExistingBrowser()
-        openSettings(settings)
+        try launchExistingBrowser()
+        openSettings()
         returnToBrowser()
     }
 
@@ -46,7 +55,7 @@ final class XtendBrowserUITests: XCTestCase {
     }
 
     private func runSwipeScenario() throws {
-        _ = try launchExistingBrowser()
+        try launchExistingBrowser()
         let web = app.webViews.firstMatch
         // Simulator evidence is captured for visual inspection because X's tab
         // selection is not consistently exposed through WebKit accessibility.
@@ -88,12 +97,11 @@ final class XtendBrowserUITests: XCTestCase {
     }
 
     func testManualReloadReturnsToXBrowser() throws {
-        let settings = try launchExistingBrowser()
-        openSettings(settings)
+        try launchExistingBrowser()
+        openSettings()
         let reload = app.buttons["Xのページを再読み込み"]
         XCTAssertTrue(reload.waitForExistence(timeout: 10))
         reload.tap()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.buttons["Xtendの拡張機能設定"].waitForExistence(timeout: 15))
     }
 }
