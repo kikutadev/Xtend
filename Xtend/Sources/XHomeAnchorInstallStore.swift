@@ -2,26 +2,41 @@ import Foundation
 import ZIPFoundation
 
 /// Adds the supported X Home Anchor source ZIP without replacing Nyatto.
-@MainActor
 final class XHomeAnchorInstallStore {
     static let extensionDirectoryName = "x-home-anchor"
     private let fileManager: FileManager
     private let extensionsDirectory: URL
+    private(set) var recoveryIssue: String?
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         extensionsDirectory = support.appendingPathComponent("Extensions", isDirectory: true)
+        do {
+            try ExtensionInstallStore.recoverInterruptedReplacement(
+                directory: extensionsDirectory, name: Self.extensionDirectoryName,
+                backupPrefix: ".anchor-previous-", fileManager: fileManager
+            )
+        } catch {
+            recoveryIssue = error.localizedDescription
+        }
+    }
+
+    var existingRoot: URL? {
+        let root = extensionsDirectory.appendingPathComponent(Self.extensionDirectoryName, isDirectory: true)
+        return fileManager.fileExists(atPath: root.path) ? root : nil
     }
 
     var installedRoot: URL? {
-        let root = extensionsDirectory.appendingPathComponent(Self.extensionDirectoryName, isDirectory: true)
+        guard let root = existingRoot else { return nil }
         return (try? Self.validateManifest(at: root)) != nil ? root : nil
     }
 
     func uninstall() throws {
-        guard let root = installedRoot else { return }
-        try fileManager.removeItem(at: root)
+        if let root = existingRoot { try fileManager.removeItem(at: root) }
+        try ExtensionInstallStore.discardBackups(
+            directory: extensionsDirectory, prefix: ".anchor-previous-", fileManager: fileManager
+        )
     }
 
     @discardableResult
@@ -56,9 +71,16 @@ final class XHomeAnchorInstallStore {
             try fileManager.moveItem(at: root, to: target)
             if hasPrevious { try? fileManager.removeItem(at: previous) }
         } catch {
-            try? fileManager.removeItem(at: target)
-            if hasPrevious { try? fileManager.moveItem(at: previous, to: target) }
-            throw error
+            let installationError = error
+            do {
+                if fileManager.fileExists(atPath: target.path) { try fileManager.removeItem(at: target) }
+                if hasPrevious, fileManager.fileExists(atPath: previous.path) {
+                    try fileManager.moveItem(at: previous, to: target)
+                }
+            } catch {
+                throw ExtensionInstallError.rollbackFailed(installationError.localizedDescription, error.localizedDescription)
+            }
+            throw installationError
         }
         return version
     }

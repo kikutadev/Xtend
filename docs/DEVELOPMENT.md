@@ -43,6 +43,35 @@ xcrun simctl launch booted org.example.xtend
 
 Releaseビルドは `-configuration Release` に変更します。生成先は `.build/DerivedData/Build/Products/Release-iphonesimulator/Xtend.app` です。いずれもSimulator専用で、iPhone実機にインストールできません。
 
+## 自動テスト（Phase 2）
+
+`xcodegen generate`後、`xcrun simctl list devices available`でSimulatorのIDを確認して実行します。
+
+```sh
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -configuration Debug -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \
+  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO test
+```
+
+合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。`XtendUITests`は既存のSimulator上でブラウザーが開ける場合に、設定画面の往復と手動再読み込みのUI操作を検証します。初回案内画面のままなら該当UIテストはスキップします。
+
+Mac上でSimulatorのGUIを開かずに実行する場合は、既存のSimulatorを`xcrun simctl boot <SimulatorのUUID>`（未起動時のみ）と`xcrun simctl bootstatus <SimulatorのUUID> -b`で起動し、上記の`xcodebuild`を実行します。UIテストが起動するXtendのデータコンテナは変わる場合があるため、手動で外部ファイルをアプリコンテナへ置いておく方式をテストの前提にしないでください。Xのログイン状態やWebサイトのデータはリポジトリに保存しません。
+
+### ログイン済みSimulatorでx-home-anchorを再配置する
+
+配布用ZIPをアプリに同梱せず、ローカルの `.build/x-home-anchor.zip` から、既存のXtendデータコンテナにx-home-anchorだけを配置できます。XのCookie、設定、他の拡張機能は変更しません。既にx-home-anchorがある場合も上書きしません。
+
+```sh
+scripts/seed-simulator-x-home-anchor.sh <SimulatorのUUID>  # .build/x-home-anchor.zip を使用
+# ほかのZIPなら scripts/seed-simulator-x-home-anchor.sh <SimulatorのUUID> /path/to/x-home-anchor.zip
+xcrun simctl terminate <SimulatorのUUID> org.example.xtend
+xcrun simctl launch <SimulatorのUUID> org.example.xtend
+```
+
+このスクリプトは**拡張機能を自動削除しません**。UIテストの再インストールによりアプリデータコンテナが変わった場合は再実行できます。配布用ZIPがなくなった場合は下記の手順で再作成してください。これはXCUITestによるインストール操作の検証ではありません。
+
+Chrome Web Storeからの実ダウンロード、拡張機能変更直後の自動再読み込み（URL継続・スクロール位置は復元しない）は別途実機またはログイン済みSimulatorで検証が必要です。
+
 ## x-home-anchorのビルド済みZIPを作る場合
 
 一般の利用者は [x-home-anchorのGitHubリポジトリ](https://github.com/akiweb8528/x-home-anchor) のReleasesで配布されるビルド済みZIPを利用してください。ソースから作成する場合はNode.js 22.18以降を用意します。
@@ -58,6 +87,42 @@ zip -r ../../x-home-anchor.zip .
 ```
 
 作成される `.build/x-home-anchor.zip` をiPhoneの「ファイル」に移して、Xtendの設定画面から「ZIPから読み込む」を選びます。GitHubからダウンロードしたソースZIPはTypeScriptのままなので使えません。
+
+## X向けWXT拡張機能の共通開発用Chrome
+
+X向けWXT拡張機能 `../x-ad-hider/`、`../x-timeline-filter/` は `~/.wxt-shared-chrome` を共有します。
+
+```sh
+scripts/open-x-wxt-chrome.sh
+cd ../x-timeline-filter
+pnpm dev:shared
+```
+
+`pnpm dev:shared` はWXT開発サーバーを起動し、ChromeのCDP（localhost:9341）で拡張機能を自動読み込みします。複数プロジェクトから同時利用でき、Chromeは1つです。Cookieは各拡張機能にはコピーしません。
+
+WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使えなくする可能性があるため無効化します。通常の `pnpm dev` はビルドのみです。**共通ランチャーはChromeを自動起動せず**、CDP 9341の接続先が指定プロファイルの通常版Chromeかを検証してから拡張機能を読み込みます。起動スクリプトも既存Chromeが動作中なら二重起動しません。起動状態・プロファイル・WXT設定が不正な場合は停止します。新しいX用WXTプロジェクトも `../x-timeline-filter/scripts/dev-shared.mjs` を利用します。 開発サーバーのポートはプロジェクト名から割り当て、同時起動時の衝突を避けます。変更が必要なら `X_WXT_PORT` を指定します。
+
+## Xtend標準スワイプの検証
+
+スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。
+
+### Simulatorによるスワイプ検証
+
+ログイン済みでXtendのXブラウザ画面が表示できるSimulatorに限り、`XtendUITests/XtendBrowserUITests.swift` の `testSwipeNavigationOnLoggedInX` がスワイプ操作と5枚のスクリーンショットを記録します。
+
+```sh
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \\
+  -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \\
+  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO \\
+  -only-testing:XtendUITests/XtendBrowserUITests/testSwipeNavigationOnLoggedInX \\
+  -resultBundlePath .build/SwipeEvidence.xcresult test
+
+xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \\
+  --output-path .build/SwipeEvidenceAttachments
+python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
+```
+
+画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
 
 ## 配布時の注意
 

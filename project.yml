@@ -19,6 +19,7 @@ targets:
     sources:
       - path: Xtend/Sources
       - path: Xtend/Resources/Assets.xcassets
+      - path: Xtend/Resources/xtend-swipe.js
     dependencies:
       - package: ZIPFoundation
     settings:
@@ -33,4 +34,28 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         CODE_SIGN_STYLE: Automatic
     scheme:
-      testTargets: []
+      testTargets:
+        - XtendTests
+        - XtendUITests
+  XtendUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: XtendUITests
+    dependencies:
+      - target: Xtend
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.example.xtend.uitests
+        GENERATE_INFOPLIST_FILE: YES
+  XtendTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: XtendTests
+    dependencies:
+      - target: Xtend
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.example.xtend.tests
+        GENERATE_INFOPLIST_FILE: YES

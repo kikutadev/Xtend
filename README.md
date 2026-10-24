@@ -9,6 +9,10 @@
   <a href="./docs/images/app-store/03-manage-extensions.png"><img src="./docs/images/app-store/03-manage-extensions.png" alt="拡張機能を設定・管理" width="45%"></a>
 </p>
 
+## Xの操作ジェスチャー
+
+ホームの左右スワイプによるタブ切り替えと左メニューの開閉はXtendの標準機能です。追加のChrome拡張機能は不要です。
+
 ## おすすめの拡張機能
 
 ### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
@@ -73,9 +77,11 @@ Simulatorでのビルド、Xcodeによる実機インストール、ZIPのビル
 
 ## ZIPから拡張機能を更新
 
-右上の設定画面では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Web Storeからの取得、ZIPからのインストールができます。にゃっとランドの設定はインストール済み一覧の設定アイコンから開きます。ZIPはにゃっとランドforXかx-home-anchorのどちらかを検証して個別に導入します。
+Xtendの設定では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Chrome Web StoreのURL・ZIPからのインストールができます。X向けManifest V3のコンテンツスクリプトを持つ拡張機能を、個別の名前登録なしで追加できます。Web Storeから取得したCRX3は署名と拡張機能IDを検証し、ZIPは配布元を自分で確認してください。設定画面を同梱している拡張機能は、一覧の設定アイコンから個別の設定画面を開けます。
 
 ソースからのZIP作成手順は[開発者向けドキュメント](docs/DEVELOPMENT.md)を参照してください。
+
+XtendはChromeそのものではありません。X上のJavaScript・CSSと、拡張機能ごとの基本的な保存領域などに対応します。`background.service_worker` やChrome固有の一部API、一般の設定画面などは実行できず、拡張機能の全機能が動く保証はありません。
 
 ## ライセンス
 
