@@ -54,13 +54,30 @@ final class XtendBrowserUITests: XCTestCase {
         app.launchArguments.append("--xtend-test-show-settings-tip")
         try launchExistingBrowser()
         let web = app.webViews.firstMatch
-        let hint = web.buttons["Xtend設定の案内を閉じる"]
+        let hint = web.staticTexts["← 設定"]
         XCTAssertTrue(hint.waitForExistence(timeout: 15),
-                      "Explain where settings moved on the logged-in home screen.")
-        hint.tap()
-        XCTAssertFalse(hint.exists, "The walkthrough should disappear after acknowledgement.")
+                      "Highlight the profile menu without a text-heavy walkthrough.")
         XCTAssertFalse(app.buttons["Xtendの拡張機能設定"].isHittable,
-                       "The top-right native settings button must stay hidden during normal X use.")
+                       "The native settings button must stay hidden on X home.")
+
+        let entryEdge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let entryOpen = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+        entryEdge.press(forDuration: 0.1, thenDragTo: entryOpen)
+        let entry = web.buttons["Xtendの設定"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10),
+                      "The highlighted menu must contain Xtend settings.")
+        XCTAssertTrue(entry.isHittable)
+        XCTAssertFalse(hint.exists, "The initial spotlight label must disappear after opening the drawer.")
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "Xtend settings spotlight in X drawer"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        entry.tap()
+        XCTAssertTrue(app.navigationBars["Xtendの設定"].waitForExistence(timeout: 8))
+        returnToBrowser()
+        let initialClose = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
+        let initialCloseEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
+        initialClose.press(forDuration: 0.1, thenDragTo: initialCloseEnd)
 
         for index in 0..<4 {
             let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
