@@ -124,6 +124,26 @@ python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 
 画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
 
+## Chrome Web Store導入・削除の受入テスト
+
+既存のXtendアプリと保存データを触らず、別Bundle IDのQAアプリを同じSimulatorに導入して実際のUI操作を検証します。新規導入時のURL入力 → 拡張機能の表示 → X画面 → 設定から削除 → X画面継続 → 削除状態を確認します。外部のChrome Web Storeへアクセスするためネットワーク接続が必要です。
+
+```sh
+SIMULATOR_ID="<既存のSimulator UUID>"
+xcodegen generate
+# QAアプリを再検証するときだけ、専用Bundle IDの前回分を削除する
+xcrun simctl uninstall "$SIMULATOR_ID" org.example.xtend.acceptance 2>/dev/null || true
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+  -derivedDataPath .build/AcceptanceQA \
+  -resultBundlePath .build/AcceptanceQA.xcresult \
+  -only-testing:XtendUITests/ExtensionAcceptanceUITests/testWebStoreInstallFromWelcomeAndRemoveThroughSettings \
+  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+  PRODUCT_BUNDLE_IDENTIFIER=org.example.xtend.acceptance test
+```
+
+このテストは一般拡張機能の導入・削除UIを確認するもので、にゃっとランド固有の設定挙動や実iPhoneでの実行を証明しません。テストソースは `XtendUITests/ExtensionAcceptanceUITests.swift` です。
+
 ## 配布時の注意
 
 - `.build/`、`DerivedData/`、`xcuserdata/`、`.ipa`、`.xcarchive`、署名鍵・証明書・プロビジョニングファイルをGitに追加しないでください。
