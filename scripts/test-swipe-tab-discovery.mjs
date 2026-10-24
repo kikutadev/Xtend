@@ -54,6 +54,11 @@ check('notifications tabs regardless of URL', () => {
 check('profile tablist may be below its header', () => {
   assert.equal(findTarget(page({ pageTab: false, labels: ['Posts', 'Replies', 'Media'], top: 600 }), true).tab.id, 'Replies');
 });
+check('gesture start recognizes either neighbor without double-scanning tabs', () => {
+  assert.equal(findTarget(page({ labels: ['Posts', 'Replies', 'Media'], active: 0 })).tab.id, 'Replies');
+  assert.equal(findTarget(page({ labels: ['Posts', 'Replies', 'Media'], active: 2 })).tab.id, 'Replies');
+});
+
 check('no tab beyond the last tab', () => {
   assert.equal(findTarget(page({ active: 2 }), true), null);
 });

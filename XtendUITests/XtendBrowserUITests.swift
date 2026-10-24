@@ -44,6 +44,24 @@ final class XtendBrowserUITests: XCTestCase {
                       "X's WebView should remain visible after closing settings.")
     }
 
+    // X's selected tab is not consistently exposed through WebKit accessibility.
+    // Keep screenshots for comparing the before/after state of real X pages.
+    private func captureBrowserEvidence(_ name: String) {
+        XCTAssertEqual(app.state, .runningForeground,
+                       "Xtend must remain foreground after the gesture")
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func swipePageTab(in web: XCUIElement, y: CGFloat, left: Bool = true) {
+        let start = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.78 : 0.20, dy: y))
+        let end = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.17 : 0.80, dy: y))
+        start.press(forDuration: 0.12, thenDragTo: end)
+        sleep(2)
+    }
+
     func testBrowserSettingsRoundTrip() throws {
         try launchExistingBrowser()
         openSettings()
@@ -108,42 +126,33 @@ final class XtendBrowserUITests: XCTestCase {
     private func runSwipeScenario() throws {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch
-        // Simulator evidence is captured for visual inspection because X's tab
-        // selection is not consistently exposed through WebKit accessibility.
-        func evidence(_ name: String) {
-            XCTAssertEqual(app.state, .runningForeground, "Xtend must remain foreground after the gesture")
-            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            attachment.name = name
-            attachment.lifetime = .keepAlways
-            add(attachment)
-        }
         // Let the X home feed hydrate before receiving synthetic touch input.
         sleep(5)
-        evidence("01-before")
+        captureBrowserEvidence("01-before")
         let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.16))
         let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.16))
         leftStart.press(forDuration: 0.1, thenDragTo: leftEnd)
         sleep(3)
-        evidence("02-timeline-left")
+        captureBrowserEvidence("02-timeline-left")
         XCTAssertTrue(web.exists)
 
         let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.16))
         let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.16))
         rightStart.press(forDuration: 0.1, thenDragTo: rightEnd)
         sleep(3)
-        evidence("03-timeline-right")
+        captureBrowserEvidence("03-timeline-right")
 
         // X owns the drawer DOM; Xtend owns the edge gesture.
         let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
         let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
         edge.press(forDuration: 0.1, thenDragTo: open)
         sleep(2)
-        evidence("04-menu-open")
+        captureBrowserEvidence("04-menu-open")
         let close = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
         let closeEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
         close.press(forDuration: 0.1, thenDragTo: closeEnd)
         sleep(2)
-        evidence("05-menu-close")
+        captureBrowserEvidence("05-menu-close")
         XCTAssertTrue(web.exists)
     }
 
@@ -151,50 +160,36 @@ final class XtendBrowserUITests: XCTestCase {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch
 
-        func snapshot(_ name: String) {
-            XCTAssertEqual(app.state, .runningForeground)
-            let att = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            att.name = name
-            att.lifetime = .keepAlways
-            add(att)
-        }
-        func swipeHorizontally(y: CGFloat, left: Bool = true) {
-            let start = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.78 : 0.20, dy: y))
-            let end = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.17 : 0.80, dy: y))
-            start.press(forDuration: 0.12, thenDragTo: end)
-            sleep(2)
-        }
-
         sleep(4)
-        snapshot("home-start")
+        captureBrowserEvidence("home-start")
         let notifications = web.coordinate(withNormalizedOffset: CGVector(dx: 0.71, dy: 0.954))
         notifications.tap()
         sleep(4)
-        snapshot("notifications-before")
-        swipeHorizontally(y: 0.22)
-        snapshot("notifications-left")
-        swipeHorizontally(y: 0.22, left: false)
-        snapshot("notifications-right")
+        captureBrowserEvidence("notifications-before")
+        swipePageTab(in: web, y: 0.22)
+        captureBrowserEvidence("notifications-left")
+        swipePageTab(in: web, y: 0.22, left: false)
+        captureBrowserEvidence("notifications-right")
 
         let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.42))
         let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.64, dy: 0.42))
         edge.press(forDuration: 0.1, thenDragTo: open)
         sleep(2)
-        snapshot("profile-menu")
+        captureBrowserEvidence("profile-menu")
         // In mobile X, "Profile" is duplicated in the accessibility tree.
         // Tap the visible first drawer row at ~21% of the WebView height.
         let topMenuProfile = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.21))
         topMenuProfile.tap()
         sleep(4)
-        snapshot("profile-before")
-        swipeHorizontally(y: 0.36)
-        snapshot("profile-left-y36")
-        swipeHorizontally(y: 0.55)
-        snapshot("profile-left-y55")
-        swipeHorizontally(y: 0.55, left: false)
-        snapshot("profile-right-y55")
-        swipeHorizontally(y: 0.55, left: false)
-        snapshot("profile-right-again-y55")
+        captureBrowserEvidence("profile-before")
+        swipePageTab(in: web, y: 0.36)
+        captureBrowserEvidence("profile-left-y36")
+        swipePageTab(in: web, y: 0.55)
+        captureBrowserEvidence("profile-left-y55")
+        swipePageTab(in: web, y: 0.55, left: false)
+        captureBrowserEvidence("profile-right-y55")
+        swipePageTab(in: web, y: 0.55, left: false)
+        captureBrowserEvidence("profile-right-again-y55")
     }
 
     func testManualReloadReturnsToXBrowser() throws {

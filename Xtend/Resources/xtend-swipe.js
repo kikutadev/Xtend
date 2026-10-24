@@ -48,7 +48,9 @@
         .filter(tab => !tab.hasAttribute('disabled') && tab.getAttribute('aria-disabled') !== 'true');
       if (tabs.length < 2) continue;
       const index = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
-      const target = tabs[index + (leftSwipe ? 1 : -1)];
+      const target = leftSwipe == null
+        ? tabs[index + 1] ?? tabs[index - 1]
+        : tabs[index + (leftSwipe ? 1 : -1)];
       if (index < 0 || !target) continue;
 
       // Do not move a profile header or the tab bar itself while dragging.
@@ -95,6 +97,13 @@
     return null;
   }
 
+  function rememberSurface(gesture, surface) {
+    gesture.surface = surface;
+    gesture.originalTransform = surface?.style.transform ?? '';
+    gesture.originalTransition = surface?.style.transition ?? '';
+    gesture.originalWillChange = surface?.style.willChange ?? '';
+  }
+
   function changeVisual(gesture, dx, win, doc) {
     if (gesture.mode === 'menu-open' && !gesture.openedDuringDrag) {
       // X mounts the real drawer on profile-button click. Mount it only after
@@ -106,10 +115,7 @@
     if (gesture.mode === 'menu-open' && !gesture.surface) {
       const panel = findMenu(doc)?.menu;
       if (!panel) return;
-      gesture.surface = panel;
-      gesture.originalTransform = panel.style.transform;
-      gesture.originalTransition = panel.style.transition;
-      gesture.originalWillChange = panel.style.willChange;
+      rememberSurface(gesture, panel);
       gesture.backdrop = panel.parentElement;
       gesture.originalBackdropColor = gesture.backdrop?.style.backgroundColor ?? '';
     }
@@ -196,7 +202,8 @@
       } else {
         if (edge || isExcluded(target)) return;
         if (!target.closest('[data-testid="primaryColumn"]')) return;
-        if (!getTabTarget(doc, true) && !getTabTarget(doc, false)) return;
+        // No direction yet: only need to know whether an adjacent tab exists.
+        if (!getTabTarget(doc)) return;
         mode = 'tab';
       }
 
@@ -230,10 +237,7 @@
           const destination = getTabTarget(doc, dx < 0);
           if (!destination) { abort(); return; }
           gesture.tab = destination.tab;
-          gesture.surface = destination.surface;
-          gesture.originalTransform = destination.surface?.style.transform ?? '';
-          gesture.originalTransition = destination.surface?.style.transition ?? '';
-          gesture.originalWillChange = destination.surface?.style.willChange ?? '';
+          rememberSurface(gesture, destination.surface);
         } else if (gesture.mode === 'menu-open' && dx <= 0) {
           abort(); return;
         } else if (gesture.mode === 'menu-close' && dx >= 0) {
