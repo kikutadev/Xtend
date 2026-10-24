@@ -155,19 +155,49 @@
     }
   }
 
-  function animateTo(gesture, amount, win, then) {
-    const surface = gesture.surface;
-    if (!surface?.isConnected) { then(); return; }
-    surface.style.transition = 'transform ' + FINISH_MS + 'ms cubic-bezier(.2,.8,.2,1)';
-    surface.style.transform = 'translate3d(' + amount + 'px,0,0)';
-    win.setTimeout(then, FINISH_MS);
-  }
-
   function startSwipeNavigation(doc) {
     const browserWindow = doc.defaultView;
     if (!browserWindow) return;
     const win = browserWindow;
     let active = null;
+    let settling = null;
+
+    function cancelSettling() {
+      if (!settling) return;
+      const pending = settling;
+      settling = null;
+      win.clearTimeout(pending.timer);
+      win.clearTimeout(pending.restoreTimer);
+      pending.onCancel?.();
+      restoreVisual(pending.gesture);
+    }
+
+    function animateTo(gesture, amount, then, restoreDelay = 0, onCancel = null) {
+      const pending = { gesture, timer: 0, restoreTimer: 0, onCancel };
+      settling = pending;
+      const complete = () => {
+        if (settling !== pending) return;
+        if (win.location.pathname !== gesture.path) { cancelSettling(); return; }
+        // Restore the old timeline before X processes the target tab click.
+        // Otherwise a reused DOM surface can briefly inherit our drag transform.
+        if (!restoreDelay) restoreVisual(gesture);
+        then();
+        if (restoreDelay) {
+          pending.restoreTimer = win.setTimeout(() => {
+            if (settling !== pending) return;
+            restoreVisual(gesture);
+            settling = null;
+          }, restoreDelay);
+        } else {
+          settling = null;
+        }
+      };
+      const surface = gesture.surface;
+      if (!surface?.isConnected) { complete(); return; }
+      surface.style.transition = 'transform ' + FINISH_MS + 'ms cubic-bezier(.2,.8,.2,1)';
+      surface.style.transform = 'translate3d(' + amount + 'px,0,0)';
+      pending.timer = win.setTimeout(complete, FINISH_MS);
+    }
 
     function abort() {
       if (!active) return;
@@ -181,6 +211,7 @@
     }
 
     function onStart(event) {
+      cancelSettling();
       if (active) abort();
       if (event.touches.length !== 1 || !isElement(event.target)) return;
       const touch = event.touches[0];
@@ -197,7 +228,9 @@
         surface = menu.menu;
         toggle = menu.toggle;
       } else if (edge && win.location.pathname === '/home' &&
-                 menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
+                 menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR) &&
+                 (!isExcluded(target) ||
+                  target.closest('button[data-testid="DashButton_ProfileIcon_Link"]'))) {
         mode = 'menu-open';
         toggle = menu.toggle;
       } else {
@@ -209,7 +242,8 @@
       }
 
       active = {
-        mode, axis: 'undecided', startX: touch.clientX, startY: touch.clientY,
+        mode, axis: 'undecided', path: win.location.pathname,
+        startX: touch.clientX, startY: touch.clientY,
         x: touch.clientX, startAt: win.performance.now(),
         surface, originalTransform: surface?.style.transform ?? '',
         originalTransition: surface?.style.transition ?? '',
@@ -222,7 +256,10 @@
     function onMove(event) {
       const gesture = active;
       if (!gesture) return;
-      if (event.touches.length !== 1) { abort(); return; }
+      if (win.location.pathname !== gesture.path || event.touches.length !== 1) {
+        abort();
+        return;
+      }
       const touch = event.touches[0];
       if (!touch) return;
       const dx = touch.clientX - gesture.startX;
@@ -256,6 +293,7 @@
     function onEnd(event) {
       const gesture = active;
       if (!gesture) return;
+      if (win.location.pathname !== gesture.path) { abort(); return; }
       active = null;
       win.cancelAnimationFrame(gesture.frame);
       if (gesture.axis !== 'horizontal') {
@@ -270,17 +308,21 @@
       const committed = distance >= Math.max(MIN_SWIPE, win.innerWidth * 0.17) || fastFlick;
 
       if (gesture.mode === 'menu-open') {
+        // A fast flick may end before its scheduled animation frame executes.
+        if (!gesture.openedDuringDrag) changeVisual(gesture, dx, win, doc);
         if (!gesture.openedDuringDrag) {
           restoreVisual(gesture);
           return;
         }
         const width = gesture.surface?.getBoundingClientRect().width ?? 280;
-        animateTo(gesture, committed ? 0 : -width, win, () => {
+        animateTo(gesture, committed ? 0 : -width, () => {
           if (!committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') {
             gesture.toggle.click();
           }
-          // X owns the native 250ms drawer animation after close.
-          win.setTimeout(() => restoreVisual(gesture), committed ? 0 : 300);
+        }, committed ? 0 : 300, () => {
+          if (!committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') {
+            gesture.toggle.click();
+          }
         });
         if (committed && gesture.backdrop) {
           gesture.backdrop.style.backgroundColor = gesture.originalBackdropColor;
@@ -290,29 +332,34 @@
 
       if (gesture.mode === 'menu-close') {
         const width = gesture.surface?.getBoundingClientRect().width ?? 280;
-        animateTo(gesture, committed ? -width : 0, win, () => {
-          if (committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') gesture.toggle.click();
-          win.setTimeout(() => restoreVisual(gesture), committed ? 300 : 0);
-        });
+        animateTo(gesture, committed ? -width : 0, () => {
+          if (committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') {
+            gesture.toggle.click();
+          }
+        }, committed ? 300 : 0);
         return;
       }
 
       if (!committed) {
-        animateTo(gesture, 0, win, () => restoreVisual(gesture));
+        animateTo(gesture, 0, () => {});
       } else {
         const next = gesture.tab;
         // X controls active tab, scroll position, and content loading.
         // Complete the outgoing motion before clicking the native tab.
         const outgoing = dx < 0 ? -win.innerWidth : win.innerWidth;
-        animateTo(gesture, outgoing, win, () => {
-          restoreVisual(gesture);
-          if (next?.isConnected) next.click();
+        animateTo(gesture, outgoing, () => {
+          if (win.location.pathname === gesture.path && next?.isConnected) next.click();
         });
       }
     }
 
     function onCancel() { abort(); }
-    function onVisibility() { if (doc.visibilityState === 'hidden') abort(); }
+    function onVisibility() {
+      if (doc.visibilityState === 'hidden') {
+        abort();
+        cancelSettling();
+      }
+    }
 
     doc.addEventListener('touchstart', onStart, { capture: true, passive: true });
     doc.addEventListener('touchmove', onMove, { capture: true, passive: false });

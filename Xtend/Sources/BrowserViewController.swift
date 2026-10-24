@@ -300,12 +300,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        guard self.webView === webView else { return }
         pageLoadFailed = false
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard self.webView === webView else { return }
         pageLoadFailed = false
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
