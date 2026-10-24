@@ -20,8 +20,9 @@ chmod 700 "$profile"
 # 既にこのプロファイルが開いていればChrome側の既存プロセスへ引き継がれる。
 open -na "$chrome_app" --args \
   "--user-data-dir=$profile" \
+  --remote-debugging-port=9341 \
   --no-first-run --no-default-browser-check \
   "https://x.com/home"
 
 echo "X向けWXT共通プロファイル: $profile"
-echo "拡張機能の追加: chrome://extensions/ → デベロッパーモード → パッケージ化されていない拡張機能を読み込む"
+echo "WXT拡張機能の起動: 各プロジェクトで pnpm dev:shared"
