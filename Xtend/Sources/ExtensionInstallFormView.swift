@@ -54,7 +54,7 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
         addArrangedSubview(zipButton)
 
         let note = UILabel()
-        note.text = "ファイル選択のメニューが開きます。\nZIPをiPhoneにダウンロード後、選択してください。\n信頼できる配布元のZIPのみインストールしてください。"
+        note.text = "X向けManifest V3の拡張機能に対応します。Chrome固有のバックグラウンド処理や一部APIは動作しません。\nZIPは信頼できる配布元のものだけを選択してください。"
         note.font = .preferredFont(forTextStyle: .footnote)
         note.adjustsFontForContentSizeCategory = true
         note.textColor = .secondaryLabel

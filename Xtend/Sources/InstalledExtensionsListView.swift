@@ -45,6 +45,17 @@ enum InstalledExtensionCatalog {
                 version: "不明", icon: nil, issue: "復旧に失敗: \(issue)"
             ))
         }
+        for (id, root) in CommunityExtensionStore().installedRoots().sorted(by: { $0.key < $1.key }) {
+            if (try? CommunityExtensionStore.validateManifest(at: root)) != nil,
+               let package = try? ExtensionPackage.installed(id: id, root: root) {
+                result.append(info(id: id, root: root, manifest: package.manifest))
+            } else {
+                result.append(InstalledExtensionInfo(
+                    id: id, name: id, version: "不明", icon: nil,
+                    issue: "拡張機能のファイルを読み込めません"
+                ))
+            }
+        }
         return result
     }
 
@@ -55,7 +66,7 @@ enum InstalledExtensionCatalog {
         case ExtensionPackage.homeAnchorID:
             try XHomeAnchorInstallStore().uninstall()
         default:
-            return
+            try CommunityExtensionStore().uninstall(id: id)
         }
         // Installed extension settings must not survive uninstall.
         let prefix = "xtend.extension.storage.\(id)."

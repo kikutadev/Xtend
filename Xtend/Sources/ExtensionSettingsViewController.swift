@@ -154,7 +154,12 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
+                let id = try ExtensionInstallStore.extensionID(from: url)
+                if id == ExtensionInstallStore.supportedExtensionID {
+                    _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
+                } else {
+                    _ = try await CommunityExtensionStore().installFromChromeWebStore(url)
+                }
                 setBusy(false, message: nil)
                 refreshInstalled(animated: true)
                 onChange()
@@ -182,7 +187,11 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
                     do {
                         _ = try XHomeAnchorInstallStore().installFromZIP(url)
                     } catch XHomeAnchorInstallError.unsupportedPackage {
-                        _ = try ExtensionInstallStore().installFromZIP(url)
+                        do {
+                            _ = try ExtensionInstallStore().installFromZIP(url)
+                        } catch ExtensionInstallError.missingRequiredCapability {
+                            _ = try CommunityExtensionStore().installFromZIP(url)
+                        }
                     }
                 }.value
                 guard let self else { return }

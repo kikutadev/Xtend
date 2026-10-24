@@ -65,6 +65,18 @@ final class ExtensionRuntime {
                 issues[ExtensionPackage.homeAnchorID] = error.localizedDescription
             }
         }
+        let community = CommunityExtensionStore()
+        let roots = installedRoots == nil ? community.installedRoots() : installedRoots!
+        for (id, root) in roots.sorted(by: { $0.key < $1.key })
+            where id != ExtensionInstallStore.supportedExtensionID
+               && id != ExtensionPackage.homeAnchorID && id != "x-swipe-navigation" {
+            do {
+                _ = try CommunityExtensionStore.validateManifest(at: root)
+                packages.append(try ExtensionPackage.installed(id: id, root: root))
+            } catch {
+                issues[id] = error.localizedDescription
+            }
+        }
         self.packages = packages
         self.loadIssues = issues
         storageByID = Dictionary(uniqueKeysWithValues: packages.map {

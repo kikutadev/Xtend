@@ -175,7 +175,11 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
                     do {
                         _ = try XHomeAnchorInstallStore().installFromZIP(url)
                     } catch XHomeAnchorInstallError.unsupportedPackage {
-                        _ = try ExtensionInstallStore().installFromZIP(url)
+                        do {
+                            _ = try ExtensionInstallStore().installFromZIP(url)
+                        } catch ExtensionInstallError.missingRequiredCapability {
+                            _ = try CommunityExtensionStore().installFromZIP(url)
+                        }
                     }
                 }.value
                 guard let self else { return }

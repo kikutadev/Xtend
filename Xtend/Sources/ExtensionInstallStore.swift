@@ -115,6 +115,15 @@ final class ExtensionInstallStore {
             throw ExtensionInstallError.unsupportedExtension(extensionID)
         }
 
+        let zipPayload = try await Self.verifiedDownload(extensionID: extensionID)
+        return try installZIPData(
+            zipPayload,
+            expectedExtensionID: extensionID,
+            source: .chromeWebStore(storeURL)
+        )
+    }
+
+    static func verifiedDownload(extensionID: String) async throws -> Data {
         let downloadURL = try Self.chromeWebStoreDownloadURL(extensionID: extensionID)
         // Stream to disk and cancel oversized CRX transfers before they complete.
         let limiter = LimitedPackageDownload(limit: Int64(Self.maximumPackageBytes + (1 << 18)))
@@ -141,12 +150,7 @@ final class ExtensionInstallStore {
             throw ExtensionInstallError.packageTooLarge
         }
         let crxData = try Data(contentsOf: temporaryURL, options: [.mappedIfSafe])
-        let zipPayload = try CRX3Package.verifiedZIPPayload(from: crxData, expectedExtensionID: extensionID)
-        return try installZIPData(
-            zipPayload,
-            expectedExtensionID: extensionID,
-            source: .chromeWebStore(finalURL)
-        )
+        return try CRX3Package.verifiedZIPPayload(from: crxData, expectedExtensionID: extensionID)
     }
 
     /// Imports a source ZIP selected by the user. Local ZIPs are intentionally
@@ -237,7 +241,7 @@ final class ExtensionInstallStore {
         return manifest
     }
 
-    private static func extensionID(from storeURL: URL) throws -> String {
+    static func extensionID(from storeURL: URL) throws -> String {
         let rawID = storeURL.scheme == nil && storeURL.absoluteString.count == 32
         guard rawID || (storeURL.scheme == "https" &&
                         storeURL.host?.lowercased() == "chromewebstore.google.com") else {

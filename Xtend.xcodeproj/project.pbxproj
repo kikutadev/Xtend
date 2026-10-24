@@ -15,6 +15,7 @@
 		10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A678E57174F3902A4809A96 /* ExtensionHost.swift */; };
 		1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */; };
 		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
+		2F5B10CE47FEF1BED1002280 /* CommunityExtensionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */; };
 		41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */; };
 		4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */; };
 		4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5523AE88483B76D72E8E474B /* ChromeShim.swift */; };
@@ -31,6 +32,7 @@
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
 		C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */; };
 		DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */; };
+		E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -61,6 +63,7 @@
 		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
+		7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStoreTests.swift; sourceTree = "<group>"; };
 		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
 		77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendBrowserUITests.swift; sourceTree = "<group>"; };
 		7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionWelcomeViewController.swift; sourceTree = "<group>"; };
@@ -72,6 +75,7 @@
 		C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInNavigationTests.swift; sourceTree = "<group>"; };
 		C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoSupport.swift; sourceTree = "<group>"; };
 		C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendNavigation.swift; sourceTree = "<group>"; };
+		D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStore.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSafetyTests.swift; sourceTree = "<group>"; };
 		F4B884C456033A9D3781F2BC /* CRX3Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRX3Package.swift; sourceTree = "<group>"; };
@@ -98,6 +102,7 @@
 				0B65B670E94294446AA43DB6 /* BrowserViewController.swift */,
 				89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */,
 				5523AE88483B76D72E8E474B /* ChromeShim.swift */,
+				D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */,
 				F4B884C456033A9D3781F2BC /* CRX3Package.swift */,
 				4A678E57174F3902A4809A96 /* ExtensionHost.swift */,
 				763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */,
@@ -129,6 +134,7 @@
 			children = (
 				F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */,
 				C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */,
+				7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
 			);
 			path = XtendTests;
@@ -284,6 +290,7 @@
 			files = (
 				05A80BEDA40B7B544A6D6480 /* BrowserExtensionReloadTests.swift in Sources */,
 				1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */,
+				E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -305,6 +312,7 @@
 				58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */,
 				705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */,
 				4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */,
+				2F5B10CE47FEF1BED1002280 /* CommunityExtensionStore.swift in Sources */,
 				10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */,
 				DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */,
 				26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */,
