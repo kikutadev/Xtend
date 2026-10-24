@@ -173,13 +173,9 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
             do {
                 try await Task.detached(priority: .userInitiated) {
                     do {
-                        _ = try XSwipeNavigationInstallStore().installFromZIP(url)
-                    } catch XSwipeNavigationInstallError.unsupportedPackage {
-                        do {
-                            _ = try XHomeAnchorInstallStore().installFromZIP(url)
-                        } catch XHomeAnchorInstallError.unsupportedPackage {
-                            _ = try ExtensionInstallStore().installFromZIP(url)
-                        }
+                        _ = try XHomeAnchorInstallStore().installFromZIP(url)
+                    } catch XHomeAnchorInstallError.unsupportedPackage {
+                        _ = try ExtensionInstallStore().installFromZIP(url)
                     }
                 }.value
                 guard let self else { return }

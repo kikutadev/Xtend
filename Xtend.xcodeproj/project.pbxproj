@@ -13,6 +13,7 @@
 		05A80BEDA40B7B544A6D6480 /* BrowserExtensionReloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */; };
 		086B1ED70583781DE6387302 /* ExtensionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */; };
 		10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A678E57174F3902A4809A96 /* ExtensionHost.swift */; };
+		1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */; };
 		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
 		41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */; };
 		4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */; };
@@ -22,14 +23,12 @@
 		63EAA3269941DF7058CD6FC1 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 4C808A67CB794F23FE6E1456 /* ZIPFoundation */; };
 		6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14307402EA85E945B44C3A40 /* Assets.xcassets */; };
 		6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */; };
-		705AE353717DCE0157D4C7C9 /* EmbeddedSwipeConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DEE23687D32467B10E4923 /* EmbeddedSwipeConfigurationTests.swift */; };
 		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
 		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
 		C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */; };
-		D8D267FB95E6AC7DC26FEA79 /* XSwipeNavigationInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A34DD2B633DA76AC9F1F709 /* XSwipeNavigationInstallStore.swift */; };
 		DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */; };
 /* End PBXBuildFile section */
 
@@ -66,13 +65,12 @@
 		7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionWelcomeViewController.swift; sourceTree = "<group>"; };
 		89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeBridge.swift; sourceTree = "<group>"; };
 		9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallStore.swift; sourceTree = "<group>"; };
-		9A34DD2B633DA76AC9F1F709 /* XSwipeNavigationInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XSwipeNavigationInstallStore.swift; sourceTree = "<group>"; };
 		A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSettingsViewController.swift; sourceTree = "<group>"; };
 		AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionStorage.swift; sourceTree = "<group>"; };
 		B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionResourceSchemeHandler.swift; sourceTree = "<group>"; };
+		C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInNavigationTests.swift; sourceTree = "<group>"; };
 		C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoSupport.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E2DEE23687D32467B10E4923 /* EmbeddedSwipeConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedSwipeConfigurationTests.swift; sourceTree = "<group>"; };
 		E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSafetyTests.swift; sourceTree = "<group>"; };
 		F4B884C456033A9D3781F2BC /* CRX3Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRX3Package.swift; sourceTree = "<group>"; };
 		F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserExtensionReloadTests.swift; sourceTree = "<group>"; };
@@ -110,7 +108,6 @@
 				C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */,
 				3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */,
 				FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */,
-				9A34DD2B633DA76AC9F1F709 /* XSwipeNavigationInstallStore.swift */,
 			);
 			name = Sources;
 			path = Xtend/Sources;
@@ -128,7 +125,7 @@
 			isa = PBXGroup;
 			children = (
 				F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */,
-				E2DEE23687D32467B10E4923 /* EmbeddedSwipeConfigurationTests.swift */,
+				C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
 			);
 			path = XtendTests;
@@ -283,7 +280,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				05A80BEDA40B7B544A6D6480 /* BrowserExtensionReloadTests.swift in Sources */,
-				705AE353717DCE0157D4C7C9 /* EmbeddedSwipeConfigurationTests.swift in Sources */,
+				1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -316,7 +313,6 @@
 				571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */,
 				C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */,
 				002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */,
-				D8D267FB95E6AC7DC26FEA79 /* XSwipeNavigationInstallStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

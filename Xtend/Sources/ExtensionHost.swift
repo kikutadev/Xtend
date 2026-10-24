@@ -4,7 +4,6 @@ import WebKit
 /// WebKit 上で利用する、検証済みの拡張機能パッケージ。
 struct ExtensionPackage {
     static let homeAnchorID = "x-home-anchor"
-    static let swipeNavigationID = "x-swipe-navigation"
 
     let id: String
     let root: URL
@@ -66,20 +65,6 @@ final class ExtensionRuntime {
                 issues[ExtensionPackage.homeAnchorID] = error.localizedDescription
             }
         }
-        let swipeStore = XSwipeNavigationInstallStore()
-        if installedRoots == nil, let issue = swipeStore.recoveryIssue {
-            issues[ExtensionPackage.swipeNavigationID] = issue
-        }
-        let swipeRoot = installedRoots == nil
-            ? swipeStore.existingRoot : installedRoots?[ExtensionPackage.swipeNavigationID]
-        if let root = swipeRoot {
-            do {
-                _ = try XSwipeNavigationInstallStore.validateManifest(at: root)
-                packages.append(try ExtensionPackage.installed(id: ExtensionPackage.swipeNavigationID, root: root))
-            } catch {
-                issues[ExtensionPackage.swipeNavigationID] = error.localizedDescription
-            }
-        }
         self.packages = packages
         self.loadIssues = issues
         storageByID = Dictionary(uniqueKeysWithValues: packages.map {
@@ -87,39 +72,21 @@ final class ExtensionRuntime {
         })
     }
 
-    func makeBrowserConfiguration(embeddedSwipe: Bool = false) throws -> (WKWebViewConfiguration, ExtensionHost?) {
+    func makeBrowserConfiguration() throws -> (WKWebViewConfiguration, ExtensionHost?) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        // X redirects the bare WKWebView UA to a Safari-only custom URL.
         configuration.applicationNameForUserAgent = "Safari/604.1"
         configuration.allowsInlineMediaPlayback = true
 
-        // A/B experiment: keep the extension installed, but do not execute it
-        // alongside the embedded swipe script.
-        let activePackages = embeddedSwipe
-            ? packages.filter { $0.id != ExtensionPackage.swipeNavigationID }
-            : packages
         let host: ExtensionHost?
-        if activePackages.isEmpty {
+        if packages.isEmpty {
             host = nil
         } else {
-            let extensionHost = try ExtensionHost(packages: activePackages, storageByID: storageByID)
+            let extensionHost = try ExtensionHost(packages: packages, storageByID: storageByID)
             try extensionHost.installBrowserRuntime(into: configuration)
             host = extensionHost
         }
-
-        if embeddedSwipe {
-            guard let url = Bundle.main.url(forResource: "xtend-swipe", withExtension: "js") else {
-                throw RuntimeError.missingResource("xtend-swipe.js")
-            }
-            let javascript = try String(contentsOf: url, encoding: .utf8)
-            configuration.userContentController.addUserScript(WKUserScript(
-                source: "if (location.hostname === 'x.com' || location.hostname === 'twitter.com') {\n" + javascript + "\n}",
-                injectionTime: .atDocumentEnd,
-                forMainFrameOnly: true,
-                in: WKContentWorld.world(name: "Xtend.EmbeddedSwipe")
-            ))
-        }
+        try XtendNavigation.install(into: configuration)
         return (configuration, host)
     }
 
@@ -313,5 +280,22 @@ enum RuntimeError: LocalizedError {
         case .missingStorage(let id): "拡張機能の保存領域がありません: \(id)"
         case .invalidJSONLiteral: "拡張機能の値をJSONに変換できません。"
         }
+    }
+}
+
+// Native application behavior, independent of optional Chrome extensions.
+@MainActor
+enum XtendNavigation {
+    static func install(into configuration: WKWebViewConfiguration) throws {
+        guard let url = Bundle.main.url(forResource: "xtend-swipe", withExtension: "js") else {
+            throw RuntimeError.missingResource("xtend-swipe.js")
+        }
+        let source = try String(contentsOf: url, encoding: .utf8)
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: source,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true,
+            in: WKContentWorld.world(name: "Xtend.Navigation")
+        ))
     }
 }

@@ -9,6 +9,10 @@
   <a href="./docs/images/app-store/03-manage-extensions.png"><img src="./docs/images/app-store/03-manage-extensions.png" alt="拡張機能を設定・管理" width="45%"></a>
 </p>
 
+## Xの操作ジェスチャー
+
+ホームの左右スワイプによるタブ切り替えと左メニューの開閉はXtendの標準機能です。追加のChrome拡張機能は不要です。
+
 ## おすすめの拡張機能
 
 ### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
@@ -73,7 +77,7 @@ Simulatorでのビルド、Xcodeによる実機インストール、ZIPのビル
 
 ## ZIPから拡張機能を更新
 
-右上の設定画面では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Web Storeからの取得、ZIPからのインストールができます。にゃっとランドの設定はインストール済み一覧の設定アイコンから開きます。ZIPはにゃっとランドforX、x-home-anchor、X Swipe Navigationのいずれかを検証して個別に導入します。
+右上の設定画面では、インストール済みChrome拡張機能の一覧と削除、ページの再読み込み、Web Storeからの取得、ZIPからのインストールができます。にゃっとランドの設定はインストール済み一覧の設定アイコンから開きます。ZIPはにゃっとランドforX、x-home-anchorのいずれかを検証して個別に導入します。
 
 ソースからのZIP作成手順は[開発者向けドキュメント](docs/DEVELOPMENT.md)を参照してください。
 

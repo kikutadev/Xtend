@@ -45,23 +45,14 @@ final class XtendBrowserUITests: XCTestCase {
         try runSwipeScenario()
     }
 
-    func testEmbeddedSwipeNavigationOnLoggedInX() throws {
-        app.launchArguments = ["--xtend-embedded-swipe"]
-        try runSwipeScenario()
-    }
-
-    func testSwipeExtensionWithNativeBackGestureDisabled() throws {
-        app.launchArguments = ["--xtend-swipe-back-disabled"]
-        try runSwipeScenario()
-    }
-
     private func runSwipeScenario() throws {
         _ = try launchExistingBrowser()
         let web = app.webViews.firstMatch
         // Simulator evidence is captured for visual inspection because X's tab
         // selection is not consistently exposed through WebKit accessibility.
         func evidence(_ name: String) {
-            let attachment = XCTAttachment(screenshot: app.screenshot())
+            XCTAssertEqual(app.state, .runningForeground, "Xtend must remain foreground after the gesture")
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             attachment.name = name
             attachment.lifetime = .keepAlways
             add(attachment)

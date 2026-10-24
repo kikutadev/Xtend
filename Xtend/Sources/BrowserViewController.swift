@@ -3,22 +3,6 @@ import WebKit
 
 @MainActor
 final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, UIAdaptivePresentationControllerDelegate {
-    // A/B comparison only. Release builds keep using the installed extension.
-    // On Simulator: simctl launch <device> org.example.xtend --xtend-embedded-swipe
-    private static var embeddedSwipeExperiment: Bool {
-        #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--xtend-embedded-swipe")
-        #else
-        false
-        #endif
-    }
-    private static var nativeBackGestureDisabledExperiment: Bool {
-        #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--xtend-swipe-back-disabled")
-        #else
-        false
-        #endif
-    }
     private let initialURL: URL?
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
@@ -56,7 +40,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let names = issues.keys.map { id in
             switch id {
             case ExtensionPackage.homeAnchorID: "X ホームの閲覧位置"
-            case ExtensionPackage.swipeNavigationID: "X Swipe Navigation"
             default: "にゃっとランドforX"
             }
         }.sorted()
@@ -76,7 +59,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let configuration: WKWebViewConfiguration
         let host: ExtensionHost?
         do {
-            (configuration, host) = try runtime.makeBrowserConfiguration(embeddedSwipe: Self.embeddedSwipeExperiment)
+            (configuration, host) = try runtime.makeBrowserConfiguration()
             runtimeError = nil
         } catch {
             // Even an unexpected host failure must never lock the user out of X.
@@ -84,6 +67,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             fallback.websiteDataStore = .default()
             fallback.applicationNameForUserAgent = "Safari/604.1"
             fallback.allowsInlineMediaPlayback = true
+            // Built-in navigation must remain available even when an optional
+            // extension host unexpectedly fails.
+            try? XtendNavigation.install(into: fallback)
             configuration = fallback
             host = nil
             runtimeError = error.localizedDescription
@@ -98,6 +84,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.extensionHost = host
         self.webView = browser
         configure(browser)
+        browser.allowsBackForwardNavigationGestures = !isXURL(url)
         view.sendSubviewToBack(browser)
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
     }
@@ -106,10 +93,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        // The iOS edge-back gesture competes with the X left drawer.
-        // For the A/B test only, disable it in the embedded variant.
-        webView.allowsBackForwardNavigationGestures =
-            !(Self.embeddedSwipeExperiment || Self.nativeBackGestureDisabledExperiment)
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
         webView.isOpaque = false
         webView.backgroundColor = .systemBackground
@@ -264,11 +247,11 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        navigationBackButton?.isHidden = isXURL(webView.url)
+        updateNavigationControls(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        navigationBackButton?.isHidden = isXURL(webView.url)
+        updateNavigationControls(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -317,6 +300,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         present(alert, animated: true)
     }
 
+
+    private func updateNavigationControls(for webView: WKWebView) {
+        let onX = isXURL(webView.url)
+        navigationBackButton?.isHidden = onX
+        // X has its own back controls and left drawer. Never run WebKit's
+        // competing edge-back recognizer over X's touch-driven navigation.
+        webView.allowsBackForwardNavigationGestures = !onX
+    }
 
     private func isXURL(_ url: URL?) -> Bool {
         guard let url, url.scheme == "https", let host = url.host?.lowercased() else { return false }

@@ -90,7 +90,7 @@ zip -r ../../x-home-anchor.zip .
 
 ## X向けWXT拡張機能の共通開発用Chrome
 
-3つのWXT拡張機能 `../x-ad-hider/`、`../x-swipe-navigation/`、`../x-timeline-filter/` は `~/.wxt-shared-chrome` を共有します。
+X向けWXT拡張機能 `../x-ad-hider/`、`../x-timeline-filter/` は `~/.wxt-shared-chrome` を共有します。
 
 ```sh
 scripts/open-x-wxt-chrome.sh
@@ -102,23 +102,9 @@ pnpm dev:shared
 
 WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使えなくする可能性があるため無効化します。通常の `pnpm dev` はビルドのみです。**共通ランチャーはChromeを自動起動せず**、CDP 9341の接続先が指定プロファイルの通常版Chromeかを検証してから拡張機能を読み込みます。起動スクリプトも既存Chromeが動作中なら二重起動しません。起動状態・プロファイル・WXT設定が不正な場合は停止します。新しいX用WXTプロジェクトも `../x-timeline-filter/scripts/dev-shared.mjs` を利用します。 開発サーバーのポートはプロジェクト名から割り当て、同時起動時の衝突を避けます。変更が必要なら `X_WXT_PORT` を指定します。
 
-## X Swipe Navigation（独立WXT拡張機能）
+## Xtend標準スワイプの検証
 
-ソースはXtendと同じ親ディレクトリの `../x-swipe-navigation/` にあります。Xtendへソースコードは同梱しません。
-
-```sh
-cd ../x-swipe-navigation
-pnpm install
-pnpm typecheck
-pnpm build
-pnpm test
-pnpm zip
-# .output/x-swipe-navigation-0.1.0-chrome.zip が生成されます
-```
-
-WXT開発サーバー `pnpm dev` を起動している場合は `node qa/e2e.mjs --dev` で開発ビルドも検証できます。ログイン済みXをCDPポート9317で開いている開発環境では `node qa/live-smoke.mjs` でXの実DOMに対するテストを実施できます。ライブスモーク検証専用のChromeプロファイルは `.dev/` 以下でGit対象外です。通常のX向けWXT開発は上記の共通プロファイルを利用します。
-
-iPhoneの「ファイル」にZIPを保存し、Xtendの設定または初回案内の「ZIPでインストール」から選択します。3種類の拡張機能は別々に検証・保存・削除されます。ソースZIPや `.output/chrome-mv3-dev` を指定せず、本番の `pnpm zip` で生成したZIPを使います。
+スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。
 
 ### Simulatorによるスワイプ検証
 
@@ -136,7 +122,7 @@ xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \\
 python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 ```
 
-画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。既存アプリコンテナへの拡張機能の一時配置は、ZIP選択画面を通した導入の検証には含めません。
+画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
 
 ## 配布時の注意
 
