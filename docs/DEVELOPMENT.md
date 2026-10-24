@@ -90,31 +90,17 @@ zip -r ../../x-home-anchor.zip .
 
 ## X向けWXT拡張機能の共通開発用Chrome
 
-X向けの小規模Chrome拡張機能は、**X専用Chromeプロファイル `~/.wxt-shared-chrome`** を共有します。通常のChromeプロファイルや他用途のWXT開発用プロファイルには影響させません。ログイン情報はこのChrome内に保持し、リポジトリや各拡張機能へCookieをコピーしません。
-
-対象の独立したWXTプロジェクトは `../x-ad-hider/`、`../x-swipe-navigation/`、`../x-timeline-filter/` です。Timeline Filterは現状WXT開発環境だけの雛形で、投稿のフィルターは未実装です。
+3つのWXT拡張機能 `../x-ad-hider/`、`../x-swipe-navigation/`、`../x-timeline-filter/` は `~/.wxt-shared-chrome` を共有します。
 
 ```sh
-# pj/apps/Xtend から起動。既存のXログイン状態を再利用する
 scripts/open-x-wxt-chrome.sh
-
-# 各拡張機能ディレクトリのターミナルから
-pnpm dev
+cd ../x-timeline-filter
+pnpm dev:shared
 ```
 
-WXT側の `web-ext.config.ts` は `disabled: true` とし、プロジェクトごとに新しいChromeを自動起動しません。表示中のX専用Chromeで `chrome://extensions/` を開き、デベロッパーモードをONにして各プロジェクトの `.output/chrome-mv3-dev/` を**それぞれ**「パッケージ化されていない拡張機能を読み込む」で追加します。ビルド済みの配布版を確認する場合は `.output/chrome-mv3/` を別途読み込みます。複数の拡張機能を同時に有効化できますが、設定は各拡張機能IDごとに独立します。
+`pnpm dev:shared` はWXT開発サーバーを起動し、ChromeのCDP（localhost:9341）で拡張機能を自動読み込みします。複数プロジェクトから同時利用でき、Chromeは1つです。Cookieは各拡張機能にはコピーしません。
 
-Chromeの拡張機能は一度読み込めば専用プロファイルに保存されます。更新時は必要に応じて拡張機能の再読み込みとXページの再読み込みを行います。単一のChromeプロファイルを別々のブラウザープロセスで同時起動しません。
-
-**X向け拡張機能を今後追加する場合：** そのWXTプロジェクトに次の設定を追加し、上記のX専用Chromeへ読み込みます。これにより他用途のWXTプロジェクトへ共有設定を広げず、X向けだけを明示的に参加させます。
-
-```ts
-// web-ext.config.ts
-import { defineWebExtConfig } from 'wxt';
-export default defineWebExtConfig({ disabled: true });
-```
-
-`x-swipe-navigation/qa/live-smoke.mjs` は、既存の別プロファイル（`.dev/chrome-profile`、CDP 9317）に依存する検証スクリプトです。これは共通プロファイルへ自動移行しません。**X向けの手動・統合検証**では上記の共通Chromeを使い、CDP検証のプロファイルは用途を分けます。
+WXT標準のChrome自動起動はmacOSのCookie復号に影響するため無効化します。通常の `pnpm dev` はビルドのみです。新しいX用WXTプロジェクトも `../x-timeline-filter/scripts/dev-shared.mjs` を利用します。
 
 ## X Swipe Navigation（独立WXT拡張機能）
 
