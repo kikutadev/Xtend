@@ -171,6 +171,11 @@ final class XtendBrowserUITests: XCTestCase {
         swipePageTab(in: web, y: 0.22, left: false)
         captureBrowserEvidence("notifications-right")
 
+        // The drawer edge gesture belongs to /home only. Return home first.
+        let home = web.coordinate(withNormalizedOffset: CGVector(dx: 0.13, dy: 0.954))
+        home.tap()
+        sleep(3)
+        captureBrowserEvidence("home-before-menu")
         let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.42))
         let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.64, dy: 0.42))
         edge.press(forDuration: 0.1, thenDragTo: open)
