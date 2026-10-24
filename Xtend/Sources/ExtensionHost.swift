@@ -87,15 +87,39 @@ final class ExtensionRuntime {
         })
     }
 
-    func makeBrowserConfiguration() throws -> (WKWebViewConfiguration, ExtensionHost?) {
+    func makeBrowserConfiguration(embeddedSwipe: Bool = false) throws -> (WKWebViewConfiguration, ExtensionHost?) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         // X redirects the bare WKWebView UA to a Safari-only custom URL.
         configuration.applicationNameForUserAgent = "Safari/604.1"
         configuration.allowsInlineMediaPlayback = true
-        guard !packages.isEmpty else { return (configuration, nil) }
-        let host = try ExtensionHost(packages: packages, storageByID: storageByID)
-        try host.installBrowserRuntime(into: configuration)
+
+        // A/B experiment: keep the extension installed, but do not execute it
+        // alongside the embedded swipe script.
+        let activePackages = embeddedSwipe
+            ? packages.filter { $0.id != ExtensionPackage.swipeNavigationID }
+            : packages
+        let host: ExtensionHost?
+        if activePackages.isEmpty {
+            host = nil
+        } else {
+            let extensionHost = try ExtensionHost(packages: activePackages, storageByID: storageByID)
+            try extensionHost.installBrowserRuntime(into: configuration)
+            host = extensionHost
+        }
+
+        if embeddedSwipe {
+            guard let url = Bundle.main.url(forResource: "xtend-swipe", withExtension: "js") else {
+                throw RuntimeError.missingResource("xtend-swipe.js")
+            }
+            let javascript = try String(contentsOf: url, encoding: .utf8)
+            configuration.userContentController.addUserScript(WKUserScript(
+                source: "if (location.hostname === 'x.com' || location.hostname === 'twitter.com') {\n" + javascript + "\n}",
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: "Xtend.EmbeddedSwipe")
+            ))
+        }
         return (configuration, host)
     }
 

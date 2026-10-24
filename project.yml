@@ -19,6 +19,7 @@ targets:
     sources:
       - path: Xtend/Sources
       - path: Xtend/Resources/Assets.xcassets
+      - path: Xtend/Resources/xtend-swipe.js
     dependencies:
       - package: ZIPFoundation
     settings:

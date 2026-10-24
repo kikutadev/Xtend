@@ -3,6 +3,22 @@ import WebKit
 
 @MainActor
 final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, UIAdaptivePresentationControllerDelegate {
+    // A/B comparison only. Release builds keep using the installed extension.
+    // On Simulator: simctl launch <device> org.example.xtend --xtend-embedded-swipe
+    private static var embeddedSwipeExperiment: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--xtend-embedded-swipe")
+        #else
+        false
+        #endif
+    }
+    private static var nativeBackGestureDisabledExperiment: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--xtend-swipe-back-disabled")
+        #else
+        false
+        #endif
+    }
     private let initialURL: URL?
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
@@ -60,7 +76,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let configuration: WKWebViewConfiguration
         let host: ExtensionHost?
         do {
-            (configuration, host) = try runtime.makeBrowserConfiguration()
+            (configuration, host) = try runtime.makeBrowserConfiguration(embeddedSwipe: Self.embeddedSwipeExperiment)
             runtimeError = nil
         } catch {
             // Even an unexpected host failure must never lock the user out of X.
@@ -90,7 +106,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        webView.allowsBackForwardNavigationGestures = true
+        // The iOS edge-back gesture competes with the X left drawer.
+        // For the A/B test only, disable it in the embedded variant.
+        webView.allowsBackForwardNavigationGestures =
+            !(Self.embeddedSwipeExperiment || Self.nativeBackGestureDisabledExperiment)
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
         webView.isOpaque = false
         webView.backgroundColor = .systemBackground

@@ -42,6 +42,20 @@ final class XtendBrowserUITests: XCTestCase {
     }
 
     func testSwipeNavigationOnLoggedInX() throws {
+        try runSwipeScenario()
+    }
+
+    func testEmbeddedSwipeNavigationOnLoggedInX() throws {
+        app.launchArguments = ["--xtend-embedded-swipe"]
+        try runSwipeScenario()
+    }
+
+    func testSwipeExtensionWithNativeBackGestureDisabled() throws {
+        app.launchArguments = ["--xtend-swipe-back-disabled"]
+        try runSwipeScenario()
+    }
+
+    private func runSwipeScenario() throws {
         _ = try launchExistingBrowser()
         let web = app.webViews.firstMatch
         // Simulator evidence is captured for visual inspection because X's tab
