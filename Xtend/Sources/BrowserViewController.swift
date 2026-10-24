@@ -10,6 +10,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private weak var navigationBackButton: UIButton?
     private weak var settingsButton: UIButton?
     private var pageLoadFailed = false
+    private static let settingsTipSeenKey = "xtend.settingsMenuTipSeen"
     private var pendingExtensionChanges = false
     private var hasShownExtensionWarning = false
     private var runtimeError: String?
@@ -113,8 +114,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let controller = configuration.userContentController
         let world = WKContentWorld.world(name: "Xtend.Settings")
         controller.add(SettingsMenuBridge(browser: self), contentWorld: world, name: "xtendSettings")
+        #if DEBUG
+        let forceTip = ProcessInfo.processInfo.arguments.contains("--xtend-test-show-settings-tip")
+        #else
+        let forceTip = false
+        #endif
+        let showTip = forceTip || !UserDefaults.standard.bool(forKey: Self.settingsTipSeenKey)
         controller.addUserScript(WKUserScript(
-            source: Self.settingsMenuScript,
+            source: "const __xtendShowSettingsTip = \(showTip ? "true" : "false");\n" + Self.settingsMenuScript,
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true,
             in: world
@@ -134,6 +141,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         case "login":
             guard let visible = command["visible"] as? Bool else { return }
             settingsButton?.isHidden = !pageLoadFailed && !visible
+        case "walkthroughDone":
+            UserDefaults.standard.set(true, forKey: Self.settingsTipSeenKey)
         default:
             break
         }
@@ -145,6 +154,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
       const bridge = window.webkit?.messageHandlers?.xtendSettings;
       if (!bridge) return;
       const entryID = 'xtend-native-settings-entry';
+      const tipID = 'xtend-settings-tip';
+      let tipCompleted = !__xtendShowSettingsTip;
       const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
       let lastLogin = null;
       let queued = false;
@@ -203,6 +214,50 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
       }
 
 
+      function completeTip() {
+        if (tipCompleted) return;
+        tipCompleted = true;
+        document.getElementById(tipID)?.remove();
+        bridge.postMessage({ action: 'walkthroughDone' });
+      }
+
+      function updateTip(drawer) {
+        const existing = document.getElementById(tipID);
+        const toggle = document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"]');
+        if (tipCompleted) { existing?.remove(); return; }
+        if (drawer) { completeTip(); return; }
+        const composer = [...document.querySelectorAll('[role="dialog"]')].some(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 100 && rect.height > 100;
+        });
+        const visible = location.pathname === '/home' && !composer &&
+          !!toggle && toggle.getAttribute('aria-expanded') === 'false' &&
+          toggle.getBoundingClientRect().width > 0;
+        if (!visible) { existing?.remove(); return; }
+        if (existing) return;
+
+        const rect = toggle.getBoundingClientRect();
+        const tip = document.createElement('aside');
+        tip.id = tipID;
+        tip.setAttribute('role', 'status');
+        tip.style.cssText = 'position:fixed;z-index:2147483647;box-sizing:border-box;max-width:270px;padding:12px 14px;border-radius:12px;background:#23272f;color:#fff;box-shadow:0 3px 14px #0003;font:14px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;';
+        tip.style.left = Math.max(8, Math.min(rect.left, innerWidth - 278)) + 'px';
+        tip.style.top = Math.max(8, Math.min(rect.bottom + 8, innerHeight - 130)) + 'px';
+        const title = document.createElement('strong');
+        title.textContent = 'Xtendの設定';
+        const description = document.createElement('div');
+        description.textContent = '左上のプロフィールアイコンを開き、メニュー下部の「Xtendの設定」を選びます。';
+        description.style.marginTop = '4px';
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.textContent = 'わかった';
+        dismiss.setAttribute('aria-label', 'Xtend設定の案内を閉じる');
+        dismiss.style.cssText = 'margin-top:8px;background:transparent;color:#9fd4ff;border:0;padding:4px 0;font:600 14px -apple-system,BlinkMacSystemFont,sans-serif;';
+        dismiss.addEventListener('click', completeTip);
+        tip.append(title, description, dismiss);
+        document.body.appendChild(tip);
+      }
+
       function sync() {
         const visible = loginVisible();
         if (visible !== lastLogin) {
@@ -211,6 +266,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         }
         const drawer = findDrawer();
         if (drawer) insertSettings(drawer);
+        updateTip(drawer);
       }
       function schedule() {
         if (queued) return;

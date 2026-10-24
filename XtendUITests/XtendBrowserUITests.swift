@@ -50,6 +50,40 @@ final class XtendBrowserUITests: XCTestCase {
         returnToBrowser()
     }
 
+    func testSettingsMenuWalkthroughAndRepeatedAccess() throws {
+        app.launchArguments.append("--xtend-test-show-settings-tip")
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        let hint = web.buttons["Xtend設定の案内を閉じる"]
+        XCTAssertTrue(hint.waitForExistence(timeout: 15),
+                      "Explain where settings moved on the logged-in home screen.")
+        hint.tap()
+        XCTAssertFalse(hint.exists, "The walkthrough should disappear after acknowledgement.")
+        XCTAssertFalse(app.buttons["Xtendの拡張機能設定"].isHittable,
+                       "The top-right native settings button must stay hidden during normal X use.")
+
+        for index in 0..<4 {
+            let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+            let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+            edge.press(forDuration: 0.1, thenDragTo: open)
+            let entry = web.buttons["Xtendの設定"]
+            XCTAssertTrue(entry.waitForExistence(timeout: 8), "Menu entry missing in cycle \(index).")
+            XCTAssertTrue(entry.isHittable, "Menu entry obscured in cycle \(index).")
+            XCTAssertEqual(web.buttons.matching(identifier: "Xtendの設定").count, 1,
+                           "Menu entry duplicated after reopening.")
+
+            entry.tap()
+            XCTAssertTrue(app.navigationBars["Xtendの設定"].waitForExistence(timeout: 8),
+                          "Settings did not open in cycle \(index).")
+            returnToBrowser()
+
+            let close = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
+            let closeEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
+            close.press(forDuration: 0.1, thenDragTo: closeEnd)
+            XCTAssertTrue(web.exists)
+        }
+    }
+
     func testSwipeNavigationOnLoggedInX() throws {
         try runSwipeScenario()
     }
