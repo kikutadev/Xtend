@@ -196,7 +196,8 @@
         mode = 'menu-close';
         surface = menu.menu;
         toggle = menu.toggle;
-      } else if (edge && menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
+      } else if (edge && win.location.pathname === '/home' &&
+                 menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
         mode = 'menu-open';
         toggle = menu.toggle;
       } else {

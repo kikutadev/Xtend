@@ -7,6 +7,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
+    private var pageURLObservation: NSKeyValueObservation?
     private weak var navigationBackButton: UIButton?
     private weak var settingsButton: UIButton?
     private var pageLoadFailed = false
@@ -81,6 +82,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         installSettingsMenu(into: configuration)
         let browser = WKWebView(frame: .zero, configuration: configuration)
         host?.attach(to: browser)
+        pageURLObservation = nil
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
         webView?.removeFromSuperview()
@@ -89,6 +91,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.webView = browser
         configure(browser)
         updateNavigationControls(for: browser, url: url)
+        // X changes routes with the History API without a document navigation.
+        // Observe the effective URL so edge gestures switch on SPA transitions.
+        pageURLObservation = browser.observe(\.url, options: [.new]) { [weak self] observed, _ in
+            DispatchQueue.main.async { [weak self, weak observed] in
+                guard let self, let observed, self.webView === observed else { return }
+                self.updateNavigationControls(for: observed)
+            }
+        }
         view.sendSubviewToBack(browser)
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
     }
@@ -361,11 +371,13 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func updateNavigationControls(for webView: WKWebView, url: URL? = nil) {
-        let onX = isXURL(url ?? webView.url)
+        let currentURL = url ?? webView.url
+        let onX = isXURL(currentURL)
         navigationBackButton?.isHidden = onX
-        // X has its own back controls and left drawer. Never run WebKit's
-        // competing edge-back recognizer over X's touch-driven navigation.
-        webView.allowsBackForwardNavigationGestures = !onX
+        // Only X home reserves the leading edge for the profile drawer.
+        // Other X routes retain WebKit history back/forward gestures.
+        let isHome = onX && currentURL?.path == "/home"
+        webView.allowsBackForwardNavigationGestures = !isHome
     }
 
     private func isXURL(_ url: URL?) -> Bool {

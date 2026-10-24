@@ -65,11 +65,100 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: oldSwipe.path))
     }
 
-    func testNativeBackGestureDoesNotCompeteOnX() throws {
+    func testHomeReservesLeftEdgeForDrawer() throws {
         let controller = BrowserViewController(initialURL: URL(string: "https://x.com/home")!)
         controller.loadViewIfNeeded()
         let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
         XCTAssertFalse(browser.allowsBackForwardNavigationGestures)
+    }
+
+    func testNonHomeXPagesKeepWebViewHistoryGestures() throws {
+        for path in ["/notifications", "/explore", "/sample/status/123", "/sample", "/i/flow/login"] {
+            let controller = BrowserViewController(initialURL: URL(string: "https://x.com\(path)")!)
+            controller.loadViewIfNeeded()
+            let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
+            XCTAssertTrue(browser.allowsBackForwardNavigationGestures, "History swipe must work at \(path)")
+        }
+    }
+
+    func testWebViewURLTracksHistoryAPIRouteChanges() throws {
+        let webView = WKWebView()
+        let didLoad = expectation(description: "Synthetic page loaded")
+        let observer = NavigationLoadedObserver { _ in
+            didLoad.fulfill()
+        }
+        webView.navigationDelegate = observer
+        webView.loadHTMLString("<html><body>route fixture</body></html>",
+                               baseURL: URL(string: "https://x.com/home"))
+        wait(for: [didLoad], timeout: 10)
+
+        let didEvaluate = expectation(description: "SPA navigation completed")
+        webView.evaluateJavaScript("history.pushState({}, '', '/sample/status/123'); location.pathname") {
+            result, error in
+            XCTAssertNil(error)
+            XCTAssertEqual(result as? String, "/sample/status/123")
+            XCTAssertEqual(webView.url?.path, "/sample/status/123")
+            didEvaluate.fulfill()
+        }
+        wait(for: [didEvaluate], timeout: 10)
+    }
+
+    func testHistoryGesturesFollowSPARouteChanges() throws {
+        let controller = BrowserViewController(initialURL: URL(string: "about:blank")!)
+        controller.loadViewIfNeeded()
+        let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
+        let loaded = expectation(description: "X home fixture loaded")
+        let observer = NavigationLoadedObserver { page in
+            if page.url?.host == "x.com" && page.url?.path == "/home" {
+                loaded.fulfill()
+            }
+        }
+        browser.navigationDelegate = observer
+        browser.loadHTMLString("<html><body>SPA fixture</body></html>",
+                               baseURL: URL(string: "https://x.com/home"))
+        wait(for: [loaded], timeout: 10)
+        // loadHTMLString initially exposes about:blank as WKWebView.url.
+        // Route it to /home through History API, as X does internally.
+        let homed = expectation(description: "SPA entered home")
+        browser.evaluateJavaScript("history.replaceState({}, '', '/home')") { _, error in
+            XCTAssertNil(error)
+            homed.fulfill()
+        }
+        wait(for: [homed], timeout: 10)
+        waitForHistoryGesture(on: browser, enabled: false)
+
+        let pushed = expectation(description: "Opened a post through pushState")
+        browser.evaluateJavaScript("history.pushState({}, '', '/sample/status/123')") {
+            _, error in
+            XCTAssertNil(error)
+            pushed.fulfill()
+        }
+        wait(for: [pushed], timeout: 10)
+        waitForHistoryGesture(on: browser, enabled: true)
+        XCTAssertTrue(browser.canGoBack, "SPA post navigation must create WebKit back history")
+
+        let backed = expectation(description: "Returned home through history")
+        browser.evaluateJavaScript("history.back()") { _, error in
+            XCTAssertNil(error)
+            backed.fulfill()
+        }
+        wait(for: [backed], timeout: 10)
+        waitForHistoryGesture(on: browser, enabled: false)
+        XCTAssertTrue(browser.canGoForward, "WebKit should offer forward history after returning home")
+        browser.goForward()
+        waitForHistoryGesture(on: browser, enabled: true)
+        XCTAssertEqual(browser.url?.path, "/sample/status/123")
+    }
+
+    private func waitForHistoryGesture(on browser: WKWebView, enabled: Bool) {
+        let condition = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+                browser.allowsBackForwardNavigationGestures == enabled
+            },
+            object: nil
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [condition], timeout: 5), .completed,
+                       "Expected history gesture enabled=\(enabled) at \(browser.url?.absoluteString ?? "nil")")
     }
 
     func testExternalLoginPageKeepsWebViewBackGesture() throws {
@@ -77,5 +166,24 @@ final class BuiltInNavigationTests: XCTestCase {
         controller.loadViewIfNeeded()
         let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
         XCTAssertTrue(browser.allowsBackForwardNavigationGestures)
+    }
+}
+
+
+@MainActor
+private final class NavigationLoadedObserver: NSObject, WKNavigationDelegate {
+    private let onLoad: (WKWebView) -> Void
+    private var didReport = false
+
+    init(onLoad: @escaping (WKWebView) -> Void) {
+        self.onLoad = onLoad
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard !didReport else { return }
+        if webView.url?.host == "x.com" && webView.url?.path == "/home" {
+            didReport = true
+            onLoad(webView)
+        }
     }
 }

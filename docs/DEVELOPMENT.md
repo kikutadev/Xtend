@@ -104,7 +104,7 @@ WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使
 
 ## Xtend標準スワイプの検証
 
-スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。
+スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。ホームだけ左端をメニュー操作にし、他のXページではWebViewの履歴スワイプを残すことは `node scripts/test-swipe-routing.mjs` と `BuiltInNavigationTests` で検証します。
 
 ### Simulatorによるスワイプ検証
 
