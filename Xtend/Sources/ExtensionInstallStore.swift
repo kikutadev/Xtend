@@ -406,6 +406,20 @@ struct InstalledExtensionManifest: Decodable, Sendable {
     let permissions: [String]?
     let contentScripts: [ContentScript]?
     let background: Background?
+    let action: Action?
+    let optionsUI: OptionsUI?
+    let optionsPage: String?
+
+    struct Action: Decodable, Sendable {
+        let defaultPopup: String?
+        enum CodingKeys: String, CodingKey { case defaultPopup = "default_popup" }
+    }
+
+    struct OptionsUI: Decodable, Sendable {
+        let page: String
+        let openInTab: Bool?
+        enum CodingKeys: String, CodingKey { case page; case openInTab = "open_in_tab" }
+    }
 
     struct ContentScript: Decodable, Sendable {
         let matches: [String]
@@ -436,7 +450,9 @@ struct InstalledExtensionManifest: Decodable, Sendable {
         case versionName = "version_name"
         case permissions
         case contentScripts = "content_scripts"
-        case background
+        case background, action
+        case optionsUI = "options_ui"
+        case optionsPage = "options_page"
     }
 }
 

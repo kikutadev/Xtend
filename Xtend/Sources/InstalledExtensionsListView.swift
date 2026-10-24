@@ -6,6 +6,7 @@ struct InstalledExtensionInfo {
     let version: String
     let icon: UIImage?
     let issue: String?
+    var hasSettings = false
 }
 
 @MainActor
@@ -85,7 +86,9 @@ enum InstalledExtensionCatalog {
             icon = image
             break
         }
-        return InstalledExtensionInfo(id: id, name: name, version: manifest.version, icon: icon, issue: nil)
+        var entry = InstalledExtensionInfo(id: id, name: name, version: manifest.version, icon: icon, issue: nil)
+        entry.hasSettings = ExtensionPackage(id: id, root: root.standardizedFileURL, manifest: manifest).settingsPage != nil
+        return entry
     }
 
     private static func localized(_ name: String, locale: String?, root: URL) -> String {
@@ -182,7 +185,7 @@ final class InstalledExtensionsListView: UIView {
             row.spacing = 12
 
             if let onSettings {
-                if item.id == ExtensionInstallStore.supportedExtensionID {
+                if item.hasSettings {
                     let button = UIButton(type: .system)
                     button.setImage(UIImage(systemName: "slider.horizontal.3"), for: .normal)
                     button.accessibilityLabel = "\(item.name)の設定"

@@ -21,6 +21,7 @@
 		4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5523AE88483B76D72E8E474B /* ChromeShim.swift */; };
 		571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */; };
 		58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B884C456033A9D3781F2BC /* CRX3Package.swift */; };
+		5F427D9F8324760852BAC185 /* GenericExtensionSettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */; };
 		63EAA3269941DF7058CD6FC1 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 4C808A67CB794F23FE6E1456 /* ZIPFoundation */; };
 		6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14307402EA85E945B44C3A40 /* Assets.xcassets */; };
 		6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */; };
@@ -31,6 +32,7 @@
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
 		C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */; };
+		CCF88D48826BAA16E03CEE49 /* ExtensionSettingsPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */; };
 		DCF7DC5C680CC25A09994ABC /* ExtensionInstallFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */; };
 		E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */; };
 /* End PBXBuildFile section */
@@ -57,12 +59,14 @@
 		0B65B670E94294446AA43DB6 /* BrowserViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewController.swift; sourceTree = "<group>"; };
 		14307402EA85E945B44C3A40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		15B3445714A6922592008694 /* xtend-swipe.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xtend-swipe.js"; sourceTree = "<group>"; };
+		3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSettingsPageTests.swift; sourceTree = "<group>"; };
 		3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackedAssetStore.swift; sourceTree = "<group>"; };
 		3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42C7F7272D498831080B4BEC /* XtendTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
+		595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericExtensionSettingsUITests.swift; sourceTree = "<group>"; };
 		7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStoreTests.swift; sourceTree = "<group>"; };
 		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
 		77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendBrowserUITests.swift; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 		4051977E6210164EEE720487 /* XtendUITests */ = {
 			isa = PBXGroup;
 			children = (
+				595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */,
 				77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */,
 			);
 			path = XtendUITests;
@@ -136,6 +141,7 @@
 				C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */,
 				7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
+				3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */,
 			);
 			path = XtendTests;
 			sourceTree = "<group>";
@@ -292,6 +298,7 @@
 				1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */,
 				E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
+				CCF88D48826BAA16E03CEE49 /* ExtensionSettingsPageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,6 +306,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5F427D9F8324760852BAC185 /* GenericExtensionSettingsUITests.swift in Sources */,
 				7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

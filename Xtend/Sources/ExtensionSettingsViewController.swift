@@ -225,7 +225,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     }
 
     private func openExtensionSettings(_ item: InstalledExtensionInfo) {
-        guard item.id == ExtensionInstallStore.supportedExtensionID else { return }
+        guard item.hasSettings else { return }
         do {
             let popup = try ExtensionPopupViewController(extensionID: item.id)
             navigationController?.pushViewController(popup, animated: true)
@@ -245,23 +245,28 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     }
 }
 
-/// Fixed-width Chrome popup centered in the screen instead of left-aligned in a full-width WebView.
+/// Installed extension popup/options page, isolated from X and other extensions.
 @MainActor
 final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private let configuration: WKWebViewConfiguration
     private let host: ExtensionHost
     private var browser: WKWebView?
+    private let extensionID: String
+    private let page: ExtensionPackage.SettingsPage
 
     init(extensionID: String) throws {
-        guard extensionID == ExtensionInstallStore.supportedExtensionID else {
+        let runtime = ExtensionRuntime()
+        guard let package = runtime.packages.first(where: { $0.id == extensionID }),
+              let page = package.settingsPage else {
             throw RuntimeError.missingResource(extensionID)
         }
-        let runtime = ExtensionRuntime()
-        let (configuration, host) = try runtime.makeSettingsConfiguration()
+        let (configuration, host) = try runtime.makeSettingsConfiguration(for: extensionID)
         self.configuration = configuration
         self.host = host
+        self.extensionID = extensionID
+        self.page = page
         super.init(nibName: nil, bundle: nil)
-        title = "にゃっとランドの設定"
+        title = "\(package.manifest.name ?? extensionID)の設定"
     }
 
     @available(*, unavailable)
@@ -282,7 +287,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
         browser.layer.masksToBounds = true
         browser.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(browser)
-        let width = browser.widthAnchor.constraint(equalToConstant: 350)
+        let width = browser.widthAnchor.constraint(equalToConstant: page.prefersWideLayout ? 420 : 350)
         width.priority = .defaultHigh
         NSLayoutConstraint.activate([
             browser.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
@@ -291,7 +296,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
             width,
             browser.widthAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.widthAnchor, constant: -24)
         ])
-        let url = URL(string: "\(ExtensionResourceSchemeHandler.scheme)://\(ExtensionInstallStore.supportedExtensionID)/popup.html")!
+        let url = URL(string: "\(ExtensionResourceSchemeHandler.scheme)://\(extensionID)/\(page.path)")!
         browser.load(URLRequest(url: url))
     }
 
@@ -305,7 +310,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
             return
         }
         if url.scheme == ExtensionResourceSchemeHandler.scheme,
-           url.host == ExtensionInstallStore.supportedExtensionID {
+           url.host == extensionID {
             decisionHandler(.allow)
         } else {
             if url.scheme == "https", navigationAction.navigationType == .linkActivated {
@@ -323,7 +328,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
     ) -> WKWebView? {
         guard let url = navigationAction.request.url else { return nil }
         if url.scheme == ExtensionResourceSchemeHandler.scheme,
-           url.host == ExtensionInstallStore.supportedExtensionID {
+           url.host == extensionID {
             webView.load(URLRequest(url: url))
         } else if url.scheme == "https" {
             UIApplication.shared.open(url)

@@ -14,6 +14,35 @@ struct ExtensionPackage {
         WKContentWorld.world(name: "Xtend.Extension.\(id)")
     }
 
+    struct SettingsPage {
+        let path: String
+        let prefersWideLayout: Bool
+    }
+
+    /// Read the declared popup/options page without executing arbitrary paths.
+    /// A missing or unsafe page is treated as unavailable, not a broken content script.
+    var settingsPage: SettingsPage? {
+        let options = manifest.optionsUI?.page ?? manifest.optionsPage
+        let popup = manifest.action?.defaultPopup
+        var candidates: [(String?, Bool)] = manifest.optionsUI?.openInTab == true
+            ? [(options, true), (popup, false)]
+            : [(popup, false), (options, true)]
+        // Preserve packages already using a popup.html without declaring it.
+        if options == nil && popup == nil { candidates.append(("popup.html", false)) }
+        for (path, wide) in candidates {
+            guard let path, !path.isEmpty, !path.hasPrefix("/"),
+                  !path.contains("\\"), !path.contains("?"), !path.contains("#"),
+                  !path.split(separator: "/").contains(".."),
+                  path.lowercased().hasSuffix(".html") else { continue }
+            let file = root.appendingPathComponent(path).standardizedFileURL
+            guard file.path.hasPrefix(root.path + "/"),
+                  let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),
+                  values.isRegularFile == true, values.isSymbolicLink != true else { continue }
+            return SettingsPage(path: path, prefersWideLayout: wide)
+        }
+        return nil
+    }
+
     static func installed(id: String, root: URL) throws -> ExtensionPackage {
         let data = try Data(contentsOf: root.appendingPathComponent("manifest.json"))
         return ExtensionPackage(
@@ -102,14 +131,15 @@ final class ExtensionRuntime {
         return (configuration, host)
     }
 
-    func makeSettingsConfiguration() throws -> (WKWebViewConfiguration, ExtensionHost) {
-        guard let primary = packages.first(where: { $0.id == ExtensionInstallStore.supportedExtensionID }) else {
+    func makeSettingsConfiguration(for extensionID: String) throws -> (WKWebViewConfiguration, ExtensionHost) {
+        guard let package = packages.first(where: { $0.id == extensionID }),
+              package.settingsPage != nil else {
             throw RuntimeError.missingExtensionResources
         }
-        let host = try ExtensionHost(packages: [primary], storageByID: storageByID)
+        let host = try ExtensionHost(packages: [package], storageByID: storageByID)
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        try host.installSettingsRuntime(into: configuration, extensionID: primary.id)
+        try host.installSettingsRuntime(into: configuration, extensionID: extensionID)
         return (configuration, host)
     }
 }
