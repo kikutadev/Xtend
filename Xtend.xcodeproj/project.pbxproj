@@ -25,6 +25,7 @@
 		6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */; };
 		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
 		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
+		9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
@@ -70,6 +71,7 @@
 		B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionResourceSchemeHandler.swift; sourceTree = "<group>"; };
 		C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInNavigationTests.swift; sourceTree = "<group>"; };
 		C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoSupport.swift; sourceTree = "<group>"; };
+		C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendNavigation.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSafetyTests.swift; sourceTree = "<group>"; };
 		F4B884C456033A9D3781F2BC /* CRX3Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRX3Package.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */,
 				3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */,
 				FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */,
+				C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */,
 			);
 			name = Sources;
 			path = Xtend/Sources;
@@ -313,6 +316,7 @@
 				571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */,
 				C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */,
 				002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */,
+				9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

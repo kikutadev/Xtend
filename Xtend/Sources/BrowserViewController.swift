@@ -84,7 +84,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.extensionHost = host
         self.webView = browser
         configure(browser)
-        browser.allowsBackForwardNavigationGestures = !isXURL(url)
+        updateNavigationControls(for: browser, url: url)
         view.sendSubviewToBack(browser)
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
     }
@@ -301,8 +301,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
 
-    private func updateNavigationControls(for webView: WKWebView) {
-        let onX = isXURL(webView.url)
+    private func updateNavigationControls(for webView: WKWebView, url: URL? = nil) {
+        let onX = isXURL(url ?? webView.url)
         navigationBackButton?.isHidden = onX
         // X has its own back controls and left drawer. Never run WebKit's
         // competing edge-back recognizer over X's touch-driven navigation.
