@@ -120,20 +120,20 @@ final class XtendBrowserUITests: XCTestCase {
         // Let the X home feed hydrate before receiving synthetic touch input.
         sleep(5)
         evidence("01-before")
-        let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.34))
-        let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.34))
+        let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.16))
+        let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.16))
         leftStart.press(forDuration: 0.1, thenDragTo: leftEnd)
         sleep(3)
         evidence("02-timeline-left")
         XCTAssertTrue(web.exists)
 
-        let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.34))
-        let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.34))
+        let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.16))
+        let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.16))
         rightStart.press(forDuration: 0.1, thenDragTo: rightEnd)
         sleep(3)
         evidence("03-timeline-right")
 
-        // X mobile owns the drawer DOM, the extension owns the edge gesture.
+        // X owns the drawer DOM; Xtend owns the edge gesture.
         let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
         let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
         edge.press(forDuration: 0.1, thenDragTo: open)
@@ -145,6 +145,56 @@ final class XtendBrowserUITests: XCTestCase {
         sleep(2)
         evidence("05-menu-close")
         XCTAssertTrue(web.exists)
+    }
+
+    func testOtherPageTabsOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+
+        func snapshot(_ name: String) {
+            XCTAssertEqual(app.state, .runningForeground)
+            let att = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            att.name = name
+            att.lifetime = .keepAlways
+            add(att)
+        }
+        func swipeHorizontally(y: CGFloat, left: Bool = true) {
+            let start = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.78 : 0.20, dy: y))
+            let end = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.17 : 0.80, dy: y))
+            start.press(forDuration: 0.12, thenDragTo: end)
+            sleep(2)
+        }
+
+        sleep(4)
+        snapshot("home-start")
+        let notifications = web.coordinate(withNormalizedOffset: CGVector(dx: 0.71, dy: 0.954))
+        notifications.tap()
+        sleep(4)
+        snapshot("notifications-before")
+        swipeHorizontally(y: 0.22)
+        snapshot("notifications-left")
+        swipeHorizontally(y: 0.22, left: false)
+        snapshot("notifications-right")
+
+        let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.42))
+        let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.64, dy: 0.42))
+        edge.press(forDuration: 0.1, thenDragTo: open)
+        sleep(2)
+        snapshot("profile-menu")
+        // In mobile X, "Profile" is duplicated in the accessibility tree.
+        // Tap the visible first drawer row at ~21% of the WebView height.
+        let topMenuProfile = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.21))
+        topMenuProfile.tap()
+        sleep(4)
+        snapshot("profile-before")
+        swipeHorizontally(y: 0.36)
+        snapshot("profile-left-y36")
+        swipeHorizontally(y: 0.55)
+        snapshot("profile-left-y55")
+        swipeHorizontally(y: 0.55, left: false)
+        snapshot("profile-right-y55")
+        swipeHorizontally(y: 0.55, left: false)
+        snapshot("profile-right-again-y55")
     }
 
     func testManualReloadReturnsToXBrowser() throws {
