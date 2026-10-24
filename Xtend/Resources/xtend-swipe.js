@@ -30,26 +30,32 @@
   }
 
   function getTabTarget(doc, leftSwipe) {
-    if (doc.defaultView?.location.pathname !== '/home') return null;
     const primary = doc.querySelector('[data-testid="primaryColumn"]');
-    if (!primary) return null;
+    const win = doc.defaultView;
+    if (!primary || !win) return null;
 
-    // In mobile X the sticky home tab bar is sometimes outside primaryColumn.
-    // Select the visible ScrollSnap home tab bar without matching composer tabs.
-    for (const list of doc.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')) {
+    // X reuses tablists on home, notifications, profiles and search.
+    // Detect a real page tab bar rather than maintaining a pathname list.
+    for (const list of doc.querySelectorAll('[role="tablist"]')) {
+      if (!list.matches('[data-testid="ScrollSnap-List"]') &&
+          !list.closest('[data-testid="primaryColumn"]')) continue;
+      if (list.closest('[role="dialog"],[aria-modal="true"],article,[data-testid="cellInnerDiv"]')) continue;
+
       const bounds = list.getBoundingClientRect();
-      if (bounds.width < 80 || bounds.height < 30 || bounds.top < -10 || bounds.top > 160) continue;
+      if (bounds.width < 80 || bounds.height < 30 || bounds.bottom < -10 ||
+          bounds.left > win.innerWidth / 2 || bounds.right < win.innerWidth / 2) continue;
       const tabs = Array.from(list.querySelectorAll('[role="tab"]'))
         .filter(tab => !tab.hasAttribute('disabled') && tab.getAttribute('aria-disabled') !== 'true');
+      if (tabs.length < 2) continue;
       const index = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
       const target = tabs[index + (leftSwipe ? 1 : -1)];
       if (index < 0 || !target) continue;
 
-      // X virtualizes the timeline. Do not transform the entire page, its
-      // scrolling container, or its sticky header. Skip drag if no surface.
-      const surface = primary.querySelector('[data-xtend-swipe-surface]')
+      // Do not move a profile header or the tab bar itself while dragging.
+      const candidate = primary.querySelector('[data-xtend-swipe-surface]')
         ?? primary.querySelector('[data-testid="cellInnerDiv"]')?.parentElement
         ?? null;
+      const surface = candidate?.contains(list) ? null : candidate;
       return { tab: target, surface };
     }
     return null;
