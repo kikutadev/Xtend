@@ -38,44 +38,53 @@
     }) || null;
   }
 
-  // Only remove the two promotional links from X's mobile navigation drawer.
-  // Do not hide the same words in posts, profiles, or subscription controls.
   const hiddenPromoAttribute = 'data-xtend-hidden-menu-promo';
   const pagePromoAttribute = 'data-xtend-hidden-page-promo';
+  const interactiveSelector = 'a[href], button, [role="link"], [role="button"]';
+
+  function labelsFor(item) {
+    return [item.getAttribute('aria-label'), item.textContent]
+      .filter(Boolean)
+      .map(value => value.replace(/\s+/g, ' ').trim().toLowerCase());
+  }
+
+  function hideLabel(label) {
+    return promoSettings.enabled &&
+      ((label === 'get the app' && promoSettings.getApp) ||
+       (label === 'subscribe' && promoSettings.subscribe));
+  }
+
+  function setHidden(item, attribute, hidden) {
+    if (hidden) item.setAttribute(attribute, '');
+    else item.removeAttribute(attribute);
+  }
 
   function hideMenuPromotions(drawer) {
-    for (const item of drawer.querySelectorAll('a[href], button, [role="link"], [role="button"]')) {
-      const labels = [item.getAttribute('aria-label'), item.textContent]
-        .filter(Boolean)
-        .map(value => value.replace(/\s+/g, ' ').trim().toLowerCase());
-      const hideGetApp = promoSettings.enabled && promoSettings.getApp && labels.includes('get the app');
-      const hideSubscribe = promoSettings.enabled && promoSettings.subscribe && labels.includes('subscribe');
-      if (hideGetApp || hideSubscribe) {
-        item.setAttribute(hiddenPromoAttribute, '');
-      } else {
-        item.removeAttribute(hiddenPromoAttribute);
-      }
+    for (const item of drawer.querySelectorAll(interactiveSelector)) {
+      setHidden(item, hiddenPromoAttribute, labelsFor(item).some(hideLabel));
     }
   }
 
   function hidePagePromotions() {
-    // Keep header promotions separate from drawer items and actual post controls.
-    for (const item of document.querySelectorAll('a[href], button, [role="link"], [role="button"]')) {
-      const label = (item.getAttribute('aria-label') || item.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
-      const premiumUpsell = label === 'subscribe' &&
-        item.tagName === 'A' && item.getAttribute('href') === '/i/premium_sign_up';
-      const appUpsell = label === 'get the app';
-      const shouldHide = promoSettings.enabled &&
-        ((premiumUpsell && promoSettings.subscribe) || (appUpsell && promoSettings.getApp));
-      if (shouldHide && !item.closest('article,[data-testid="tweet"]')) {
+    // When both filters are off, only previously hidden nodes need restoring.
+    const active = promoSettings.enabled && (promoSettings.getApp || promoSettings.subscribe);
+    const selector = active ? interactiveSelector : '[' + pagePromoAttribute + ']';
+    for (const item of document.querySelectorAll(selector)) {
+      const marked = item.hasAttribute(pagePromoAttribute);
+      if (!marked) {
+        // Avoid reading text from every timeline post on each X DOM update.
         const rect = item.getBoundingClientRect();
-        if ((rect.width > 0 && rect.top >= 0 && rect.top < 150) ||
-            item.hasAttribute(pagePromoAttribute)) {
-          item.setAttribute(pagePromoAttribute, '');
-          continue;
-        }
+        if (rect.width <= 0 || rect.top < 0 || rect.top >= 150) continue;
       }
-      item.removeAttribute(pagePromoAttribute);
+
+      const labels = labelsFor(item);
+      const premiumLink = item.tagName === 'A' &&
+        item.getAttribute('href') === '/i/premium_sign_up';
+      const eligible = !item.closest('article,[data-testid="tweet"]');
+      const hide = eligible &&
+        (labels.includes('get the app') && hideLabel('get the app') ||
+         premiumLink && labels.includes('subscribe') && hideLabel('subscribe'));
+      setHidden(item, pagePromoAttribute, hide);
     }
   }
 
