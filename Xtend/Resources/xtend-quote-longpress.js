@@ -6,6 +6,14 @@
   const HOLD_MS = 500;
   const MAX_MOVEMENT = 12;
   const REPOST_SELECTOR = '[data-testid="retweet"],[data-testid="unretweet"]';
+  // iOS can show a native link preview before touchend. Disable the callout
+  // only on X's Repost controls, keeping ordinary taps and scrolling native.
+  const style = document.createElement('style');
+  style.textContent = REPOST_SELECTOR + ', ' +
+    REPOST_SELECTOR.split(',').map(selector => selector + ' *').join(', ') +
+    ' {-webkit-touch-callout:none;}';
+  (document.head || document.documentElement).appendChild(style);
+
   let press = null;
   let suppressClick = null;
   let suppressTimer = 0;
@@ -27,11 +35,11 @@
     let url;
     try { url = new URL(href, location.href); } catch { return null; }
     if (url.hostname !== 'x.com' && url.hostname !== 'twitter.com') return null;
-    const match = /^\/(?:[A-Za-z0-9_]{1,15}|i)\/status\/([0-9]+)(?:\/.*)?$/.exec(url.pathname);
+    const match = /^\/[A-Za-z0-9_]{1,15}\/status\/([0-9]+)(?:\/.*)?$/.exec(url.pathname);
     if (!match) return null;
 
-    // X's own Post activity / Quotes route. Do not depend on the author's
-    // display name or use its private API.
+    // X's current native Post activity / Quotes route. Resolve the ID from
+    // the selected post, never from an embedded quote or the current page.
     return location.origin + '/i/status/' + match[1] + '/quotes';
   }
 
@@ -64,8 +72,18 @@
     };
     press = candidate;
     candidate.timer = setTimeout(() => {
-      if (press === candidate && button.isConnected &&
-          location.pathname === candidate.pathname) candidate.recognized = true;
+      if (press !== candidate || !button.isConnected ||
+          location.pathname !== candidate.pathname) return;
+      candidate.recognized = true;
+      suppressClick = button;
+      clearTimeout(suppressTimer);
+      suppressTimer = setTimeout(() => { suppressClick = null; }, 1200);
+      // The quotes screen is an X SPA route. Reloading the document here
+      // breaks the signed-in mobile view. Push a genuine history entry and
+      // notify X's router, rather than changing the address bar alone.
+      const state = history.state;
+      history.pushState(state, '', candidate.url);
+      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
     }, HOLD_MS);
   }
 
@@ -92,19 +110,12 @@
     if (!touch) return;
     const candidate = press;
     cancelPress();
-    if (!candidate.recognized || !candidate.button.isConnected ||
-        location.pathname !== candidate.pathname ||
-        Math.hypot(touch.clientX - candidate.x, touch.clientY - candidate.y) > MAX_MOVEMENT) return;
+    if (!candidate.recognized) return;
 
-    // Prevent the normal Repost/Quote menu from also opening on touch release.
+    // The timer already navigated. Consume the trailing touch so X's native
+    // Repost menu does not also open when the finger is lifted.
     if (event.cancelable) event.preventDefault();
     event.stopImmediatePropagation();
-    suppressClick = candidate.button;
-    clearTimeout(suppressTimer);
-    suppressTimer = setTimeout(() => { suppressClick = null; }, 1200);
-    // Let the browser navigate to X's real route. pushState/popstate alone
-    // changes the URL without guaranteeing that X renders that screen.
-    location.assign(candidate.url);
   }
 
   function onClick(event) {
@@ -117,7 +128,8 @@
   }
 
   function onContextMenu(event) {
-    if (!press?.recognized || repostButton(event.target) !== press.button) return;
+    const button = repostButton(event.target);
+    if (!button || (button !== press?.button && button !== suppressClick)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   }

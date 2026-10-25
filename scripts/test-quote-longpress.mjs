@@ -54,13 +54,27 @@ function fixture({ timestamp = true, quoteFirst = false, pathname = '/home', con
     set pathname(value) { currentPath = value; },
     assign(value) { navigated = value; },
   };
+  const history = {
+    state: { key: 'mock' },
+    pushState(_state, _title, url) {
+      currentPath = new URL(url, location.href).pathname;
+    },
+  };
+  const window = {
+    dispatchEvent(event) {
+      if (event.type === 'popstate') navigated = location.href;
+    },
+  };
+  class PopStateEvent { constructor(type, options) { this.type = type; this.state = options.state; } }
   const document = {
     visibilityState: 'visible',
     addEventListener(name, fn) { listeners.set(name, fn); },
+    createElement() { return { textContent: '' }; },
+    head: { appendChild() {} },
   };
 
   runInNewContext(script, {
-    location, document, Element, URL, Math, Array,
+    location, history, window, PopStateEvent, document, Element, URL, Math, Array,
     setTimeout(fn, ms) { const id = ++nextTimer; timers.set(id, { fn, deadline: now + ms }); return id; },
     clearTimeout(id) { timers.delete(id); },
   });
@@ -109,6 +123,7 @@ function fixture({ timestamp = true, quoteFirst = false, pathname = '/home', con
   page.advance(500);
   const end = page.dispatch('touchend');
   assert.equal(page.navigated, 'https://x.com/i/status/2091234567890123456/quotes');
+  assert.equal(page.dispatch('contextmenu').prevented, true, 'native link preview must be suppressed');
   assert.equal(end.prevented, true);
   assert.equal(end.stopped, true);
   const click = page.dispatch('click');
@@ -128,7 +143,6 @@ function fixture({ timestamp = true, quoteFirst = false, pathname = '/home', con
   const page = fixture({ quoteFirst: true });
   page.dispatch('touchstart');
   page.advance(500);
-  page.dispatch('touchend');
   assert.equal(page.navigated, 'https://x.com/i/status/2091234567890123456/quotes',
     'embedded quote must not replace the surrounding post');
 }
