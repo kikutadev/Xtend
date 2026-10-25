@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 @MainActor
@@ -7,11 +8,19 @@ final class ExtensionStorage {
     private let defaults: UserDefaults
     private let extensionID: String
     private let keyPrefix: String
+    private let storageDirectory: URL
+    private let filenamePrefix: String
 
-    init(extensionID: String, defaults: UserDefaults = .standard) {
+    init(extensionID: String, defaults: UserDefaults = .standard, storageDirectory: URL? = nil) {
         self.extensionID = extensionID
         self.keyPrefix = "xtend.extension.storage.\(extensionID)."
         self.defaults = defaults
+        self.storageDirectory = storageDirectory ?? FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        )[0].appendingPathComponent("Xtend/ExtensionStorage", isDirectory: true)
+        // Use a fixed filename prefix for all reads and writes in this instance.
+        self.filenamePrefix = SHA256.hash(data: Data(extensionID.utf8))
+            .map { String(format: "%02x", $0) }.joined()
     }
 
     func get(area: String, keys: Any?) throws -> [String: Any] {
@@ -95,9 +104,21 @@ final class ExtensionStorage {
 
     private func namespace(area: String) throws -> [String: Any] {
         try validate(area: area)
-        guard let data = defaults.data(forKey: keyPrefix + area) else { return [:] }
-        let object = try JSONSerialization.jsonObject(with: data)
-        guard let dictionary = object as? [String: Any] else {
+        let file = namespaceFile(for: area)
+        // An existing file, including an empty dictionary, is authoritative.
+        // Fall back only when upgrading an installation that used UserDefaults.
+        let data: Data
+        if FileManager.default.fileExists(atPath: file.path) {
+            guard let stored = try? Data(contentsOf: file) else {
+                throw StorageError.ioFailure
+            }
+            data = stored
+        } else if let legacy = defaults.data(forKey: keyPrefix + area) {
+            data = legacy
+        } else {
+            return [:]
+        }
+        guard let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw StorageError.corruptNamespace
         }
         return dictionary
@@ -109,7 +130,21 @@ final class ExtensionStorage {
             throw StorageError.nonJSONValue
         }
         let data = try JSONSerialization.data(withJSONObject: values, options: [.sortedKeys])
-        defaults.set(data, forKey: keyPrefix + area)
+        do {
+            try FileManager.default.createDirectory(
+                at: storageDirectory, withIntermediateDirectories: true
+            )
+            // Only report success and broadcast changes after the atomic write.
+            try data.write(to: namespaceFile(for: area), options: .atomic)
+        } catch {
+            // Do not return sandbox file paths to untrusted extension JavaScript.
+            throw StorageError.ioFailure
+        }
+    }
+
+    private func namespaceFile(for area: String) -> URL {
+        // Hash-based names keep untrusted extension IDs out of file paths.
+        storageDirectory.appendingPathComponent("\(filenamePrefix)-\(area).json")
     }
 
     private func validate(area: String) throws {
@@ -143,6 +178,7 @@ enum StorageError: LocalizedError {
     case unsupportedKeys
     case corruptNamespace
     case nonJSONValue
+    case ioFailure
 
     var errorDescription: String? {
         switch self {
@@ -150,6 +186,7 @@ enum StorageError: LocalizedError {
         case .unsupportedKeys: "Unsupported chrome.storage key shape"
         case .corruptNamespace: "Stored extension namespace is corrupt"
         case .nonJSONValue: "Extension attempted to store a non-JSON value"
+        case .ioFailure: "Extension storage file is unavailable"
         }
     }
 }
