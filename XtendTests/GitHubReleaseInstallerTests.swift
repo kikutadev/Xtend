@@ -62,13 +62,15 @@ final class GitHubReleaseInstallerTests: XCTestCase {
     }
 
     func testGitHubTokenUsesDeviceKeychain() throws {
-        defer { GitHubReleaseCredentials.remove() }
-        GitHubReleaseCredentials.remove()
-        XCTAssertNil(GitHubReleaseCredentials.load())
-        try GitHubReleaseCredentials.save("test-only-token")
-        XCTAssertEqual(GitHubReleaseCredentials.load(), "test-only-token")
-        GitHubReleaseCredentials.remove()
-        XCTAssertNil(GitHubReleaseCredentials.load())
+        let service = "Xtend.GitHubReleases.Test.\(UUID().uuidString)"
+        defer { GitHubReleaseCredentials.remove(service: service) }
+        XCTAssertNil(GitHubReleaseCredentials.load(service: service))
+        try GitHubReleaseCredentials.save("test-only-token", service: service)
+        XCTAssertEqual(GitHubReleaseCredentials.load(service: service), "test-only-token")
+        try GitHubReleaseCredentials.save("updated-fixture-token", service: service)
+        XCTAssertEqual(GitHubReleaseCredentials.load(service: service), "updated-fixture-token")
+        GitHubReleaseCredentials.remove(service: service)
+        XCTAssertNil(GitHubReleaseCredentials.load(service: service))
     }
 
     @MainActor
@@ -96,9 +98,10 @@ final class GitHubReleaseInstallerTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("xtend-release-fixture-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let credentialsService = "Xtend.GitHubReleases.Test.\(UUID().uuidString)"
         defer {
             try? FileManager.default.removeItem(at: directory)
-            GitHubReleaseCredentials.remove()
+            GitHubReleaseCredentials.remove(service: credentialsService)
         }
 
         func zip(version: String, name: String) throws -> Data {
@@ -140,13 +143,14 @@ final class GitHubReleaseInstallerTests: XCTestCase {
 
         let available = try await GitHubReleaseInstaller.check(
             repository: repo, installedVersion: "0.1.0", installedTag: nil,
-            tokenOverride: "fixture-token", session: session)
+            tokenOverride: "fixture-token", session: session,
+            credentialsService: credentialsService)
         XCTAssertEqual(available.release.tagName, "v0.2.0")
         XCTAssertTrue(available.needsUpdate)
 
         let installedTag = try await GitHubReleaseInstaller.installLatest(
             repository: repo, newToken: "fixture-token", existingID: original.id,
-            session: session)
+            session: session, credentialsService: credentialsService)
         XCTAssertEqual(installedTag, "v0.2.0")
         let root = try XCTUnwrap(store.installedRoots()[original.id])
         XCTAssertEqual(try CommunityExtensionStore.validateManifest(at: root).version, "0.2.0")
@@ -154,20 +158,39 @@ final class GitHubReleaseInstallerTests: XCTestCase {
         XCTAssertEqual(GitHubReleaseLinks.get(original.id)?.installedTag, "v0.2.0")
         let currentCheck = try await GitHubReleaseInstaller.check(
             repository: repo, installedVersion: "0.2.0", installedTag: "v0.2.0",
-            session: session)
+            session: session, credentialsService: credentialsService)
         XCTAssertFalse(currentCheck.needsUpdate)
 
         MockGitHubReleaseProtocol.state.set(payload: try zip(
             version: "0.3.0", name: "A Different Extension"))
         do {
             _ = try await GitHubReleaseInstaller.installLatest(
-                repository: repo, newToken: nil, existingID: original.id, session: session)
+                repository: repo, newToken: nil, existingID: original.id, session: session,
+                credentialsService: credentialsService)
             XCTFail("A different extension must not replace the installed one")
         } catch GitHubReleaseError.unrelatedExtension {
             XCTAssertEqual(try CommunityExtensionStore.validateManifest(
                 at: XCTUnwrap(store.installedRoots()[original.id])).version, "0.2.0")
             XCTAssertNotNil(UserDefaults.standard.data(forKey: stateKey))
         }
+    }
+
+    func testAssetRedirectCannotForwardGitHubTokenToAnotherHost() throws {
+        let limiter = LimitedPackageDownload(limit: 1_024,
+            allowedRedirectHosts: ["api.github.com", "release-assets.githubusercontent.com"])
+        let original = URL(string: "https://api.github.com/repos/example/repo/releases/assets/1")!
+        var permitted = URLRequest(url: URL(string: "https://release-assets.githubusercontent.com/file")!)
+        permitted.setValue("Bearer test-token", forHTTPHeaderField: "Authorization")
+        let next = try XCTUnwrap(limiter.safeRedirect(permitted, from: original))
+        XCTAssertNil(next.value(forHTTPHeaderField: "Authorization"))
+        let untrusted = URLRequest(url: URL(string: "https://example.invalid/steal")!)
+        XCTAssertNil(limiter.safeRedirect(untrusted, from: original))
+        let insecure = URLRequest(url: URL(string: "http://api.github.com/asset")!)
+        XCTAssertNil(limiter.safeRedirect(insecure, from: original))
+        var sameOrigin = URLRequest(url: original)
+        sameOrigin.setValue("Bearer test-token", forHTTPHeaderField: "Authorization")
+        XCTAssertEqual(limiter.safeRedirect(sameOrigin, from: original)?
+            .value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
     }
 
     func testLatestReleaseSelectsPackagedChromeZIP() throws {

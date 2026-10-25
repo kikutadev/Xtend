@@ -94,10 +94,10 @@ enum GitHubReleaseError: LocalizedError {
 
 /// Optional read-only GitHub token for private Releases, stored only on this device.
 enum GitHubReleaseCredentials {
-    private static let service = "Xtend.GitHubReleases"
+    static let defaultService = "Xtend.GitHubReleases"
     private static let account = "github-token"
 
-    static func load() -> String? {
+    static func load(service: String = defaultService) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -111,13 +111,18 @@ enum GitHubReleaseCredentials {
         return String(data: data, encoding: .utf8)
     }
 
-    static func save(_ token: String) throws {
+    static func save(_ token: String, service: String = defaultService) throws {
         let key: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
-        SecItemDelete(key as CFDictionary)
+        // Updating in place avoids deleting a previously valid token if a
+        // subsequent Keychain write fails.
+        let update: [String: Any] = [kSecValueData as String: Data(token.utf8)]
+        let status = SecItemUpdate(key as CFDictionary, update as CFDictionary)
+        if status == errSecSuccess { return }
+        guard status == errSecItemNotFound else { throw GitHubReleaseError.unauthorized }
         var attributes = key
         attributes[kSecValueData as String] = Data(token.utf8)
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
@@ -126,7 +131,7 @@ enum GitHubReleaseCredentials {
         }
     }
 
-    static func remove() {
+    static func remove(service: String = defaultService) {
         SecItemDelete([
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -188,9 +193,10 @@ struct GitHubReleaseCheck: Sendable {
 enum GitHubReleaseInstaller {
     static func check(repository: GitHubReleaseRepository, installedVersion: String,
                       installedTag: String?, tokenOverride: String? = nil,
-                      session: URLSession = .shared) async throws -> GitHubReleaseCheck {
+                      session: URLSession = .shared,
+                      credentialsService: String = GitHubReleaseCredentials.defaultService) async throws -> GitHubReleaseCheck {
         let token = tokenOverride?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            ?? GitHubReleaseCredentials.load()
+            ?? GitHubReleaseCredentials.load(service: credentialsService)
         let release = try await fetchLatest(repository: repository, token: token, session: session)
         return GitHubReleaseCheck(release: release,
             needsUpdate: GitHubReleaseVersion.needsUpdate(installed: installedVersion,
@@ -224,9 +230,10 @@ enum GitHubReleaseInstaller {
     /// Resolves the newest Release and safely updates an existing extension when specified.
     @discardableResult
     static func installLatest(repository: GitHubReleaseRepository, newToken: String?,
-                              existingID: String? = nil, session: URLSession = .shared) async throws -> String {
+                              existingID: String? = nil, session: URLSession = .shared,
+                              credentialsService: String = GitHubReleaseCredentials.defaultService) async throws -> String {
         let token = newToken?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            ?? GitHubReleaseCredentials.load()
+            ?? GitHubReleaseCredentials.load(service: credentialsService)
         let release = try await fetchLatest(repository: repository, token: token, session: session)
         let asset = try release.extensionZIP()
 
@@ -236,7 +243,10 @@ enum GitHubReleaseInstaller {
         assetRequest.setValue("Xtend", forHTTPHeaderField: "User-Agent")
         if let token { assetRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
 
-        let limiter = LimitedPackageDownload(limit: Int64(ExtensionInstallStore.maximumPackageBytes))
+        let allowedHosts: Set<String> = ["api.github.com", "release-assets.githubusercontent.com",
+                                          "objects.githubusercontent.com", "github.com"]
+        let limiter = LimitedPackageDownload(limit: Int64(ExtensionInstallStore.maximumPackageBytes),
+                                             allowedRedirectHosts: allowedHosts)
         let downloaded: URL
         let downloadResponse: URLResponse
         do {
@@ -248,7 +258,7 @@ enum GitHubReleaseInstaller {
         guard let downloadHTTP = downloadResponse as? HTTPURLResponse,
               downloadHTTP.statusCode == 200, downloadHTTP.url?.scheme == "https",
               let host = downloadHTTP.url?.host?.lowercased(),
-              ["api.github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com", "github.com"].contains(host),
+              allowedHosts.contains(host),
               let length = (try FileManager.default.attributesOfItem(atPath: downloaded.path)[.size] as? NSNumber)?.intValue,
               length > 0, length <= ExtensionInstallStore.maximumPackageBytes
         else { throw GitHubReleaseError.unsafeDownload }
@@ -293,7 +303,7 @@ enum GitHubReleaseInstaller {
         }
         GitHubReleaseLinks.save(id: installedID, repository: repository, tag: release.tagName)
         if let newToken = newToken?.trimmingCharacters(in: .whitespacesAndNewlines), !newToken.isEmpty {
-            try GitHubReleaseCredentials.save(newToken)
+            try GitHubReleaseCredentials.save(newToken, service: credentialsService)
         }
         return release.tagName
     }
