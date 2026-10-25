@@ -90,7 +90,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         empty.tag = 101
         stack.addArrangedSubview(empty)
 
-        installForm.onInstallURL = { [weak self] value in self?.installFromStore(value) }
+        installForm.onInstallURL = { [weak self] value, token in self?.installFromURL(value, githubToken: token) }
         installForm.onSelectZIP = { [weak self] in self?.selectZIP() }
         stack.setCustomSpacing(30, after: empty)
         stack.addArrangedSubview(installForm)
@@ -181,24 +181,22 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         busy ? activity.startAnimating() : activity.stopAnimating()
     }
 
-    private func installFromStore(_ value: String) {
+    private func installFromURL(_ value: String, githubToken: String?) {
         guard !busy else { return }
         view.endEditing(true)
         guard let url = URL(string: value) else {
             showError(ExtensionInstallError.invalidChromeWebStoreURL)
             return
         }
-        setBusy(true, message: "Chrome Web Storeから取得しています…")
+        setBusy(true, message: "拡張機能を取得しています…")
         Task { [weak self] in
             guard let self else { return }
             do {
-                let id = try ExtensionInstallStore.extensionID(from: url)
-                if id == ExtensionInstallStore.supportedExtensionID {
-                    _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
-                } else {
-                    _ = try await CommunityExtensionStore().installFromChromeWebStore(url)
-                }
+                _ = try await Task.detached(priority: .userInitiated) {
+                    try await ExtensionURLInstaller.install(url, githubToken: githubToken)
+                }.value
                 setBusy(false, message: nil)
+                installForm.didFinishInstallation()
                 refreshInstalled(animated: true)
                 onChange()
             } catch {

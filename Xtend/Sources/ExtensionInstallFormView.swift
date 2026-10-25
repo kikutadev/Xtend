@@ -3,12 +3,14 @@ import UIKit
 /// 初回案内と設定で使う同じ拡張機能インストール操作。
 @MainActor
 final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
-    var onInstallURL: ((String) -> Void)?
+    var onInstallURL: ((String, String?) -> Void)?
     var onSelectZIP: (() -> Void)?
 
     private let urlField = UITextField()
     private let installButton = UIButton(type: .system)
     private let zipButton = UIButton(type: .system)
+    private let githubTokenField = UITextField()
+    private let clearTokenButton = UIButton(type: .system)
     private var busy = false
 
     override init(frame: CGRect) {
@@ -23,17 +25,38 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
         addArrangedSubview(heading)
 
         urlField.borderStyle = .roundedRect
-        urlField.placeholder = "Chrome拡張機能のURLを貼り付け"
+        urlField.placeholder = "Chrome Web Store / GitHubのURL"
         urlField.keyboardType = .URL
         urlField.textContentType = .URL
         urlField.autocorrectionType = .no
         urlField.autocapitalizationType = .none
         urlField.clearButtonMode = .whileEditing
         urlField.returnKeyType = .go
-        urlField.accessibilityLabel = "Chrome拡張機能のURL"
+        urlField.accessibilityLabel = "拡張機能のURL"
         urlField.delegate = self
         urlField.addTarget(self, action: #selector(updateInstallButton), for: .editingChanged)
         addArrangedSubview(urlField)
+
+        githubTokenField.borderStyle = .roundedRect
+        githubTokenField.placeholder = GitHubReleaseCredentials.load() == nil
+            ? "Private GitHub用トークン（任意）" : "トークン保存済み（変更する場合は入力）"
+        githubTokenField.isSecureTextEntry = true
+        githubTokenField.autocorrectionType = .no
+        githubTokenField.autocapitalizationType = .none
+        githubTokenField.accessibilityLabel = "GitHubの読み取り用トークン"
+        githubTokenField.isHidden = true
+        addArrangedSubview(githubTokenField)
+
+        clearTokenButton.setTitle("保存トークンを削除", for: .normal)
+        clearTokenButton.contentHorizontalAlignment = .leading
+        clearTokenButton.addAction(UIAction { [weak self] _ in
+            GitHubReleaseCredentials.remove()
+            self?.githubTokenField.text = ""
+            self?.githubTokenField.placeholder = "Private GitHub用トークン（任意）"
+            self?.updateInstallButton()
+        }, for: .touchUpInside)
+        clearTokenButton.isHidden = true
+        addArrangedSubview(clearTokenButton)
 
         var installConfig = UIButton.Configuration.filled()
         installConfig.title = "インストール"
@@ -54,7 +77,7 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
         addArrangedSubview(zipButton)
 
         let note = UILabel()
-        note.text = "X向けManifest V3の拡張機能に対応します。Chrome固有のバックグラウンド処理や一部APIは動作しません。\nZIPは信頼できる配布元のものだけを選択してください。"
+        note.text = "GitHubのリポジトリURLから最新ReleaseのZIPを取得します。Privateは読み取り用トークンが必要です。"
         note.font = .preferredFont(forTextStyle: .footnote)
         note.adjustsFontForContentSizeCategory = true
         note.textColor = .secondaryLabel
@@ -67,23 +90,35 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
     @available(*, unavailable)
     required init(coder: NSCoder) { fatalError() }
 
+    func didFinishInstallation() {
+        githubTokenField.text = nil
+        githubTokenField.placeholder = GitHubReleaseCredentials.load() == nil
+            ? "Private GitHub用トークン（任意）" : "トークン保存済み（変更する場合は入力）"
+        updateInstallButton()
+    }
+
     func setBusy(_ value: Bool) {
         busy = value
         urlField.isEnabled = !value
         zipButton.isEnabled = !value
+        githubTokenField.isEnabled = !value
+        clearTokenButton.isEnabled = !value
         updateInstallButton()
     }
 
     @objc private func updateInstallButton() {
-        let hasInput = !(urlField.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        installButton.isEnabled = !busy && hasInput
+        let value = urlField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let isGitHub = URL(string: value).flatMap(GitHubReleaseRepository.init(url:)) != nil
+        githubTokenField.isHidden = !isGitHub
+        clearTokenButton.isHidden = !isGitHub || GitHubReleaseCredentials.load() == nil
+        installButton.isEnabled = !busy && !value.isEmpty
     }
 
     @objc private func submitURL() {
         guard !busy, let text = urlField.text?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else { return }
         urlField.resignFirstResponder()
-        onInstallURL?(text)
+        onInstallURL?(text, githubTokenField.text)
     }
 
     @objc private func selectZIP() {
@@ -120,8 +155,7 @@ final class RecommendedExtensionsView: UIStackView {
             title: "X ホームの閲覧位置",
             destination: "GitHub",
             url: URL(string: "https://github.com/akiweb8528/x-home-anchor")!,
-            note: "GitHubのReleasesから配布用ZIPをダウンロードし、「ZIPでインストール」から選択してください。",
-            copyLink: false
+            note: "このリポジトリにはGitHub Releasesがないため、release/の配布ZIPを「ZIPでインストール」してください。"
         ))
     }
 

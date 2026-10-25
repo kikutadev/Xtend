@@ -2,7 +2,7 @@ import Foundation
 import ZIPFoundation
 
 /// Cancels the transfer as soon as the CRX download exceeds the limit.
-private final class LimitedPackageDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+final class LimitedPackageDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     private let limit: Int64
     private let lock = NSLock()
     private var exceeded = false
