@@ -53,7 +53,7 @@ xcodebuild -project Xtend.xcodeproj -scheme Xtend \
   -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO test
 ```
 
-合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。`XtendUITests`は既存のSimulator上でブラウザーが開ける場合に、設定画面の往復と手動再読み込みのUI操作を検証します。初回案内画面のままなら該当UIテストはスキップします。
+合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。共通の `ExtensionStorageTests` は、`local` / `sync` のファイル保存・復元、拡張機能間の分離、旧 `UserDefaults` の引継ぎ、保存エラー時の通知抑止を検証します。`test01WriteSharedStorageBeforeRestart` と `test02ReadSharedStorageAfterRestart` を別々の `xcodebuild test` 呼び出しで連続実行すると、テストホスト終了後の復元を検証できます。`XtendUITests`は既存のSimulator上でブラウザーが開ける場合に、設定画面の往復と手動再読み込みのUI操作を検証します。初回案内画面のままなら該当UIテストはスキップします。
 
 Mac上でSimulatorのGUIを開かずに実行する場合は、既存のSimulatorを`xcrun simctl boot <SimulatorのUUID>`（未起動時のみ）と`xcrun simctl bootstatus <SimulatorのUUID> -b`で起動し、上記の`xcodebuild`を実行します。UIテストが起動するXtendのデータコンテナは変わる場合があるため、手動で外部ファイルをアプリコンテナへ置いておく方式をテストの前提にしないでください。Xのログイン状態やWebサイトのデータはリポジトリに保存しません。
 

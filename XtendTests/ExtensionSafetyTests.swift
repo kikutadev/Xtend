@@ -17,16 +17,20 @@ final class ExtensionStorageTests: XCTestCase {
     func testCrossInstanceValuesAndChangeIdentity() throws {
         let suite = "XtendTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite, isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
         let recorder = StorageChangeRecorder()
         NotificationCenter.default.addObserver(
             recorder, selector: #selector(StorageChangeRecorder.record(_:)),
             name: ExtensionStorage.didChangeNotification, object: nil
         )
         defer { NotificationCenter.default.removeObserver(recorder) }
-        let writer = ExtensionStorage(extensionID: "extension-a", defaults: defaults)
-        let reader = ExtensionStorage(extensionID: "extension-a", defaults: defaults)
-        let separate = ExtensionStorage(extensionID: "extension-b", defaults: defaults)
+        let writer = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        let reader = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        let separate = ExtensionStorage(extensionID: "extension-b", defaults: defaults, storageDirectory: directory)
         _ = try writer.set(area: "local", items: ["enabled": true])
         XCTAssertEqual(try reader.get(area: "local", keys: "enabled")["enabled"] as? Bool, true)
         XCTAssertNil(try separate.get(area: "local", keys: "enabled")["enabled"])
@@ -35,17 +39,125 @@ final class ExtensionStorageTests: XCTestCase {
         XCTAssertEqual(recorder.extensionIDs, ["extension-a", "extension-b"])
     }
 
-    func testUnchangedValueDoesNotBroadcast() throws {
+    func testLocalAndSyncPersistAfterRecreatingStorage() throws {
+        let suite = "XtendTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let writer = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        _ = try writer.set(area: "local", items: ["history": ["names": ["alice": 123]], "option": true])
+        _ = try writer.set(area: "sync", items: ["theme": "dark"])
+        // File-backed writes must be visible to newly created storage without
+        // waiting for preferences to flush or keeping a WebView alive.
+        let restarted = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        let local = try restarted.get(area: "local", keys: nil)
+        XCTAssertNotNil((local["history"] as? [String: Any])?["names"])
+        XCTAssertEqual(local["option"] as? Bool, true)
+        XCTAssertEqual(try restarted.get(area: "sync", keys: "theme")["theme"] as? String, "dark")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path).count, 2)
+        _ = try restarted.remove(area: "local", keys: "history")
+        let afterRemoval = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        XCTAssertNil(try afterRemoval.get(area: "local", keys: "history")["history"])
+        XCTAssertEqual(try afterRemoval.get(area: "local", keys: "option")["option"] as? Bool, true)
+        XCTAssertEqual(try afterRemoval.get(area: "sync", keys: "theme")["theme"] as? String, "dark")
+        XCTAssertNil(try ExtensionStorage(extensionID: "extension-b", defaults: defaults, storageDirectory: directory)
+            .get(area: "local", keys: nil)["option"])
+    }
+
+    func testLegacyUserDefaultsMigratesWithoutLosingOrResurrectingValues() throws {
+        let suite = "XtendTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let oldData = try JSONSerialization.data(withJSONObject: ["old": 1])
+        defaults.set(oldData, forKey: "xtend.extension.storage.extension-a.local")
+        let migrated = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        XCTAssertEqual(try migrated.get(area: "local", keys: "old")["old"] as? Int, 1)
+        _ = try migrated.set(area: "local", items: ["new": 2])
+        // Even if an earlier preference snapshot is still present, the file wins.
+        defaults.set(oldData, forKey: "xtend.extension.storage.extension-a.local")
+        let restarted = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        XCTAssertEqual(try restarted.get(area: "local", keys: "new")["new"] as? Int, 2)
+        _ = try restarted.remove(area: "local", keys: ["old", "new"])
+        XCTAssertTrue(try ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+            .get(area: "local", keys: nil).isEmpty)
+    }
+
+    func testFailedDiskWriteDoesNotReportSuccessOrNotify() throws {
         let suite = "XtendTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        try Data("not a directory".utf8).write(to: directory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storage = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        let recorder = StorageChangeRecorder()
+        NotificationCenter.default.addObserver(recorder, selector: #selector(StorageChangeRecorder.record(_:)),
+                                               name: ExtensionStorage.didChangeNotification, object: storage)
+        defer { NotificationCenter.default.removeObserver(recorder) }
+        XCTAssertThrowsError(try storage.set(area: "local", items: ["value": 1]))
+        XCTAssertTrue(recorder.extensionIDs.isEmpty)
+        XCTAssertNil(defaults.data(forKey: "xtend.extension.storage.extension-a.local"))
+    }
+
+    // Run 01 and 02 in separate xcodebuild invocations to verify persistence
+    // across an actual test-host process boundary, not merely object recreation.
+    private let restartSuite = "XtendCommonStorageProcessQA.v1"
+    private let restartID = "xtend-test-extension-process-persistence"
+
+    private var restartDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Xtend/StorageProcessQA", isDirectory: true)
+    }
+
+    func test01WriteSharedStorageBeforeRestart() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: restartSuite))
+        defaults.removePersistentDomain(forName: restartSuite)
+        try? FileManager.default.removeItem(at: restartDirectory)
+        let storage = ExtensionStorage(extensionID: restartID, defaults: defaults, storageDirectory: restartDirectory)
+        _ = try storage.set(area: "local", items: ["history": ["fixture": "persisted"]])
+        _ = try storage.set(area: "sync", items: ["enabled": true])
+        let files = try FileManager.default.contentsOfDirectory(at: restartDirectory,
+                                                              includingPropertiesForKeys: nil)
+        XCTAssertEqual(files.count, 2)
+        XCTAssertTrue(files.allSatisfy { (try? Data(contentsOf: $0).isEmpty) == false })
+        XCTAssertNil(defaults.data(forKey: "xtend.extension.storage.\(restartID).local"),
+                     "The test must not accidentally pass through UserDefaults")
+    }
+
+    func test02ReadSharedStorageAfterRestart() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: restartSuite))
+        defer {
+            defaults.removePersistentDomain(forName: restartSuite)
+            try? FileManager.default.removeItem(at: restartDirectory)
+        }
+        let storage = ExtensionStorage(extensionID: restartID, defaults: defaults, storageDirectory: restartDirectory)
+        let history = try storage.get(area: "local", keys: "history")["history"] as? [String: Any]
+        XCTAssertEqual(history?["fixture"] as? String, "persisted")
+        XCTAssertEqual(try storage.get(area: "sync", keys: "enabled")["enabled"] as? Bool, true)
+    }
+
+    func testUnchangedValueDoesNotBroadcast() throws {
+        let suite = "XtendTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite, isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
         let recorder = StorageChangeRecorder()
         NotificationCenter.default.addObserver(
             recorder, selector: #selector(StorageChangeRecorder.record(_:)),
             name: ExtensionStorage.didChangeNotification, object: nil
         )
         defer { NotificationCenter.default.removeObserver(recorder) }
-        let storage = ExtensionStorage(extensionID: "extension-a", defaults: defaults)
+        let storage = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
         _ = try storage.set(area: "local", items: ["theme": "dark"])
         _ = try storage.set(area: "local", items: ["theme": "dark"])
         XCTAssertEqual(recorder.extensionIDs, ["extension-a"])
