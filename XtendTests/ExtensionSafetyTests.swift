@@ -242,7 +242,7 @@ final class NyattoRingPersistenceTests: XCTestCase {
         throw NSError(domain: "NyattoRingPersistenceQA", code: 1)
     }
 
-    private func fixture() throws -> (WKWebView, ExtensionHost, UIWindow, UserDefaults, WKContentWorld) {
+    private func fixture(html: String = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head><body><main id='qa'>Xtend ring storage QA</main></body></html>") throws -> (WKWebView, ExtensionHost, UIWindow, UserDefaults, WKContentWorld) {
         guard let root = ExtensionInstallStore().existingRoot else {
             throw XCTSkip("Nyatto must be staged in the Simulator app's Extensions directory")
         }
@@ -260,8 +260,7 @@ final class NyattoRingPersistenceTests: XCTestCase {
         let view = WKWebView(frame: controller.view.bounds, configuration: config)
         controller.view.addSubview(view)
         host.attach(to: view)
-        view.loadHTMLString("<!doctype html><html><head></head><body><main id='qa'>Xtend ring storage QA</main></body></html>",
-                            baseURL: URL(string: "https://x.com/home")!)
+        view.loadHTMLString(html, baseURL: URL(string: "https://x.com/home")!)
         return (view, host, window, defaults, ExtensionPackage.contentWorld(for: extensionID))
     }
 
@@ -272,6 +271,52 @@ final class NyattoRingPersistenceTests: XCTestCase {
         return all["xff:liked-by"] as? [String: Any]
     }
 
+    func testMobileDrawerConfirmsViewerAndPersistsScopedReactionHistory() async throws {
+        let html = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+        <body><button data-testid="DashButton_ProfileIcon_Link" aria-expanded="true" style="width:40px;height:40px">Open</button>
+        <div role="dialog" style="position:fixed;left:0;top:0;width:260px;height:100vh;background:white">
+          <span>@ringfixture</span><a href="/ringfixture">Account</a><a href="/ringfixture">Profile</a>
+        </div>
+        <main><article data-testid="notification" role="article"><a href="/otherfixture">otherfixture</a> liked your post</article></main>
+        </body></html>
+        """
+        let (view, host, window, defaults, world) = try fixture(html: html)
+        _ = host
+        defer { window.isHidden = true }
+        defaults.removePersistentDomain(forName: suite)
+        try await waitUntil("confirmed mobile account stored") {
+            let area = try? ExtensionStorage(extensionID: self.extensionID, defaults: defaults)
+                .get(area: "local", keys: "xtend:mobile-confirmed-viewer")
+            return area?["xtend:mobile-confirmed-viewer"] as? String == "ringfixture"
+        }
+        let link = try await javascript("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", in: view, world: world)
+        XCTAssertEqual(link, "/ringfixture")
+        _ = try await javascript("globalThis.XFFStorage.update('xff:liked-by', old => globalThis.XFFViewerScope.put(old, 'ringfixture', {version:1, names: {otherfixture:Date.now()}, ids:{}, boostNames:{}, boostIds:{}})); 'queued'", in: view, world: world)
+        try await waitUntil("like from X notification scoped to active account") {
+            let ring = self.storedHistory(in: defaults)
+            let scopes = ring?["viewers"] as? [String: Any]
+            let current = scopes?["ringfixture"] as? [String: Any]
+            let names = current?["names"] as? [String: Any]
+            return names?["otherfixture"] != nil
+        }
+        XCTAssertTrue(defaults.synchronize())
+        // Recreate WebKit with the same extension storage to verify that the
+        // account scope and ring history remain available on the next page.
+        window.isHidden = true
+        let (reopenedView, reopenedHost, reopenedWindow, _, reopenedWorld) = try fixture()
+        _ = reopenedHost
+        defer { reopenedWindow.isHidden = true }
+        try await waitUntil("confirmed account restored after WebView recreation") {
+            (try? await self.javascript("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", in: reopenedView, world: reopenedWorld)) == "/ringfixture"
+        }
+        _ = try await javascript("globalThis.XFFStorage.read(['xff:liked-by'], data => {globalThis.__scopeRestored = Boolean(data['xff:liked-by']?.viewers?.ringfixture?.names?.otherfixture)}); 'reading'", in: reopenedView, world: reopenedWorld)
+        try await waitUntil("account-scoped ring restored after WebView recreation") {
+            (try? await self.javascript("String(globalThis.__scopeRestored)", in: reopenedView, world: reopenedWorld)) == "true"
+        }
+        defaults.removePersistentDomain(forName: suite)
+    }
+
     func test01WriteHistoryBeforeRestart() async throws {
         let (view, host, window, defaults, world) = try fixture()
         _ = host
@@ -280,10 +325,12 @@ final class NyattoRingPersistenceTests: XCTestCase {
         try await waitUntil("Nyatto browser runtime") {
             (try? await self.javascript("typeof globalThis.XFFStorage + ':' + location.hostname", in: view, world: world)) == "object:x.com"
         }
-        _ = try await javascript("globalThis.XFFStorage.update('xff:liked-by', old => ({version:1, names:{...(old?.names||{}), xtend_fixture_liker: Date.now()}, ids:{}}), ok => {globalThis.__xtendSaved=ok}); 'written'", in: view, world: world)
+        _ = try await javascript("globalThis.XFFStorage.update('xff:liked-by', old => globalThis.XFFViewerScope.put(old, 'ringfixture', {version:1, names:{xtend_fixture_liker: Date.now()}, ids:{}, boostNames:{}, boostIds:{}}), ok => {globalThis.__xtendSaved=ok}); 'written'", in: view, world: world)
         try await waitUntil("native storage persisted") {
             let history = self.storedHistory(in: defaults)
-            return (history?["names"] as? [String: Any])?[self.fixtureAccount] != nil
+            let viewers = history?["viewers"] as? [String: Any]
+            let ringfixture = viewers?["ringfixture"] as? [String: Any]
+            return (ringfixture?["names"] as? [String: Any])?[self.fixtureAccount] != nil
         }
         let savedCallback = try await javascript("String(globalThis.__xtendSaved)", in: view, world: world)
         XCTAssertEqual(savedCallback, "true")
@@ -294,12 +341,14 @@ final class NyattoRingPersistenceTests: XCTestCase {
         let (view, host, window, defaults, world) = try fixture()
         _ = host
         defer { window.isHidden = true }
-        XCTAssertNotNil((storedHistory(in: defaults)?["names"] as? [String: Any])?[fixtureAccount],
-                        "History must survive termination between the two tests")
+        let viewers = storedHistory(in: defaults)?["viewers"] as? [String: Any]
+        let ringfixture = viewers?["ringfixture"] as? [String: Any]
+        XCTAssertNotNil((ringfixture?["names"] as? [String: Any])?[fixtureAccount],
+                        "Account-scoped history must survive termination between the two tests")
         try await waitUntil("Nyatto browser runtime") {
             (try? await self.javascript("typeof globalThis.XFFStorage + ':' + location.hostname", in: view, world: world)) == "object:x.com"
         }
-        _ = try await javascript("globalThis.XFFStorage.read(['xff:liked-by'], data => {globalThis.__xtendRestored = Boolean(data['xff:liked-by']?.names?.xtend_fixture_liker)}); 'reading'", in: view, world: world)
+        _ = try await javascript("globalThis.XFFStorage.read(['xff:liked-by'], data => {globalThis.__xtendRestored = Boolean(data['xff:liked-by']?.viewers?.ringfixture?.names?.xtend_fixture_liker)}); 'reading'", in: view, world: world)
         try await waitUntil("history restored via Chrome API") {
             (try? await self.javascript("String(globalThis.__xtendRestored)", in: view, world: world)) == "true"
         }

@@ -55,6 +55,8 @@ xcodebuild -project Xtend.xcodeproj -scheme Xtend \
 
 合成fixtureでZIPの不正パスとシンボリックリンク、破損パッケージの隔離、保存値の分離・変更通知、更新中断からの復旧を検証します。`XtendUITests`は既存のSimulator上でブラウザーが開ける場合に、設定画面の往復と手動再読み込みのUI操作を検証します。初回案内画面のままなら該当UIテストはスキップします。
 
+にゃっとランドのリング履歴は `NyattoRingPersistenceTests` で、実際のインストール済み拡張機能とWebKitブリッジを使い、モバイルアカウント確認・アカウント別保存・WebView再生成後の復元を検証します。対象拡張機能がSimulatorテストアプリの `Extensions` にない場合はスキップされます。`test01WriteHistoryBeforeRestart` と `test02ReadHistoryAfterProcessRestart` は別々の `xcodebuild test` 呼び出しでも実行し、プロセスを跨いだ保存を確認します。これは実際のX通知からリングが描画されることの代替にはなりません。
+
 Mac上でSimulatorのGUIを開かずに実行する場合は、既存のSimulatorを`xcrun simctl boot <SimulatorのUUID>`（未起動時のみ）と`xcrun simctl bootstatus <SimulatorのUUID> -b`で起動し、上記の`xcodebuild`を実行します。UIテストが起動するXtendのデータコンテナは変わる場合があるため、手動で外部ファイルをアプリコンテナへ置いておく方式をテストの前提にしないでください。Xのログイン状態やWebサイトのデータはリポジトリに保存しません。
 
 ### ログイン済みSimulatorでx-home-anchorを再配置する
