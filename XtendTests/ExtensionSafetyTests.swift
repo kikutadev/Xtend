@@ -37,6 +37,26 @@ final class ExtensionStorageTests: XCTestCase {
         XCTAssertEqual(recorder.extensionIDs, ["extension-a", "extension-b"])
     }
 
+    func testRemovedRingDoesNotReturnFromStaleUserDefaults() throws {
+        let suite = "XtendRingRemoval.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(suite).json")
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: file)
+        }
+        let id = ExtensionInstallStore.supportedExtensionID
+        let storage = ExtensionStorage(extensionID: id, defaults: defaults, ringHistoryURL: file)
+        _ = try storage.set(area: "local", items: ["xff:liked-by": ["version": 1, "names": ["fixture": 42]]])
+        let key = "xtend.extension.storage.\(id).local"
+        let oldDefaultsData = try XCTUnwrap(defaults.data(forKey: key))
+        _ = try storage.remove(area: "local", keys: "xff:liked-by")
+        // Simulate the older preference snapshot being restored before it flushes.
+        defaults.set(oldDefaultsData, forKey: key)
+        let reopened = ExtensionStorage(extensionID: id, defaults: defaults, ringHistoryURL: file)
+        XCTAssertNil(try reopened.get(area: "local", keys: "xff:liked-by")["xff:liked-by"])
+    }
+
     func testUnchangedValueDoesNotBroadcast() throws {
         let suite = "XtendTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -219,6 +239,9 @@ final class NyattoRingPersistenceTests: XCTestCase {
     private let extensionID = ExtensionInstallStore.supportedExtensionID
     private let suite = "XtendRingPersistenceRestartQA.v1"
     private let fixtureAccount = "xtend_fixture_liker"
+    private var ringFileURL: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("XtendRingPersistenceRestartQA.v1.json")
+    }
 
     private func javascript(_ script: String, in view: WKWebView, world: WKContentWorld) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
@@ -249,7 +272,7 @@ final class NyattoRingPersistenceTests: XCTestCase {
         let package = try ExtensionPackage.installed(id: extensionID, root: root)
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         let host = try ExtensionHost(packages: [package], storageByID: [
-            extensionID: ExtensionStorage(extensionID: extensionID, defaults: defaults)
+            extensionID: ExtensionStorage(extensionID: extensionID, defaults: defaults, ringHistoryURL: ringFileURL)
         ])
         let config = WKWebViewConfiguration()
         try host.installBrowserRuntime(into: config)
@@ -265,10 +288,42 @@ final class NyattoRingPersistenceTests: XCTestCase {
     }
 
     private func storedHistory(in defaults: UserDefaults) -> [String: Any]? {
-        let key = "xtend.extension.storage.\(extensionID).local"
-        guard let data = defaults.data(forKey: key),
-              let all = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return all["xff:liked-by"] as? [String: Any]
+        let storage = ExtensionStorage(extensionID: extensionID, defaults: defaults, ringHistoryURL: ringFileURL)
+        return (try? storage.get(area: "local", keys: "xff:liked-by"))?["xff:liked-by"] as? [String: Any]
+    }
+
+    private func diskHistory() -> [String: Any]? {
+        guard let data = try? Data(contentsOf: ringFileURL),
+              let stored = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return stored["value"] as? [String: Any]
+    }
+
+    func testMobileDrawerDoesNotUseUnverifiedProfileLinks() async throws {
+        let html = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+        <body><button data-testid="DashButton_ProfileIcon_Link" aria-expanded="true" style="width:40px;height:40px">Open</button>
+        <div role="dialog" style="position:fixed;left:0;top:0;width:260px;height:100vh;background:white">
+          <span>@ringfixture</span><a href="/otherfixture">Account</a><a href="/otherfixture">Profile</a>
+        </div>
+        <article data-testid="notification"><a href="/otherfixture">otherfixture</a> liked your post</article>
+        </body></html>
+        """
+        let (view, host, window, defaults, world) = try fixture(html: html)
+        _ = host
+        defer { window.isHidden = true }
+        defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: ringFileURL)
+        try await waitUntil("Nyatto browser runtime") {
+            (try? await self.javascript("typeof globalThis.XFFStorage", in: view, world: world)) == "object"
+        }
+        try await Task.sleep(for: .milliseconds(300))
+        let savedViewer = try ExtensionStorage(extensionID: extensionID, defaults: defaults)
+            .get(area: "local", keys: "xtend:mobile-confirmed-viewer")
+        XCTAssertNil(savedViewer["xtend:mobile-confirmed-viewer"])
+        let linkState = try await javascript("String(Boolean(document.querySelector('a[data-testid=AppTabBar_Profile_Link]')))", in: view, world: world)
+        XCTAssertEqual(linkState, "false")
+        defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: ringFileURL)
     }
 
     func testMobileDrawerConfirmsViewerAndPersistsScopedReactionHistory() async throws {
@@ -285,6 +340,7 @@ final class NyattoRingPersistenceTests: XCTestCase {
         _ = host
         defer { window.isHidden = true }
         defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: ringFileURL)
         try await waitUntil("confirmed mobile account stored") {
             let area = try? ExtensionStorage(extensionID: self.extensionID, defaults: defaults)
                 .get(area: "local", keys: "xtend:mobile-confirmed-viewer")
@@ -315,6 +371,7 @@ final class NyattoRingPersistenceTests: XCTestCase {
             (try? await self.javascript("String(globalThis.__scopeRestored)", in: reopenedView, world: reopenedWorld)) == "true"
         }
         defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: ringFileURL)
     }
 
     func test01WriteHistoryBeforeRestart() async throws {
@@ -322,6 +379,7 @@ final class NyattoRingPersistenceTests: XCTestCase {
         _ = host
         defer { window.isHidden = true }
         defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: ringFileURL)
         try await waitUntil("Nyatto browser runtime") {
             (try? await self.javascript("typeof globalThis.XFFStorage + ':' + location.hostname", in: view, world: world)) == "object:x.com"
         }
@@ -335,15 +393,21 @@ final class NyattoRingPersistenceTests: XCTestCase {
         let savedCallback = try await javascript("String(globalThis.__xtendSaved)", in: view, world: world)
         XCTAssertEqual(savedCallback, "true")
         XCTAssertTrue(defaults.synchronize())
+        let expectedTime = ((storedHistory(in: defaults)?["viewers"] as? [String: Any])?["ringfixture"] as? [String: Any])
+            .flatMap { ($0["names"] as? [String: Any])?[fixtureAccount] as? NSNumber }
+        let diskViewers = diskHistory()?["viewers"] as? [String: Any]
+        let diskRing = diskViewers?["ringfixture"] as? [String: Any]
+        let diskValue = (diskRing?["names"] as? [String: Any])?[fixtureAccount] as? NSNumber
+        XCTAssertEqual(diskValue, expectedTime, "Ring write must be on disk before callback returns")
     }
 
     func test02ReadHistoryAfterProcessRestart() async throws {
         let (view, host, window, defaults, world) = try fixture()
         _ = host
         defer { window.isHidden = true }
-        let viewers = storedHistory(in: defaults)?["viewers"] as? [String: Any]
-        let ringfixture = viewers?["ringfixture"] as? [String: Any]
-        XCTAssertNotNil((ringfixture?["names"] as? [String: Any])?[fixtureAccount],
+        let ringfixture = diskHistory()?["viewers"] as? [String: Any]
+        let persisted = ringfixture?["ringfixture"] as? [String: Any]
+        XCTAssertNotNil((persisted?["names"] as? [String: Any])?[fixtureAccount],
                         "Account-scoped history must survive termination between the two tests")
         try await waitUntil("Nyatto browser runtime") {
             (try? await self.javascript("typeof globalThis.XFFStorage + ':' + location.hostname", in: view, world: world)) == "object:x.com"
@@ -353,5 +417,6 @@ final class NyattoRingPersistenceTests: XCTestCase {
             (try? await self.javascript("String(globalThis.__xtendRestored)", in: view, world: world)) == "true"
         }
         defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: ringFileURL)
     }
 }

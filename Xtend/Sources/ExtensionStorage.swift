@@ -7,11 +7,16 @@ final class ExtensionStorage {
     private let defaults: UserDefaults
     private let extensionID: String
     private let keyPrefix: String
+    private let ringHistoryURL: URL?
 
-    init(extensionID: String, defaults: UserDefaults = .standard) {
+    init(extensionID: String, defaults: UserDefaults = .standard, ringHistoryURL: URL? = nil) {
         self.extensionID = extensionID
         self.keyPrefix = "xtend.extension.storage.\(extensionID)."
         self.defaults = defaults
+        self.ringHistoryURL = extensionID == ExtensionInstallStore.supportedExtensionID
+            ? ringHistoryURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("Xtend/nyatto-ring-history.json")
+            : nil
     }
 
     func get(area: String, keys: Any?) throws -> [String: Any] {
@@ -65,10 +70,10 @@ final class ExtensionStorage {
 
         guard !changes.isEmpty else { return [:] }
         try saveNamespace(values, area: area)
-        // Ring histories are short-lived but must survive the user closing Xtend.
-        // Force the critical update to disk before acknowledging it to JavaScript.
-        if area == "local", items["xff:liked-by"] != nil, !defaults.synchronize() {
-            throw StorageError.persistenceFailed
+        // UserDefaults may flush asynchronously even after synchronize() succeeds.
+        // Commit the ring to an atomic file before acknowledging storage.set.
+        if area == "local", let history = items["xff:liked-by"] {
+            try saveRingHistory(history)
         }
         emitChanges(changes, area: area)
         return changes
@@ -94,18 +99,41 @@ final class ExtensionStorage {
 
         guard !changes.isEmpty else { return [:] }
         try saveNamespace(values, area: area)
+        if area == "local", changes["xff:liked-by"] != nil {
+            // A tombstone prevents stale UserDefaults data from resurfacing.
+            try saveRingHistory(NSNull())
+        }
         emitChanges(changes, area: area)
         return changes
     }
 
     private func namespace(area: String) throws -> [String: Any] {
         try validate(area: area)
-        guard let data = defaults.data(forKey: keyPrefix + area) else { return [:] }
-        let object = try JSONSerialization.jsonObject(with: data)
-        guard let dictionary = object as? [String: Any] else {
-            throw StorageError.corruptNamespace
+        var values: [String: Any] = [:]
+        if let data = defaults.data(forKey: keyPrefix + area) {
+            guard let decoded = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw StorageError.corruptNamespace
+            }
+            values = decoded
         }
-        return dictionary
+        if area == "local", let ringHistoryURL, FileManager.default.fileExists(atPath: ringHistoryURL.path) {
+            let data = try Data(contentsOf: ringHistoryURL)
+            guard let stored = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let ring = stored["value"] else { throw StorageError.corruptNamespace }
+            if ring is NSNull {
+                values.removeValue(forKey: "xff:liked-by")
+            } else {
+                values["xff:liked-by"] = ring
+            }
+        }
+        return values
+    }
+
+    private func saveRingHistory(_ history: Any) throws {
+        guard let ringHistoryURL else { return }
+        let data = try JSONSerialization.data(withJSONObject: ["value": history], options: [.sortedKeys])
+        try FileManager.default.createDirectory(at: ringHistoryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: ringHistoryURL, options: .atomic)
     }
 
     private func saveNamespace(_ values: [String: Any], area: String) throws {
@@ -148,7 +176,6 @@ enum StorageError: LocalizedError {
     case unsupportedKeys
     case corruptNamespace
     case nonJSONValue
-    case persistenceFailed
 
     var errorDescription: String? {
         switch self {
@@ -156,7 +183,6 @@ enum StorageError: LocalizedError {
         case .unsupportedKeys: "Unsupported chrome.storage key shape"
         case .corruptNamespace: "Stored extension namespace is corrupt"
         case .nonJSONValue: "Extension attempted to store a non-JSON value"
-        case .persistenceFailed: "Extension storage could not be persisted to disk"
         }
     }
 }

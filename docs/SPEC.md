@@ -59,6 +59,7 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、Xの操作ジェスチャー�
 - 共通の拡張機能ホストが、拡張機能IDごとにJavaScript実行領域、保存領域、リソース配信を分離する。X上のコンテンツスクリプトとCSS、基本的な`chrome.storage`等を実行する。Chromeのservice workerや未実装API、全拡張機能の動作は保証しない。にゃっとランドの画像パック応答のみ既存の専用処理を維持する。
 - にゃっとランドのContent Scriptsはインストール済み`manifest.json`の順序、JavaScript実行領域（MAIN／ISOLATED）、読み込みタイミングに従ってX／Twitter上で実行する。
 - ブラウザ上で必要な`chrome.runtime`、`chrome.storage.local`、`chrome.storage.sync`等のAPIを限定的に提供する。`storage.sync`は**端末内の保存領域**であり、Chromeアカウントとの同期ではない。
+- にゃっとランドの反応リング履歴（`xff:liked-by`）は端末に永続保存し、Xtendの再起動後もアカウント別に復元する。モバイルXでは開いた本人のアカウントメニューを確認してプロフィールを補完し、通知や投稿の著者からログイン中の利用者を推定しない。リング履歴はアトミックなファイル保存が確定してからChromeストレージAPIへ成功を返す。
 - 拡張機能の画像アセットはインストールされたパックデータから必要な範囲を読み出す。任意のChrome拡張機能やChrome APIすべてへの対応は保証しない。
 - 設定画面の拡張機能リソースは拡張機能IDごとに隔離した専用の`xtend-extension://`スキームで扱い、任意のWebサイトがその権限を使うことは許可しない。
 

@@ -48,9 +48,8 @@ final class ChromeBridge: NSObject, WKScriptMessageHandlerWithReply {
                 }
                 _ = try storage.set(area: area, items: items)
                 #if DEBUG
-                if let ring = items["xff:liked-by"] as? [String: Any] {
-                    let count = (ring["names"] as? [String: Any])?.count ?? 0
-                    logger.debug("Nyatto ring history saved: area=\(area, privacy: .public), count=\(count)")
+                if items["xff:liked-by"] != nil {
+                    logger.debug("Nyatto ring history saved: area=\(area, privacy: .public)")
                 }
                 #endif
                 replyHandler(["ok": true], nil)
@@ -71,7 +70,7 @@ final class ChromeBridge: NSObject, WKScriptMessageHandlerWithReply {
             }
         } catch {
             if operation.hasPrefix("storage.") {
-                logger.error("Extension storage error: operation=\(operation, privacy: .public), error=\(error.localizedDescription, privacy: .public)")
+                logger.error("Extension storage error: operation=\(operation, privacy: .public), error=\(error.localizedDescription, privacy: .private)")
             }
             replyHandler(nil, error.localizedDescription)
         }

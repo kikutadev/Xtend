@@ -154,7 +154,11 @@ enum ChromeShim {
         const unique = new Set(candidates);
         if (candidates.length < 2 || unique.size !== 1) return null;
         const candidate = candidates[0];
-        return candidate;
+        // The account name must also be visible in the opened drawer. Two
+        // links alone could refer to a different user after an X UI update.
+        const hasAccountLabel = [...panel.querySelectorAll('span')]
+          .some(span => span.textContent?.trim().toLowerCase() === '@' + candidate);
+        return hasAccountLabel ? candidate : null;
       }
       function expose() {
         if (!confirmed || !document.body || signedOut()) { removeLink(); return; }
