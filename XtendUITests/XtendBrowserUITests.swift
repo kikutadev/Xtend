@@ -147,6 +147,46 @@ final class XtendBrowserUITests: XCTestCase {
         XCTAssertTrue(web.exists)
     }
 
+    func testQuoteLongPressOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        sleep(5)
+        let reposts = web.descendants(matching: .any).matching(NSPredicate(
+            format: "label ENDSWITH[cd] %@ OR label ENDSWITH[cd] %@ OR label ENDSWITH[cd] %@",
+            ". Repost", ". Undo repost", ". リポスト"
+        ))
+        var visibleRepost: XCUIElement?
+        for attempt in 0..<7 {
+            visibleRepost = (0..<min(reposts.count, 60))
+                .map { reposts.element(boundBy: $0) }
+                .first { $0.isHittable && $0.frame.width < 110 && $0.frame.height < 75 }
+            if visibleRepost != nil { break }
+            // Timeline posts may have images taller than the viewport.
+            // Scroll until their action row enters the hit-testable area.
+            web.swipeUp()
+            if attempt > 2 { sleep(1) }
+        }
+        guard let repost = visibleRepost else {
+            XCTFail("No visible X Repost button found in the live timeline")
+            return
+        }
+        captureBrowserEvidence("quote-longpress-before")
+        repost.press(forDuration: 0.8)
+        XCTAssertTrue(web.staticTexts["Post activity"].waitForExistence(timeout: 25),
+                      "Long press should open X's quote-posts activity screen")
+        captureBrowserEvidence("quote-longpress-after")
+        XCTAssertFalse(web.buttons["Quote"].isHittable,
+                       "Long press must not open the quote composer menu")
+
+        let backEdge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.43))
+        let backEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.43))
+        backEdge.press(forDuration: 0.15, thenDragTo: backEnd)
+        XCTAssertTrue(web.buttons["Following"].waitForExistence(timeout: 15) ||
+                      web.buttons["For you"].exists,
+                      "Back swipe should return to the original timeline")
+        captureBrowserEvidence("quote-longpress-back")
+    }
+
     func testManualReloadReturnsToXBrowser() throws {
         try launchExistingBrowser()
         openSettings()

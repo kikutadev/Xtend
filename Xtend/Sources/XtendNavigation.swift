@@ -4,15 +4,17 @@ import WebKit
 @MainActor
 enum XtendNavigation {
     static func install(into configuration: WKWebViewConfiguration) throws {
-        guard let url = Bundle.main.url(forResource: "xtend-swipe", withExtension: "js") else {
-            throw RuntimeError.missingResource("xtend-swipe.js")
+        for name in ["xtend-swipe", "xtend-quote-longpress"] {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "js") else {
+                throw RuntimeError.missingResource("\(name).js")
+            }
+            let source = try String(contentsOf: url, encoding: .utf8)
+            configuration.userContentController.addUserScript(WKUserScript(
+                source: source,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: "Xtend.Navigation")
+            ))
         }
-        let source = try String(contentsOf: url, encoding: .utf8)
-        configuration.userContentController.addUserScript(WKUserScript(
-            source: source,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true,
-            in: WKContentWorld.world(name: "Xtend.Navigation")
-        ))
     }
 }

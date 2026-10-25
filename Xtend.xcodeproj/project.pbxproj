@@ -29,6 +29,7 @@
 		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
 		8688525F320CF5F1372E9949 /* NyattoMobileXAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E730A5C71F589826EDACE6A8 /* NyattoMobileXAdapter.swift */; };
 		9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */; };
+		ACC8F0989AA73D1144B991DE /* xtend-quote-longpress.js in Resources */ = {isa = PBXBuildFile; fileRef = C22F20AF35C7F854DCA678BC /* xtend-quote-longpress.js */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
 		C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */; };
@@ -79,6 +80,7 @@
 		B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionResourceSchemeHandler.swift; sourceTree = "<group>"; };
 		C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInNavigationTests.swift; sourceTree = "<group>"; };
 		C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoSupport.swift; sourceTree = "<group>"; };
+		C22F20AF35C7F854DCA678BC /* xtend-quote-longpress.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xtend-quote-longpress.js"; sourceTree = "<group>"; };
 		C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendNavigation.swift; sourceTree = "<group>"; };
 		D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStore.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -153,6 +155,7 @@
 			isa = PBXGroup;
 			children = (
 				14307402EA85E945B44C3A40 /* Assets.xcassets */,
+				C22F20AF35C7F854DCA678BC /* xtend-quote-longpress.js */,
 				15B3445714A6922592008694 /* xtend-swipe.js */,
 			);
 			name = Resources;
@@ -286,6 +289,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */,
+				ACC8F0989AA73D1144B991DE /* xtend-quote-longpress.js in Resources */,
 				037A3A2416EE96AF84E24BE5 /* xtend-swipe.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
