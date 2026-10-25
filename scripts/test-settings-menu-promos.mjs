@@ -63,6 +63,7 @@ function loadMenu(entries) {
     innerWidth: 390,
     innerHeight: 844,
     __xtendShowSettingsTip: false,
+    __xtendPromoSettings: { enabled: true, getApp: true, subscribe: true },
     requestAnimationFrame: callback => callback(),
     MutationObserver: class {
       constructor(callback) { observer = callback; }
@@ -78,6 +79,7 @@ function loadMenu(entries) {
     headerGetApp,
     postGetApp,
     injectedStyles,
+    updatePreferences: state => context.__xtendSetPromoSettings(state),
   };
 }
 
@@ -116,4 +118,28 @@ assert.equal(entries[1].hasAttribute(marker), false, 'Closed drawer is not chang
 menu.open();
 assert.equal(entries[1].hasAttribute(marker), true, 'Reopened drawer is filtered');
 
-console.log('Xtend mobile menu promo filtering: PASS');
+// Global off restores both controls without resetting the individual settings.
+menu.updatePreferences({ enabled: false, getApp: true, subscribe: true });
+assert.equal(entries[0].hasAttribute(marker), false);
+assert.equal(entries[1].hasAttribute(marker), false);
+assert.equal(menu.headerGetApp.hasAttribute(pageMarker), false);
+assert.equal(menu.outsideSubscribe.hasAttribute(pageMarker), false);
+
+// Individual switches remain independent under the global master switch.
+entries[0].textContent = 'Get the app';
+entries[1].textContent = 'Subscribe';
+menu.headerGetApp.textContent = 'Get the app';
+menu.outsideSubscribe.textContent = 'Subscribe';
+menu.updatePreferences({ enabled: true, getApp: false, subscribe: true });
+assert.equal(entries[0].hasAttribute(marker), false, 'Get the app restored independently');
+assert.equal(entries[1].hasAttribute(marker), true, 'Subscribe still hidden');
+assert.equal(menu.headerGetApp.hasAttribute(pageMarker), false);
+assert.equal(menu.outsideSubscribe.hasAttribute(pageMarker), true);
+
+menu.updatePreferences({ enabled: true, getApp: true, subscribe: false });
+assert.equal(entries[0].hasAttribute(marker), true);
+assert.equal(entries[1].hasAttribute(marker), false, 'Subscribe restored independently');
+assert.equal(menu.headerGetApp.hasAttribute(pageMarker), true);
+assert.equal(menu.outsideSubscribe.hasAttribute(pageMarker), false);
+
+console.log('Xtend menu promo preferences and live updates: PASS');

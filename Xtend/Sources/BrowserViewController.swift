@@ -255,6 +255,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
                 }
             },
             onChange: { [weak self] in self?.markExtensionConfigurationChanged() },
+            onPromoPreferencesChanged: { [weak self] in
+                guard let webView = self?.webView else { return }
+                XtendSettingsMenu.updatePreferences(in: webView)
+            },
             onFinish: { [weak self] in self?.applyExtensionChanges() }
         )
         let navigation = UINavigationController(rootViewController: settings)

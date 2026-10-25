@@ -11,6 +11,12 @@
   const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
   let lastLogin = null;
   let queued = false;
+  let promoSettings = __xtendPromoSettings;
+
+  globalThis.__xtendSetPromoSettings = next => {
+    promoSettings = next;
+    schedule();
+  };
 
 
   function loginVisible() {
@@ -36,14 +42,15 @@
   // Do not hide the same words in posts, profiles, or subscription controls.
   const hiddenPromoAttribute = 'data-xtend-hidden-menu-promo';
   const pagePromoAttribute = 'data-xtend-hidden-page-promo';
-  const promoLabels = new Set(['get the app', 'subscribe']);
 
   function hideMenuPromotions(drawer) {
     for (const item of drawer.querySelectorAll('a[href], button, [role="link"], [role="button"]')) {
       const labels = [item.getAttribute('aria-label'), item.textContent]
         .filter(Boolean)
         .map(value => value.replace(/\s+/g, ' ').trim().toLowerCase());
-      if (labels.some(label => promoLabels.has(label))) {
+      const hideGetApp = promoSettings.enabled && promoSettings.getApp && labels.includes('get the app');
+      const hideSubscribe = promoSettings.enabled && promoSettings.subscribe && labels.includes('subscribe');
+      if (hideGetApp || hideSubscribe) {
         item.setAttribute(hiddenPromoAttribute, '');
       } else {
         item.removeAttribute(hiddenPromoAttribute);
@@ -58,7 +65,9 @@
       const premiumUpsell = label === 'subscribe' &&
         item.tagName === 'A' && item.getAttribute('href') === '/i/premium_sign_up';
       const appUpsell = label === 'get the app';
-      if ((premiumUpsell || appUpsell) && !item.closest('article,[data-testid="tweet"]')) {
+      const shouldHide = promoSettings.enabled &&
+        ((premiumUpsell && promoSettings.subscribe) || (appUpsell && promoSettings.getApp));
+      if (shouldHide && !item.closest('article,[data-testid="tweet"]')) {
         const rect = item.getBoundingClientRect();
         if ((rect.width > 0 && rect.top >= 0 && rect.top < 150) ||
             item.hasAttribute(pagePromoAttribute)) {

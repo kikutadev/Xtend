@@ -44,6 +44,13 @@ final class XtendBrowserUITests: XCTestCase {
                       "X's WebView should remain visible after closing settings.")
     }
 
+    private func closeXDrawer(in web: XCUIElement) {
+        let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
+        let end = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
+        start.press(forDuration: 0.1, thenDragTo: end)
+        sleep(1)
+    }
+
     // X's selected tab is not consistently exposed through WebKit accessibility.
     // Keep screenshots for comparing the before/after state of real X pages.
     private func captureBrowserEvidence(_ name: String) {
@@ -60,6 +67,63 @@ final class XtendBrowserUITests: XCTestCase {
         let end = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.17 : 0.80, dy: y))
         start.press(forDuration: 0.12, thenDragTo: end)
         sleep(2)
+    }
+
+    func testHidePromotionsSettingsOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        // X can display its WebView before the drawer listeners finish initializing.
+        sleep(5)
+        openSettings()
+
+        let master = app.switches["xtend.cleanup.enabled"]
+        let getApp = app.switches["xtend.cleanup.getApp"]
+        let subscribe = app.switches["xtend.cleanup.subscribe"]
+        XCTAssertTrue(master.waitForExistence(timeout: 10))
+        XCTAssertTrue(getApp.exists)
+        XCTAssertTrue(subscribe.exists)
+        let originalMaster = master.value as? String == "1"
+        let originalGetApp = getApp.value as? String == "1"
+        let originalSubscribe = subscribe.value as? String == "1"
+
+        // Master OFF shows both promotions, without erasing individual choices.
+        if !originalMaster { master.tap() }
+        if !originalSubscribe { subscribe.tap() }
+        if !originalGetApp { getApp.tap() }
+        master.tap()
+        XCTAssertEqual(master.value as? String, "0")
+        XCTAssertFalse(getApp.isEnabled)
+        XCTAssertFalse(subscribe.isEnabled)
+        returnToBrowser()
+        closeXDrawer(in: web)
+        sleep(2)
+        captureBrowserEvidence("promotions-master-off")
+        XCTAssertTrue(web.links["Subscribe"].isHittable,
+                      "The real X home Subscribe link should be restored without a reload.")
+
+        // Re-enable master; only Subscribe is allowed by its own switch.
+        openSettings()
+        XCTAssertTrue(master.waitForExistence(timeout: 10))
+        master.tap()
+        getApp.tap()
+        XCTAssertEqual(getApp.value as? String, "0")
+        XCTAssertEqual(subscribe.value as? String, "1")
+        returnToBrowser()
+        closeXDrawer(in: web)
+        sleep(2)
+        captureBrowserEvidence("promotions-subscribe-hidden")
+        XCTAssertFalse(web.links["Subscribe"].isHittable,
+                       "Subscribe should be hidden without a reload.")
+
+        // Reopen settings to prove values are persisted.
+        openSettings()
+        XCTAssertEqual(master.value as? String, "1")
+        XCTAssertEqual(getApp.value as? String, "0")
+        XCTAssertEqual(subscribe.value as? String, "1")
+        if getApp.value as? String != "1" { getApp.tap() }
+        if subscribe.value as? String != "1" { subscribe.tap() }
+        returnToBrowser()
+        closeXDrawer(in: web)
     }
 
     func testMenuPromotionsOnLoggedInX() throws {
