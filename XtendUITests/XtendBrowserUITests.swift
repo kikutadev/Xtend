@@ -157,7 +157,17 @@ final class XtendBrowserUITests: XCTestCase {
     func testQuoteLongPressOnLoggedInX() throws {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch
-        sleep(5)
+        // Previous sessions may leave X's profile drawer open. Accessibility
+        // can still mark background repost controls as hittable underneath it.
+        let drawerItem = web.staticTexts["Calls"]
+        if drawerItem.exists && drawerItem.isHittable {
+            // X closes the drawer on a leftward gesture inside the panel.
+            let from = web.coordinate(withNormalizedOffset: CGVector(dx: 0.56, dy: 0.38))
+            let to = web.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.38))
+            from.press(forDuration: 0.1, thenDragTo: to)
+        }
+        XCTAssertFalse(drawerItem.isHittable, "Close X's account drawer before selecting a post")
+        sleep(2)
         let reposts = web.descendants(matching: .any).matching(NSPredicate(
             format: "label ENDSWITH[cd] %@ OR label ENDSWITH[cd] %@ OR label ENDSWITH[cd] %@",
             ". Repost", ". Undo repost", ". リポスト"
@@ -179,7 +189,7 @@ final class XtendBrowserUITests: XCTestCase {
         }
         captureBrowserEvidence("quote-longpress-before")
         repost.press(forDuration: 0.8)
-        XCTAssertTrue(web.staticTexts["Post activity"].waitForExistence(timeout: 25),
+        XCTAssertTrue(web.staticTexts["Post activity"].waitForExistence(timeout: 12),
                       "Long press should open X's quote-posts activity screen")
         captureBrowserEvidence("quote-longpress-after")
         XCTAssertFalse(web.buttons["Quote"].isHittable,
