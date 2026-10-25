@@ -4,6 +4,9 @@
   if (!bridge) return;
   const entryID = 'xtend-native-settings-entry';
   const tipID = 'xtend-settings-tip';
+  const promoStyle = document.createElement('style');
+  promoStyle.textContent = '[data-xtend-hidden-menu-promo]{display:none!important}';
+  (document.head || document.documentElement).appendChild(promoStyle);
   let tipCompleted = !__xtendShowSettingsTip;
   const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
   let lastLogin = null;
@@ -26,6 +29,24 @@
       const r = panel.getBoundingClientRect();
       return r.width > 160 && r.width < innerWidth && r.height >= innerHeight * .8 && r.left < 12 && !!panel.querySelector('a[href]');
     }) || null;
+  }
+
+  // Only remove the two promotional links from X's mobile navigation drawer.
+  // Do not hide the same words in posts, profiles, or subscription controls.
+  const hiddenPromoAttribute = 'data-xtend-hidden-menu-promo';
+  const promoLabels = new Set(['get the app', 'subscribe']);
+
+  function hideMenuPromotions(drawer) {
+    for (const item of drawer.querySelectorAll('a[href], button, [role="link"], [role="button"]')) {
+      const labels = [item.getAttribute('aria-label'), item.textContent]
+        .filter(Boolean)
+        .map(value => value.replace(/\s+/g, ' ').trim().toLowerCase());
+      if (labels.some(label => promoLabels.has(label))) {
+        item.setAttribute(hiddenPromoAttribute, '');
+      } else {
+        item.removeAttribute(hiddenPromoAttribute);
+      }
+    }
   }
 
   function insertSettings(drawer) {
@@ -154,7 +175,10 @@
       bridge.postMessage({ action: 'login', visible });
     }
     const drawer = findDrawer();
-    if (drawer) insertSettings(drawer);
+    if (drawer) {
+      hideMenuPromotions(drawer);
+      insertSettings(drawer);
+    }
     // Reposition the highlight after X's drawer slide animation finishes.
     if (drawer && drawer !== lastDrawer && !tipCompleted) setTimeout(schedule, 350);
     lastDrawer = drawer;
