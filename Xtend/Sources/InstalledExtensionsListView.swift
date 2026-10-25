@@ -5,6 +5,8 @@ struct InstalledExtensionInfo {
     let name: String
     let version: String
     let icon: UIImage?
+    let issue: String?
+    var hasSettings = false
 }
 
 @MainActor
@@ -12,12 +14,48 @@ enum InstalledExtensionCatalog {
     static func all() -> [InstalledExtensionInfo] {
         var result: [InstalledExtensionInfo] = []
         let store = ExtensionInstallStore()
-        if let root = store.installedExtensionRoot, let manifest = try? store.installedManifest() {
-            result.append(info(id: ExtensionInstallStore.supportedExtensionID, root: root, manifest: manifest))
+        if let root = store.existingRoot {
+            if let manifest = try? ExtensionInstallStore.readAndValidateManifest(at: root) {
+                result.append(info(id: ExtensionInstallStore.supportedExtensionID, root: root, manifest: manifest))
+            } else {
+                result.append(InstalledExtensionInfo(
+                    id: ExtensionInstallStore.supportedExtensionID,
+                    name: "にゃっとランドforX", version: "不明", icon: nil, issue: "拡張機能のファイルを読み込めません"
+                ))
+            }
+        } else if let issue = store.recoveryIssue {
+            result.append(InstalledExtensionInfo(
+                id: ExtensionInstallStore.supportedExtensionID, name: "にゃっとランドforX",
+                version: "不明", icon: nil, issue: "復旧に失敗: \(issue)"
+            ))
         }
-        if let root = XHomeAnchorInstallStore().installedRoot,
-           let package = try? ExtensionPackage.installed(id: ExtensionPackage.homeAnchorID, root: root) {
-            result.append(info(id: package.id, root: root, manifest: package.manifest))
+        let anchorStore = XHomeAnchorInstallStore()
+        if let root = anchorStore.existingRoot {
+            if (try? XHomeAnchorInstallStore.validateManifest(at: root)) != nil,
+               let package = try? ExtensionPackage.installed(id: ExtensionPackage.homeAnchorID, root: root) {
+                result.append(info(id: package.id, root: root, manifest: package.manifest))
+            } else {
+                result.append(InstalledExtensionInfo(
+                    id: ExtensionPackage.homeAnchorID,
+                    name: "X ホームの閲覧位置", version: "不明", icon: nil, issue: "拡張機能のファイルを読み込めません"
+                ))
+            }
+        } else if let issue = anchorStore.recoveryIssue {
+            result.append(InstalledExtensionInfo(
+                id: ExtensionPackage.homeAnchorID, name: "X ホームの閲覧位置",
+                version: "不明", icon: nil, issue: "復旧に失敗: \(issue)"
+            ))
+        }
+        for (id, root) in CommunityExtensionStore().installedRoots().sorted(by: { $0.key < $1.key }) {
+            if (try? CommunityExtensionStore.validateManifest(at: root)) != nil,
+               let package = try? ExtensionPackage.installed(id: id, root: root) {
+                result.append(info(id: id, root: root, manifest: package.manifest))
+            } else {
+                result.append(InstalledExtensionInfo(
+                    id: id, name: id, version: "不明", icon: nil,
+                    issue: "拡張機能のファイルを読み込めません"
+                ))
+            }
         }
         return result
     }
@@ -29,7 +67,7 @@ enum InstalledExtensionCatalog {
         case ExtensionPackage.homeAnchorID:
             try XHomeAnchorInstallStore().uninstall()
         default:
-            return
+            try CommunityExtensionStore().uninstall(id: id)
         }
         // Installed extension settings must not survive uninstall.
         let prefix = "xtend.extension.storage.\(id)."
@@ -48,7 +86,9 @@ enum InstalledExtensionCatalog {
             icon = image
             break
         }
-        return InstalledExtensionInfo(id: id, name: name, version: manifest.version, icon: icon)
+        var entry = InstalledExtensionInfo(id: id, name: name, version: manifest.version, icon: icon, issue: nil)
+        entry.hasSettings = ExtensionPackage(id: id, root: root.standardizedFileURL, manifest: manifest).settingsPage != nil
+        return entry
     }
 
     private static func localized(_ name: String, locale: String?, root: URL) -> String {
@@ -131,9 +171,9 @@ final class InstalledExtensionsListView: UIView {
             name.font = .preferredFont(forTextStyle: .body)
             name.numberOfLines = 2
             let detail = UILabel()
-            detail.text = "バージョン \(item.version)"
+            detail.text = item.issue ?? "バージョン \(item.version)"
             detail.font = .preferredFont(forTextStyle: .caption1)
-            detail.textColor = .secondaryLabel
+            detail.textColor = item.issue == nil ? .secondaryLabel : .systemOrange
 
             let labels = UIStackView(arrangedSubviews: [name, detail])
             labels.axis = .vertical
@@ -145,10 +185,11 @@ final class InstalledExtensionsListView: UIView {
             row.spacing = 12
 
             if let onSettings {
-                if item.id == ExtensionInstallStore.supportedExtensionID {
+                if item.hasSettings {
                     let button = UIButton(type: .system)
                     button.setImage(UIImage(systemName: "slider.horizontal.3"), for: .normal)
                     button.accessibilityLabel = "\(item.name)の設定"
+                    button.isEnabled = item.issue == nil
                     button.addAction(UIAction { _ in onSettings(item) }, for: .touchUpInside)
                     button.widthAnchor.constraint(equalToConstant: 44).isActive = true
                     button.heightAnchor.constraint(equalToConstant: 44).isActive = true

@@ -6,6 +6,8 @@ import WebKit
 @MainActor
 final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerDelegate {
     private let onReload: () -> Void
+    private let onChange: () -> Void
+    private let onFinish: () -> Void
     private let scrollView = UIScrollView()
     private let stack = UIStackView()
     private let installedList = InstalledExtensionsListView()
@@ -15,8 +17,10 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private let status = UILabel()
     private var busy = false
 
-    init(onReload: @escaping () -> Void) {
+    init(onReload: @escaping () -> Void, onChange: @escaping () -> Void, onFinish: @escaping () -> Void) {
         self.onReload = onReload
+        self.onChange = onChange
+        self.onFinish = onFinish
         super.init(nibName: nil, bundle: nil)
         title = "Xtendの設定"
     }
@@ -29,7 +33,11 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         view.backgroundColor = .systemGroupedBackground
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             systemItem: .done,
-            primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) }
+            primaryAction: UIAction { [weak self] _ in
+                guard let self else { return }
+                let onFinish = self.onFinish
+                self.dismiss(animated: true, completion: onFinish)
+            }
         )
         setup()
         refreshInstalled(animated: false)
@@ -109,7 +117,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         stack.addArrangedSubview(reloadButton)
 
         let hint = UILabel()
-        hint.text = "拡張機能の追加・削除は、ページの再読み込み後に反映されます。"
+        hint.text = "拡張機能の追加・更新・削除は、設定画面を閉じると自動反映されます。"
         hint.font = .preferredFont(forTextStyle: .footnote)
         hint.numberOfLines = 0
         hint.textColor = .secondaryLabel
@@ -126,6 +134,8 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
     private func setBusy(_ busy: Bool, message: String?) {
         self.busy = busy
+        isModalInPresentation = busy
+        navigationItem.rightBarButtonItem?.isEnabled = !busy
         installForm.setBusy(busy)
         reloadButton.isEnabled = !busy
         status.text = message
@@ -144,9 +154,15 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
+                let id = try ExtensionInstallStore.extensionID(from: url)
+                if id == ExtensionInstallStore.supportedExtensionID {
+                    _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
+                } else {
+                    _ = try await CommunityExtensionStore().installFromChromeWebStore(url)
+                }
                 setBusy(false, message: nil)
                 refreshInstalled(animated: true)
+                onChange()
             } catch {
                 setBusy(false, message: nil)
                 showError(error)
@@ -163,19 +179,29 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let url = urls.first else { return }
+        guard let url = urls.first, !busy else { return }
         setBusy(true, message: "ZIPファイルを検証しています…")
-        do {
+        Task { [weak self] in
             do {
-                _ = try XHomeAnchorInstallStore().installFromZIP(url)
-            } catch XHomeAnchorInstallError.unsupportedPackage {
-                _ = try ExtensionInstallStore().installFromZIP(url)
+                try await Task.detached(priority: .userInitiated) {
+                    do {
+                        _ = try XHomeAnchorInstallStore().installFromZIP(url)
+                    } catch XHomeAnchorInstallError.unsupportedPackage {
+                        do {
+                            _ = try ExtensionInstallStore().installFromZIP(url)
+                        } catch ExtensionInstallError.missingRequiredCapability {
+                            _ = try CommunityExtensionStore().installFromZIP(url)
+                        }
+                    }
+                }.value
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+                onChange()
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
             }
-            setBusy(false, message: nil)
-            refreshInstalled(animated: true)
-        } catch {
-            setBusy(false, message: nil)
-            showError(error)
         }
     }
 
@@ -190,6 +216,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
             do {
                 try InstalledExtensionCatalog.remove(id: item.id)
                 self?.refreshInstalled(animated: true)
+                self?.onChange()
             } catch {
                 self?.showError(error)
             }
@@ -198,7 +225,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     }
 
     private func openExtensionSettings(_ item: InstalledExtensionInfo) {
-        guard item.id == ExtensionInstallStore.supportedExtensionID else { return }
+        guard item.hasSettings else { return }
         do {
             let popup = try ExtensionPopupViewController(extensionID: item.id)
             navigationController?.pushViewController(popup, animated: true)
@@ -218,23 +245,28 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     }
 }
 
-/// Fixed-width Chrome popup centered in the screen instead of left-aligned in a full-width WebView.
+/// Installed extension popup/options page, isolated from X and other extensions.
 @MainActor
 final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private let configuration: WKWebViewConfiguration
     private let host: ExtensionHost
     private var browser: WKWebView?
+    private let extensionID: String
+    private let page: ExtensionPackage.SettingsPage
 
     init(extensionID: String) throws {
-        guard extensionID == ExtensionInstallStore.supportedExtensionID else {
+        let runtime = ExtensionRuntime()
+        guard let package = runtime.packages.first(where: { $0.id == extensionID }),
+              let page = package.settingsPage else {
             throw RuntimeError.missingResource(extensionID)
         }
-        let runtime = try ExtensionRuntime()
-        let (configuration, host) = try runtime.makeSettingsConfiguration()
+        let (configuration, host) = try runtime.makeSettingsConfiguration(for: extensionID)
         self.configuration = configuration
         self.host = host
+        self.extensionID = extensionID
+        self.page = page
         super.init(nibName: nil, bundle: nil)
-        title = "にゃっとランドの設定"
+        title = "\(package.manifest.name ?? extensionID)の設定"
     }
 
     @available(*, unavailable)
@@ -255,7 +287,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
         browser.layer.masksToBounds = true
         browser.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(browser)
-        let width = browser.widthAnchor.constraint(equalToConstant: 350)
+        let width = browser.widthAnchor.constraint(equalToConstant: page.prefersWideLayout ? 420 : 350)
         width.priority = .defaultHigh
         NSLayoutConstraint.activate([
             browser.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
@@ -264,7 +296,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
             width,
             browser.widthAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.widthAnchor, constant: -24)
         ])
-        let url = URL(string: "\(ExtensionResourceSchemeHandler.scheme)://\(ExtensionInstallStore.supportedExtensionID)/popup.html")!
+        let url = URL(string: "\(ExtensionResourceSchemeHandler.scheme)://\(extensionID)/\(page.path)")!
         browser.load(URLRequest(url: url))
     }
 
@@ -278,7 +310,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
             return
         }
         if url.scheme == ExtensionResourceSchemeHandler.scheme,
-           url.host == ExtensionInstallStore.supportedExtensionID {
+           url.host == extensionID {
             decisionHandler(.allow)
         } else {
             if url.scheme == "https", navigationAction.navigationType == .linkActivated {
@@ -296,7 +328,7 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
     ) -> WKWebView? {
         guard let url = navigationAction.request.url else { return nil }
         if url.scheme == ExtensionResourceSchemeHandler.scheme,
-           url.host == ExtensionInstallStore.supportedExtensionID {
+           url.host == extensionID {
             webView.load(URLRequest(url: url))
         } else if url.scheme == "https" {
             UIApplication.shared.open(url)

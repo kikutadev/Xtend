@@ -5,9 +5,11 @@ final class ExtensionStorage {
     static let didChangeNotification = Notification.Name("XtendExtensionStorageDidChange")
 
     private let defaults: UserDefaults
+    private let extensionID: String
     private let keyPrefix: String
 
     init(extensionID: String, defaults: UserDefaults = .standard) {
+        self.extensionID = extensionID
         self.keyPrefix = "xtend.extension.storage.\(extensionID)."
         self.defaults = defaults
     }
@@ -120,7 +122,7 @@ final class ExtensionStorage {
         NotificationCenter.default.post(
             name: Self.didChangeNotification,
             object: self,
-            userInfo: ["area": area, "changes": changes]
+            userInfo: ["extensionID": extensionID, "area": area, "changes": changes]
         )
     }
 
