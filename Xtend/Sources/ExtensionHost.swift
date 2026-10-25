@@ -185,6 +185,12 @@ final class ExtensionHost: NSObject {
                 try ChromeShim.javascript(manifest: package.manifest, extensionID: package.id),
                 to: controller, world: world, time: .atDocumentStart
             )
+            // Desktop-only profile links are absent in mobile X. Give Nyatto a
+            // verified current-viewer link before its content scripts start.
+            if package.id == ExtensionInstallStore.supportedExtensionID {
+                addScript(ChromeShim.mobileViewerCompatibilityJavaScript,
+                          to: controller, world: world, time: .atDocumentStart)
+            }
             for entry in package.manifest.contentScripts ?? [] {
                 let hosts = entry.matches
                     .filter { $0 == "https://x.com/*" || $0 == "https://twitter.com/*" }
