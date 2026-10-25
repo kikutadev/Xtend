@@ -70,6 +70,7 @@ final class BuiltInNavigationTests: XCTestCase {
         controller.loadViewIfNeeded()
         let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
         XCTAssertFalse(browser.allowsBackForwardNavigationGestures)
+        XCTAssertEqual(enabledHistoryEdges(on: browser), 0)
     }
 
     func testNonHomeXPagesKeepWebViewHistoryGestures() throws {
@@ -77,7 +78,8 @@ final class BuiltInNavigationTests: XCTestCase {
             let controller = BrowserViewController(initialURL: URL(string: "https://x.com\(path)")!)
             controller.loadViewIfNeeded()
             let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
-            XCTAssertTrue(browser.allowsBackForwardNavigationGestures, "History swipe must work at \(path)")
+            XCTAssertFalse(browser.allowsBackForwardNavigationGestures)
+            XCTAssertEqual(enabledHistoryEdges(on: browser), 2, "History edge pans must work at \(path)")
         }
     }
 
@@ -153,7 +155,8 @@ final class BuiltInNavigationTests: XCTestCase {
     private func waitForHistoryGesture(on browser: WKWebView, enabled: Bool) {
         let condition = XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in
-                browser.allowsBackForwardNavigationGestures == enabled
+                !browser.allowsBackForwardNavigationGestures &&
+                    self.enabledHistoryEdges(on: browser) == (enabled ? 2 : 0)
             },
             object: nil
         )
@@ -161,11 +164,19 @@ final class BuiltInNavigationTests: XCTestCase {
                        "Expected history gesture enabled=\(enabled) at \(browser.url?.absoluteString ?? "nil")")
     }
 
+    private func enabledHistoryEdges(on browser: WKWebView) -> Int {
+        (browser.gestureRecognizers ?? [])
+            .compactMap { $0 as? UIScreenEdgePanGestureRecognizer }
+            .filter { $0.name?.hasPrefix("xtend.history.") == true && $0.isEnabled }
+            .count
+    }
+
     func testExternalLoginPageKeepsWebViewBackGesture() throws {
         let controller = BrowserViewController(initialURL: URL(string: "about:blank")!)
         controller.loadViewIfNeeded()
         let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
         XCTAssertTrue(browser.allowsBackForwardNavigationGestures)
+        XCTAssertEqual(enabledHistoryEdges(on: browser), 0)
     }
 }
 

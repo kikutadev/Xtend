@@ -8,6 +8,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
     private var pageURLObservation: NSKeyValueObservation?
+    private weak var historyBackGesture: UIScreenEdgePanGestureRecognizer?
+    private weak var historyForwardGesture: UIScreenEdgePanGestureRecognizer?
     private weak var navigationBackButton: UIButton?
     private weak var settingsButton: UIButton?
     private var pageLoadFailed = false
@@ -83,6 +85,8 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let browser = WKWebView(frame: .zero, configuration: configuration)
         host?.attach(to: browser)
         pageURLObservation = nil
+        historyBackGesture = nil
+        historyForwardGesture = nil
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
         webView?.removeFromSuperview()
@@ -90,6 +94,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.extensionHost = host
         self.webView = browser
         configure(browser)
+        installHistoryGestures(on: browser)
         updateNavigationControls(for: browser, url: url)
         // X changes routes with the History API without a document navigation.
         // Observe the effective URL so edge gestures switch on SPA transitions.
@@ -118,6 +123,33 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             webView.topAnchor.constraint(equalTo: view.topAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+    }
+
+    private func installHistoryGestures(on browser: WKWebView) {
+        let back = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleHistoryEdge(_:)))
+        back.edges = .left
+        back.name = "xtend.history.back"
+        browser.addGestureRecognizer(back)
+        historyBackGesture = back
+
+        let forward = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleHistoryEdge(_:)))
+        forward.edges = .right
+        forward.name = "xtend.history.forward"
+        browser.addGestureRecognizer(forward)
+        historyForwardGesture = forward
+    }
+
+    @objc
+    private func handleHistoryEdge(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard gesture.state == .ended,
+              let browser = webView, gesture.view === browser else { return }
+        let movement = gesture.translation(in: browser)
+        guard abs(movement.x) >= 64, abs(movement.x) > abs(movement.y) * 1.4 else { return }
+        if gesture.edges == .left, movement.x > 0, browser.canGoBack {
+            browser.goBack()
+        } else if gesture.edges == .right, movement.x < 0, browser.canGoForward {
+            browser.goForward()
+        }
     }
 
     private func installSettingsMenu(into configuration: WKWebViewConfiguration) {
@@ -376,10 +408,13 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         let currentURL = url ?? webView.url
         let onX = isXURL(currentURL)
         navigationBackButton?.isHidden = onX
-        // Only X home reserves the leading edge for the profile drawer.
-        // Other X routes retain WebKit history back/forward gestures.
-        let isHome = onX && currentURL?.path == "/home"
-        webView.allowsBackForwardNavigationGestures = !isHome
+        // On X home the leading edge belongs to the profile drawer. Other X
+        // routes use explicit iOS edge pans: X's SPA can prevent WebKit's
+        // built-in interactive history gestures from recognizing touches.
+        let useXHistoryEdges = onX && currentURL?.path != "/home"
+        historyBackGesture?.isEnabled = useXHistoryEdges
+        historyForwardGesture?.isEnabled = useXHistoryEdges
+        webView.allowsBackForwardNavigationGestures = !onX
     }
 
     private func isXURL(_ url: URL?) -> Bool {

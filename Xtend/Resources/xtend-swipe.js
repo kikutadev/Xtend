@@ -219,6 +219,8 @@
       const target = event.target;
       const menu = findMenu(doc);
       const edge = touch.clientX <= EDGE_WIDTH;
+      const historyEdge = win.location.pathname !== '/home' &&
+        (edge || touch.clientX >= win.innerWidth - EDGE_WIDTH);
       let mode;
       let surface = null;
       let toggle = null;
@@ -234,7 +236,7 @@
         mode = 'menu-open';
         toggle = menu.toggle;
       } else {
-        if (edge || isExcluded(target)) return;
+        if (edge || historyEdge || isExcluded(target)) return;
         if (!target.closest('[data-testid="primaryColumn"]')) return;
         // No direction yet: only need to know whether an adjacent tab exists.
         if (!getTabTarget(doc)) return;

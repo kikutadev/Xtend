@@ -104,20 +104,21 @@ WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使
 
 ## Xtend標準スワイプの検証
 
-スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。ホームだけ左端をメニュー操作にし、他のXページではWebViewの履歴スワイプを残すことは `node scripts/test-swipe-routing.mjs` と `BuiltInNavigationTests` で検証します。
+スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。ホームだけ左端をメニュー操作にし、他のXページではiOS側の端ジェスチャーでWebViewの履歴を操作することは `node scripts/test-swipe-routing.mjs` と `BuiltInNavigationTests` で検証します。
 
 ### Simulatorによるスワイプ検証
 
-ログイン済みでXtendのXブラウザ画面が表示できるSimulatorに限り、`XtendUITests/XtendBrowserUITests.swift` の `testSwipeNavigationOnLoggedInX` がスワイプ操作と5枚のスクリーンショットを記録します。
+ログイン済みでXtendのXブラウザ画面が表示できるSimulatorに限り、`XtendUITests/XtendBrowserUITests.swift` の `testSwipeNavigationOnLoggedInX` がホームのタブ・メニューのスワイプとスクリーンショットを記録します。`testHistoryEdgesOnLoggedInX` では通知→検索→戻る→進むを実操作し、画面上の見出しも確認します。
 
 ```sh
-xcodebuild -project Xtend.xcodeproj -scheme Xtend \\
-  -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \\
-  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO \\
-  -only-testing:XtendUITests/XtendBrowserUITests/testSwipeNavigationOnLoggedInX \\
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \
+  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO \
+  -only-testing:XtendUITests/XtendBrowserUITests/testSwipeNavigationOnLoggedInX \
+  -only-testing:XtendUITests/XtendBrowserUITests/testHistoryEdgesOnLoggedInX \
   -resultBundlePath .build/SwipeEvidence.xcresult test
 
-xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \\
+xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \
   --output-path .build/SwipeEvidenceAttachments
 python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 ```

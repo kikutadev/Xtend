@@ -148,11 +148,15 @@ final class XtendBrowserUITests: XCTestCase {
         edge.press(forDuration: 0.1, thenDragTo: open)
         sleep(2)
         captureBrowserEvidence("04-menu-open")
+        XCTAssertTrue(web.buttons["Xtendの設定"].waitForExistence(timeout: 8),
+                      "Home edge swipe must open the profile drawer.")
         let close = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
         let closeEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
         close.press(forDuration: 0.1, thenDragTo: closeEnd)
         sleep(2)
         captureBrowserEvidence("05-menu-close")
+        XCTAssertFalse(web.buttons["Xtendの設定"].isHittable,
+                       "Closing the drawer must return control to the timeline.")
         XCTAssertTrue(web.exists)
     }
 
@@ -196,6 +200,42 @@ final class XtendBrowserUITests: XCTestCase {
         swipePageTab(in: web, y: 0.55, left: false)
         captureBrowserEvidence("profile-right-again-y55")
     }
+
+    func testHistoryEdgesOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        sleep(3)
+
+        // Two non-home SPA routes leave both WebKit history gestures enabled.
+        let notifications = web.coordinate(withNormalizedOffset: CGVector(dx: 0.71, dy: 0.954))
+        notifications.tap()
+        sleep(3)
+        captureBrowserEvidence("history-notifications")
+
+        let search = web.coordinate(withNormalizedOffset: CGVector(dx: 0.30, dy: 0.954))
+        search.tap()
+        sleep(3)
+        captureBrowserEvidence("history-search")
+
+        let backEdge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let backEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.76, dy: 0.44))
+        backEdge.press(forDuration: 0.15, thenDragTo: backEnd)
+        sleep(3)
+        captureBrowserEvidence("history-back")
+        XCTAssertTrue(web.staticTexts["Notifications"].waitForExistence(timeout: 8),
+                      "Back swipe must return to notifications, not merely preserve the WebView.")
+
+        let forwardEdge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.44))
+        let forwardEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.23, dy: 0.44))
+        forwardEdge.press(forDuration: 0.15, thenDragTo: forwardEnd)
+        sleep(3)
+        captureBrowserEvidence("history-forward")
+        XCTAssertTrue(web.staticTexts["Explore"].waitForExistence(timeout: 8),
+                      "Forward swipe must return to search, not switch to another X tab.")
+
+        XCTAssertTrue(web.exists)
+    }
+
 
     func testManualReloadReturnsToXBrowser() throws {
         try launchExistingBrowser()

@@ -130,6 +130,17 @@ for (const path of ['/notifications', '/explore', '/someone/status/123', '/someo
   assert.equal(page.menuOpens, 0, path);
   assert.equal(page.prevented, 0, path);
 }
+// On non-home pages, reserve both edges for WebKit history, not X tabs.
+for (const route of ['/notifications', '/explore', '/someone']) {
+  const page = createPage(route, true);
+  page.touch('touchstart', 388);
+  page.touch('touchmove', 100);
+  page.touch('touchend', 100);
+  page.flushTimers();
+  assert.equal(page.tabClicks, 0, route);
+  assert.equal(page.prevented, 0, route);
+}
+
 const home = createPage('/home');
 home.touch('touchstart', 2);
 home.touch('touchmove', 150);
