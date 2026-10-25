@@ -145,6 +145,14 @@ xcodebuild -project Xtend.xcodeproj -scheme Xtend \
 
 このテストは一般拡張機能の導入・削除UIを確認するもので、にゃっとランド固有の設定挙動や実iPhoneでの実行を証明しません。テストソースは `XtendUITests/ExtensionAcceptanceUITests.swift` です。
 
+## GitHub Release ZIPのSimulator検証
+
+Private ReleasesのZIPは、トークンをテストソース・Git・テストログへ記録せず、認証済みGitHub CLIで配布ZIPを取得する。QA用Bundle IDは org.example.xtend.githubrelease.qa 。Simulatorの同Bundle IDのアプリデータディレクトリ（xcrun simctl get_app_container booted org.example.xtend.githubrelease.qa data）の Documents/XtendGitHubReleaseQAFixtures/ に、x-ad-hider-0.1.0-chrome.zip と x-timeline-filter-0.1.0-chrome.zip を配置する。
+
+CommunityExtensionStoreTests.testPublishedGitHubReleaseZIPsInstallAndLoadInSimulator は実配布ZIPのインストールと拡張機能ホストへの読み込みを検証する。未配置時はSkipになる。実行後、QAアプリのDocumentsからZIPを削除する。
+
+GitHubReleaseInstallerTests.testReleaseCheckInstallAndRollbackWithSimulatedGitHub はGitHub APIの応答・配信を模擬し、旧版確認・ダウンロード・更新・設定保持・別拡張機能の拒否を検証する。認証付きGitHub APIへのXtend画面からの実通信とは区別する。
+
 ## 配布時の注意
 
 - `.build/`、`DerivedData/`、`xcuserdata/`、`.ipa`、`.xcarchive`、署名鍵・証明書・プロビジョニングファイルをGitに追加しないでください。
