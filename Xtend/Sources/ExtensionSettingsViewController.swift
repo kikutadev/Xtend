@@ -80,6 +80,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
         installedList.onRemove = { [weak self] in self?.confirmRemove($0) }
         installedList.onSettings = { [weak self] in self?.openExtensionSettings($0) }
+        installedList.onCheckRelease = { [weak self] in self?.checkRelease($0) }
         stack.addArrangedSubview(installedList)
 
         let empty = UILabel()
@@ -146,16 +147,12 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private func installFromURL(_ value: String, githubToken: String?) {
         guard !busy else { return }
         view.endEditing(true)
-        guard let url = URL(string: value) else {
-            showError(ExtensionInstallError.invalidChromeWebStoreURL)
-            return
-        }
         setBusy(true, message: "拡張機能を取得しています…")
         Task { [weak self] in
             guard let self else { return }
             do {
                 _ = try await Task.detached(priority: .userInitiated) {
-                    try await ExtensionURLInstaller.install(url, githubToken: githubToken)
+                    try await ExtensionURLInstaller.install(value, githubToken: githubToken)
                 }.value
                 setBusy(false, message: nil)
                 installForm.didFinishInstallation()
@@ -164,6 +161,112 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
             } catch {
                 setBusy(false, message: nil)
                 showError(error)
+            }
+        }
+    }
+
+    private func checkRelease(_ item: InstalledExtensionInfo) {
+        guard !busy else { return }
+        let linked = GitHubReleaseLinks.get(item.id)
+        if let linked, let repo = GitHubReleaseRepository(input: linked.repository) {
+            fetchRelease(for: item, repository: repo, token: nil)
+        } else {
+            promptForRepository(item)
+        }
+    }
+
+    private func promptForRepository(_ item: InstalledExtensionInfo) {
+        let alert = UIAlertController(title: "\(item.name)のGitHub取得元",
+                                      message: "GitHubのクローンURLを貼り付けてください。", preferredStyle: .alert)
+        alert.addTextField { field in
+            field.placeholder = "https://github.com/owner/repo.git"
+            field.text = GitHubReleaseLinks.get(item.id)?.repository
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.accessibilityLabel = "GitHubクローンURL"
+        }
+        alert.addTextField { field in
+            field.placeholder = "Private用トークン（必要な場合）"
+            field.isSecureTextEntry = true
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.accessibilityLabel = "GitHub読み取り用トークン"
+        }
+        alert.addAction(UIAlertAction(title: "キャンセル", style: .cancel))
+        alert.addAction(UIAlertAction(title: "更新を確認", style: .default) { [weak self, weak alert] _ in
+            guard let self, let alert else { return }
+            let input = alert.textFields?[0].text ?? ""
+            let token = alert.textFields?[1].text
+            guard let repository = GitHubReleaseRepository(input: input) else {
+                self.showError(GitHubReleaseError.invalidURL)
+                return
+            }
+            self.fetchRelease(for: item, repository: repository, token: token)
+        })
+        present(alert, animated: true)
+    }
+
+    private func fetchRelease(for item: InstalledExtensionInfo, repository: GitHubReleaseRepository,
+                              token: String?) {
+        guard !busy else { return }
+        setBusy(true, message: "GitHubの最新Releaseを確認しています…")
+        Task { [weak self] in
+            do {
+                let previous = GitHubReleaseLinks.get(item.id)
+                let storedTag = previous?.repository == repository.webURL.absoluteString
+                    ? previous?.installedTag : nil
+                let result = try await GitHubReleaseInstaller.check(
+                    repository: repository, installedVersion: item.version,
+                    installedTag: storedTag, tokenOverride: token
+                )
+                if let trimmed = token?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !trimmed.isEmpty {
+                    try GitHubReleaseCredentials.save(trimmed)
+                }
+                GitHubReleaseLinks.save(id: item.id, repository: repository, tag: storedTag)
+                guard let self else { return }
+                setBusy(false, message: nil)
+                let message = "インストール済み：\(item.version)\n最新Release：\(result.release.tagName)"
+                let alert = UIAlertController(title: result.needsUpdate ? "更新があります" : "最新です",
+                                              message: message, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "閉じる", style: .cancel))
+                if result.needsUpdate {
+                    alert.addAction(UIAlertAction(title: "最新版を取り込む", style: .default) { [weak self] _ in
+                        self?.applyGitHubUpdate(item, repository: repository)
+                    })
+                }
+                alert.addAction(UIAlertAction(title: "取得元を変更", style: .default) { [weak self] _ in
+                    self?.promptForRepository(item)
+                })
+                present(alert, animated: true)
+            } catch {
+                self?.setBusy(false, message: nil)
+                let alert = UIAlertController(title: "確認できませんでした",
+                                              message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "閉じる", style: .cancel))
+                alert.addAction(UIAlertAction(title: "取得元を変更", style: .default) { [weak self] _ in
+                    self?.promptForRepository(item)
+                })
+                self?.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func applyGitHubUpdate(_ item: InstalledExtensionInfo, repository: GitHubReleaseRepository) {
+        guard !busy else { return }
+        setBusy(true, message: "最新Releaseを取得しています…")
+        Task { [weak self] in
+            do {
+                _ = try await GitHubReleaseInstaller.installLatest(
+                    repository: repository, newToken: nil, existingID: item.id
+                )
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+                onChange()
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
             }
         }
     }

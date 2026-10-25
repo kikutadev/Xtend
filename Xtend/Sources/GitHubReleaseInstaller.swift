@@ -6,20 +6,37 @@ struct GitHubReleaseRepository: Equatable, Sendable {
     let owner: String
     let name: String
 
-    init?(url: URL) {
-        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+    init?(url: URL) { self.init(input: url.absoluteString) }
+
+    /// Accept GitHub HTTPS, HTTPS clone (.git), scp-style SSH and ssh:// clone URLs.
+    init?(input: String) {
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text: String
+        if raw.hasPrefix("git@github.com:") {
+            text = "https://github.com/" + raw.dropFirst("git@github.com:".count)
+        } else if raw.hasPrefix("ssh://git@github.com/") {
+            text = "https://github.com/" + raw.dropFirst("ssh://git@github.com/".count)
+        } else {
+            text = raw
+        }
+        guard let parts = URLComponents(string: text),
               parts.scheme?.lowercased() == "https",
               parts.host?.lowercased() == "github.com",
               parts.port == nil, parts.user == nil, parts.password == nil,
               parts.query == nil, parts.fragment == nil else { return nil }
         let path = parts.path.split(separator: "/").map(String.init)
+        guard !path.isEmpty else { return nil }
+        let repoName = path.count > 1 && path[1].hasSuffix(".git")
+            ? String(path[1].dropLast(4)) : (path.count > 1 ? path[1] : "")
         guard (path.count == 2 || (path.count == 3 && path[2] == "releases") ||
                (path.count == 4 && path[2] == "releases" && path[3] == "latest") ||
                (path.count == 5 && path[2] == "releases" && path[3] == "tag" && !path[4].isEmpty)),
-              Self.valid(path[0]), Self.valid(path[1]) else { return nil }
+              Self.valid(path[0]), Self.valid(repoName) else { return nil }
         owner = path[0]
-        name = path[1]
+        name = repoName
     }
+
+    var webURL: URL { URL(string: "https://github.com/\(owner)/\(name)")! }
 
     var apiURL: URL {
         URL(string: "https://api.github.com/repos/\(owner)/\(name)/releases/latest")!
@@ -60,7 +77,7 @@ struct GitHubRelease: Decodable, Sendable {
 }
 
 enum GitHubReleaseError: LocalizedError {
-    case invalidURL, unavailable, unauthorized, noUniqueExtensionZIP, invalidResponse, unsafeDownload
+    case invalidURL, unavailable, unauthorized, noUniqueExtensionZIP, invalidResponse, unsafeDownload, unrelatedExtension
 
     var errorDescription: String? {
         switch self {
@@ -70,6 +87,7 @@ enum GitHubReleaseError: LocalizedError {
         case .noUniqueExtensionZIP: "最新Releaseにインストール対象のZIPを1つに特定できません。"
         case .invalidResponse: "GitHubの応答が不正です。"
         case .unsafeDownload: "GitHubから有効なZIPを取得できませんでした。"
+        case .unrelatedExtension: "Release内の拡張機能がインストール済みのものと異なります。"
         }
     }
 }
@@ -117,18 +135,77 @@ enum GitHubReleaseCredentials {
     }
 }
 
+struct GitHubReleaseLink: Codable {
+    let repository: String
+    let installedTag: String?
+}
+
+enum GitHubReleaseLinks {
+    private static func key(_ id: String) -> String { "xtend.extension.github.\(id)" }
+
+    static func get(_ id: String) -> GitHubReleaseLink? {
+        guard let data = UserDefaults.standard.data(forKey: key(id)) else { return nil }
+        return try? JSONDecoder().decode(GitHubReleaseLink.self, from: data)
+    }
+
+    static func save(id: String, repository: GitHubReleaseRepository, tag: String?) {
+        let value = GitHubReleaseLink(repository: repository.webURL.absoluteString, installedTag: tag)
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        UserDefaults.standard.set(data, forKey: key(id))
+    }
+
+    static func remove(_ id: String) { UserDefaults.standard.removeObject(forKey: key(id)) }
+}
+
+/// Comparison uses the tag recorded at install when available, otherwise numeric versions.
+/// If version formats cannot be compared, offer a manual update instead of declaring current.
+enum GitHubReleaseVersion {
+    static func needsUpdate(installed: String, latestTag: String, installedTag: String?) -> Bool {
+        if installedTag == latestTag { return false }
+        func components(_ raw: String) -> [Int]? {
+            let text = raw.hasPrefix("v") ? String(raw.dropFirst()) : raw
+            guard !text.isEmpty,
+                  text.allSatisfy({ $0.isNumber || $0 == "." }),
+                  !text.hasSuffix("."),
+                  !text.contains("..") else { return nil }
+            let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+            let numbers = parts.compactMap { Int($0) }
+            return numbers.count == parts.count ? numbers : nil
+        }
+        guard let current = components(installed), let available = components(latestTag) else {
+            return installedTag.map { $0 != latestTag } ?? (installed != latestTag)
+        }
+        for (a, b) in zip(current, available) where a != b { return b > a }
+        return available.count > current.count && available.dropFirst(current.count).contains(where: { $0 > 0 })
+    }
+}
+
+struct GitHubReleaseCheck: Sendable {
+    let release: GitHubRelease
+    let needsUpdate: Bool
+}
+
 enum GitHubReleaseInstaller {
-    /// Resolves the latest version and installs through the existing transactional ZIP validator.
-    static func installLatest(repository: GitHubReleaseRepository, newToken: String?) async throws -> String {
-        let token = newToken?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    static func check(repository: GitHubReleaseRepository, installedVersion: String,
+                      installedTag: String?, tokenOverride: String? = nil) async throws -> GitHubReleaseCheck {
+        let token = tokenOverride?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
             ?? GitHubReleaseCredentials.load()
+        let release = try await fetchLatest(repository: repository, token: token)
+        return GitHubReleaseCheck(release: release,
+            needsUpdate: GitHubReleaseVersion.needsUpdate(installed: installedVersion,
+                latestTag: release.tagName, installedTag: installedTag))
+    }
+
+    private static func fetchLatest(repository: GitHubReleaseRepository, token: String?) async throws -> GitHubRelease {
         var request = URLRequest(url: repository.apiURL)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("Xtend", forHTTPHeaderField: "User-Agent")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
 
         let (responseData, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw GitHubReleaseError.invalidResponse }
+        guard let http = response as? HTTPURLResponse,
+              http.url?.scheme == "https", http.url?.host?.lowercased() == "api.github.com"
+        else { throw GitHubReleaseError.invalidResponse }
         switch http.statusCode {
         case 200: break
         case 401: throw GitHubReleaseError.unauthorized
@@ -138,6 +215,17 @@ enum GitHubReleaseInstaller {
         guard responseData.count <= 1_000_000,
               let release = try? JSONDecoder().decode(GitHubRelease.self, from: responseData)
         else { throw GitHubReleaseError.invalidResponse }
+        _ = try release.extensionZIP()
+        return release
+    }
+
+    /// Resolves the newest Release and safely updates an existing extension when specified.
+    @discardableResult
+    static func installLatest(repository: GitHubReleaseRepository, newToken: String?,
+                              existingID: String? = nil) async throws -> String {
+        let token = newToken?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            ?? GitHubReleaseCredentials.load()
+        let release = try await fetchLatest(repository: repository, token: token)
         let asset = try release.extensionZIP()
 
         let assetURL = URL(string: "https://api.github.com/repos/\(repository.owner)/\(repository.name)/releases/assets/\(asset.id)")!
@@ -156,7 +244,7 @@ enum GitHubReleaseInstaller {
             throw error
         }
         guard let downloadHTTP = downloadResponse as? HTTPURLResponse,
-              downloadHTTP.statusCode == 200,
+              downloadHTTP.statusCode == 200, downloadHTTP.url?.scheme == "https",
               let host = downloadHTTP.url?.host?.lowercased(),
               ["api.github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com", "github.com"].contains(host),
               let length = (try FileManager.default.attributesOfItem(atPath: downloaded.path)[.size] as? NSNumber)?.intValue,
@@ -172,16 +260,36 @@ enum GitHubReleaseInstaller {
             throw GitHubReleaseError.unsafeDownload
         }
 
-        // All routes share the same archive/manifest validation and rollback behavior.
-        do {
-            _ = try XHomeAnchorInstallStore().installFromZIP(tempZIP)
-        } catch XHomeAnchorInstallError.unsupportedPackage {
-            do {
+        // Installed IDs must remain stable. The generic installer validates the original name
+        // before replacing its files, and the special stores keep their fixed identities.
+        let installedID: String
+        if let existingID {
+            switch existingID {
+            case ExtensionInstallStore.supportedExtensionID:
                 _ = try ExtensionInstallStore().installFromZIP(tempZIP)
-            } catch ExtensionInstallError.missingRequiredCapability {
-                _ = try CommunityExtensionStore().installFromZIP(tempZIP)
+                installedID = existingID
+            case ExtensionPackage.homeAnchorID:
+                _ = try XHomeAnchorInstallStore().installFromZIP(tempZIP)
+                installedID = existingID
+            default:
+                let result = try CommunityExtensionStore().installFromZIP(tempZIP, updatingID: existingID)
+                installedID = result.id
+            }
+        } else {
+            do {
+                _ = try XHomeAnchorInstallStore().installFromZIP(tempZIP)
+                installedID = ExtensionPackage.homeAnchorID
+            } catch XHomeAnchorInstallError.unsupportedPackage {
+                do {
+                    _ = try ExtensionInstallStore().installFromZIP(tempZIP)
+                    installedID = ExtensionInstallStore.supportedExtensionID
+                } catch ExtensionInstallError.missingRequiredCapability {
+                    let result = try CommunityExtensionStore().installFromZIP(tempZIP)
+                    installedID = result.id
+                }
             }
         }
+        GitHubReleaseLinks.save(id: installedID, repository: repository, tag: release.tagName)
         if let newToken = newToken?.trimmingCharacters(in: .whitespacesAndNewlines), !newToken.isEmpty {
             try GitHubReleaseCredentials.save(newToken)
         }

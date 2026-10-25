@@ -108,7 +108,7 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
 
     @objc private func updateInstallButton() {
         let value = urlField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let isGitHub = URL(string: value).flatMap(GitHubReleaseRepository.init(url:)) != nil
+        let isGitHub = GitHubReleaseRepository(input: value) != nil
         githubTokenField.isHidden = !isGitHub
         clearTokenButton.isHidden = !isGitHub || GitHubReleaseCredentials.load() == nil
         installButton.isEnabled = !busy && !value.isEmpty

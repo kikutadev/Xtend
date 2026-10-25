@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import Xtend
 
 final class GitHubReleaseInstallerTests: XCTestCase {
@@ -7,9 +8,12 @@ final class GitHubReleaseInstallerTests: XCTestCase {
             "https://github.com/example-org/demo-extension",
             "https://github.com/example-org/demo-extension/releases",
             "https://github.com/example-org/demo-extension/releases/latest",
-            "https://github.com/example-org/demo-extension/releases/tag/v0.1.0"
+            "https://github.com/example-org/demo-extension/releases/tag/v0.1.0",
+            "https://github.com/example-org/demo-extension.git",
+            "git@github.com:example-org/demo-extension.git",
+            "ssh://git@github.com/example-org/demo-extension.git"
         ] {
-            let repo = GitHubReleaseRepository(url: URL(string: raw)!)
+            let repo = GitHubReleaseRepository(input: raw)
             XCTAssertEqual(repo?.owner, "example-org")
             XCTAssertEqual(repo?.name, "demo-extension")
             XCTAssertEqual(repo?.apiURL.absoluteString,
@@ -24,10 +28,36 @@ final class GitHubReleaseInstallerTests: XCTestCase {
             "https://user:pass@github.com/example/repo",
             "https://github.com/example/../another",
             "https://github.com/example/repo/other/path",
-            "https://github.com/example/repo#extra"
+            "https://github.com/example/repo#extra",
+            "git@github.com.evil.example:example/repo.git",
+            "git@github.com:example/../secret.git",
+            "ssh://other@github.com/example/repo.git",
+            "https://github.com/example/repo.git?access_token=secret"
         ] {
-            XCTAssertNil(GitHubReleaseRepository(url: URL(string: raw)!), raw)
+            XCTAssertNil(GitHubReleaseRepository(input: raw), raw)
         }
+    }
+
+    func testVersionComparisonAndSavedSource() {
+        XCTAssertFalse(GitHubReleaseVersion.needsUpdate(
+            installed: "0.1.0", latestTag: "v0.1.0", installedTag: nil))
+        XCTAssertTrue(GitHubReleaseVersion.needsUpdate(
+            installed: "0.1.0", latestTag: "v0.2.0", installedTag: nil))
+        XCTAssertFalse(GitHubReleaseVersion.needsUpdate(
+            installed: "2.1.0", latestTag: "v1.9.0", installedTag: nil))
+        XCTAssertFalse(GitHubReleaseVersion.needsUpdate(
+            installed: "0.1.0", latestTag: "v0.1.0", installedTag: "v0.1.0"))
+        XCTAssertTrue(GitHubReleaseVersion.needsUpdate(
+            installed: "0.1.0", latestTag: "v0.2.0", installedTag: "v0.1.0"))
+        XCTAssertFalse(GitHubReleaseVersion.needsUpdate(
+            installed: "2.0.0", latestTag: "v1.0.0", installedTag: "v0.9.0"))
+
+        let id = "test-github-source-\(UUID().uuidString)"
+        defer { GitHubReleaseLinks.remove(id) }
+        let repository = GitHubReleaseRepository(input: "git@github.com:example/repo.git")!
+        GitHubReleaseLinks.save(id: id, repository: repository, tag: "v0.1.0")
+        XCTAssertEqual(GitHubReleaseLinks.get(id)?.repository, "https://github.com/example/repo")
+        XCTAssertEqual(GitHubReleaseLinks.get(id)?.installedTag, "v0.1.0")
     }
 
     func testGitHubTokenUsesDeviceKeychain() throws {
@@ -38,6 +68,26 @@ final class GitHubReleaseInstallerTests: XCTestCase {
         XCTAssertEqual(GitHubReleaseCredentials.load(), "test-only-token")
         GitHubReleaseCredentials.remove()
         XCTAssertNil(GitHubReleaseCredentials.load())
+    }
+
+    @MainActor
+    func testInstalledExtensionOffersManualReleaseCheck() {
+        let view = InstalledExtensionsListView()
+        let sample = InstalledExtensionInfo(id: "zip-fixture", name: "Demo Extension",
+                                            version: "1.0.0", icon: nil, issue: nil)
+        var received: String?
+        view.onCheckRelease = { received = $0.id }
+        view.update(items: [sample])
+        func buttons(in root: UIView) -> [UIButton] {
+            let nested = root.subviews.flatMap { buttons(in: $0) }
+            return ((root as? UIButton).map { [$0] } ?? []) + nested
+        }
+        let button = buttons(in: view).first {
+            $0.accessibilityLabel == "Demo Extensionの更新を確認"
+        }
+        XCTAssertNotNil(button)
+        button?.sendActions(for: .touchUpInside)
+        XCTAssertEqual(received, sample.id)
     }
 
     func testLatestReleaseSelectsPackagedChromeZIP() throws {
