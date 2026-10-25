@@ -426,6 +426,33 @@ final class MobileViewerCompatibilityTests: XCTestCase {
         XCTAssertEqual(restored, "/ringfixture", probe)
         let saved = try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")
         XCTAssertEqual(saved["xtend:mobile-confirmed-viewer"] as? String, "ringfixture")
+
+        // While switching accounts, a mismatched menu must invalidate the
+        // previously saved viewer instead of exposing the old profile link.
+        _ = try await script("document.querySelector('[role=dialog] span').textContent='@newfixture'; 'changed'", view: view)
+        var invalidated = false
+        for _ in 0..<55 {
+            let link = try? await script("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", view: view)
+            let stored = try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")
+            if link != "/ringfixture", stored["xtend:mobile-confirmed-viewer"] == nil {
+                invalidated = true
+                break
+            }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        XCTAssertTrue(invalidated, "The previous account must be invalidated before accepting another")
+
+        // Once both the profile links and the visible account label agree,
+        // the new account is allowed and the old one is not reused.
+        _ = try await script("document.querySelectorAll('[role=dialog] a').forEach(a=>a.setAttribute('href','/newfixture')); 'changed'", view: view)
+        var newViewer: String?
+        for _ in 0..<55 {
+            newViewer = try? await script("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", view: view)
+            if newViewer == "/newfixture" { break }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        XCTAssertEqual(newViewer, "/newfixture")
+        XCTAssertEqual(try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")["xtend:mobile-confirmed-viewer"] as? String, "newfixture")
     }
 
     func testUnverifiedDrawerDoesNotUseNotificationAuthor() async throws {
