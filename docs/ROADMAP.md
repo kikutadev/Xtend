@@ -9,6 +9,14 @@
 
 拡張機能の破損時の分離・復旧、設定変更の反映、追加・削除後の自動再読み込み、URL・スクロール位置の復元。作業順と完了条件は [PHASE2_PLAN.md](PHASE2_PLAN.md) を参照。このロードマップに詳細を重複させない。
 
+## GitHubの最新Releaseから拡張機能を導入する（開発ブランチ）
+
+- 目的：GitHubのリポジトリURLをXtendへ貼るだけで、最新の公開済みReleaseの配布用ZIPを選択・取得してインストールできること。ローカルZIPを手動ダウンロードする操作を省く。
+- ブランチ：`feature/github-latest-release`。既存の標準スワイプブランチを基点にし、並行作業中の`feature/quote-longpress`には触れない。
+- 完了条件：公開Repoの取得、Private Repoの任意読み取りトークン利用、複数ZIP・不正URLの拒否、既存ZIPの安全な更新、初回画面・設定画面の両方で同じ操作ができる。ビルド・単体テスト・GitHub APIの実応答・Simulator操作はそれぞれ区別して確認する。
+- 対象外：定期確認と無人の自動更新、GitHubアカウントログイン連携、任意のソースコードZIPのビルド。
+- 2026-10-25：実装済み。実際のPrivate GitHub APIで最新ReleaseとZIPアセットの取得を確認、iPhone 17 Pro Simulatorで単体テスト37件成功。URL入力画面のSimulator UIテストにも成功。PrivateリポジトリのXtend実機導入は未確認。
+
 ## 今後追加する拡張機能・操作改善
 
 ### 新規 Chrome 拡張機能：タイムラインのアカウント許可リストフィルター

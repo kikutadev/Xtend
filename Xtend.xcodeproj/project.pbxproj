@@ -16,6 +16,7 @@
 		1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */; };
 		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
 		2F5B10CE47FEF1BED1002280 /* CommunityExtensionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */; };
+		3D95C702DEB5FEFF025F27CB /* GitHubReleaseInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5592C79FE1D7F301160BCB03 /* GitHubReleaseInstallerTests.swift */; };
 		41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */; };
 		4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */; };
 		4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5523AE88483B76D72E8E474B /* ChromeShim.swift */; };
@@ -27,6 +28,8 @@
 		6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */; };
 		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
 		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
+		7DEC6F9F342A0D6B95FC6CBB /* ExtensionURLInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE901A1EF81BF2D6C727F668 /* ExtensionURLInstaller.swift */; };
+		86188CCCCDBEFAA92D83203A /* GitHubReleaseInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EFB71789DF1E1D25EEA3AD2 /* GitHubReleaseInstaller.swift */; };
 		8688525F320CF5F1372E9949 /* NyattoMobileXAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E730A5C71F589826EDACE6A8 /* NyattoMobileXAdapter.swift */; };
 		9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
@@ -67,12 +70,14 @@
 		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
+		5592C79FE1D7F301160BCB03 /* GitHubReleaseInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseInstallerTests.swift; sourceTree = "<group>"; };
 		595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericExtensionSettingsUITests.swift; sourceTree = "<group>"; };
 		7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStoreTests.swift; sourceTree = "<group>"; };
 		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
 		77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendBrowserUITests.swift; sourceTree = "<group>"; };
 		7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionWelcomeViewController.swift; sourceTree = "<group>"; };
 		89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeBridge.swift; sourceTree = "<group>"; };
+		8EFB71789DF1E1D25EEA3AD2 /* GitHubReleaseInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseInstaller.swift; sourceTree = "<group>"; };
 		9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallStore.swift; sourceTree = "<group>"; };
 		A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSettingsViewController.swift; sourceTree = "<group>"; };
 		AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionStorage.swift; sourceTree = "<group>"; };
@@ -82,6 +87,7 @@
 		C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendNavigation.swift; sourceTree = "<group>"; };
 		D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStore.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DE901A1EF81BF2D6C727F668 /* ExtensionURLInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionURLInstaller.swift; sourceTree = "<group>"; };
 		E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSafetyTests.swift; sourceTree = "<group>"; };
 		E730A5C71F589826EDACE6A8 /* NyattoMobileXAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NyattoMobileXAdapter.swift; sourceTree = "<group>"; };
 		F4B884C456033A9D3781F2BC /* CRX3Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRX3Package.swift; sourceTree = "<group>"; };
@@ -116,7 +122,9 @@
 				B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */,
 				A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */,
 				AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */,
+				DE901A1EF81BF2D6C727F668 /* ExtensionURLInstaller.swift */,
 				7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */,
+				8EFB71789DF1E1D25EEA3AD2 /* GitHubReleaseInstaller.swift */,
 				06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */,
 				E730A5C71F589826EDACE6A8 /* NyattoMobileXAdapter.swift */,
 				C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */,
@@ -145,6 +153,7 @@
 				7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
 				3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */,
+				5592C79FE1D7F301160BCB03 /* GitHubReleaseInstallerTests.swift */,
 			);
 			path = XtendTests;
 			sourceTree = "<group>";
@@ -302,6 +311,7 @@
 				E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
 				CCF88D48826BAA16E03CEE49 /* ExtensionSettingsPageTests.swift in Sources */,
+				3D95C702DEB5FEFF025F27CB /* GitHubReleaseInstallerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -330,7 +340,9 @@
 				BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */,
 				086B1ED70583781DE6387302 /* ExtensionSettingsViewController.swift in Sources */,
 				01BF2A583CF97702899D482D /* ExtensionStorage.swift in Sources */,
+				7DEC6F9F342A0D6B95FC6CBB /* ExtensionURLInstaller.swift in Sources */,
 				6DA0B280388E3AF0BE4E81B1 /* ExtensionWelcomeViewController.swift in Sources */,
+				86188CCCCDBEFAA92D83203A /* GitHubReleaseInstaller.swift in Sources */,
 				41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */,
 				8688525F320CF5F1372E9949 /* NyattoMobileXAdapter.swift in Sources */,
 				571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */,

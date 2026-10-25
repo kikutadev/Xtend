@@ -25,7 +25,7 @@
 
 Xホームの「新しいポストを表示」を押したあとも、閲覧位置を保持する拡張機能です。
 
-GitHubリポジトリのReleasesからビルド済みZIPをダウンロードし、Xtendの設定から「ZIPから読み込む」で追加してください。
+GitHubリポジトリ内の`release/`にあるビルド済みZIPをダウンロードし、Xtendの設定から「ZIPでインストール」で追加してください。
 
 ## 注意事項
 
@@ -74,6 +74,14 @@ xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID"
 > 署名のために自分のApple IDとTeamが必要です。Bundle IDが他と重複する場合は `BUNDLE_ID` を変更してください。無料のPersonal Teamでは署名・プロビジョニングに制限があります。コマンドで署名が通らない場合は `open Xtend.xcodeproj` でXcodeを開き、**Signing & Capabilities** を確認してください。
 
 Simulatorでのビルド、Xcodeによる実機インストール、ZIPのビルド手順は [開発者向けドキュメント](docs/DEVELOPMENT.md) にまとめています。
+
+## GitHub Releasesから拡張機能を追加
+
+Xtendの初回画面または設定画面に、GitHubリポジトリのURL（例：`https://github.com/OWNER/EXTENSION-REPOSITORY`）を貼り付けると、**最新の公開済みReleaseに添付されたビルド済みZIP**を取得してインストールします。ソースコードの自動生成ZIPは使用しません。対象ZIPを一意に選べない場合はエラーを表示します。
+
+PrivateリポジトリはGitHubの読み取り専用トークンが必要です。Fine-grained Personal Access Tokenを対象リポジトリに限定し、**Contents: Read-only**で発行して入力してください。成功後は端末内Keychainへ保存され、設定画面から削除できます。GitHubへの接続は利用者がインストールを押した場合のみ行い、拡張機能の自動更新は行いません。
+
+※ x-home-anchorの配布ZIPはGitHub Releasesではなくリポジトリ内の`release/`にあるため、従来のZIPインストールを利用します。
 
 ## ZIPから拡張機能を更新
 
