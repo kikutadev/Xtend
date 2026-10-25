@@ -9,6 +9,7 @@ final class ExtensionStorage {
     private let extensionID: String
     private let keyPrefix: String
     private let storageDirectory: URL
+    private let filenamePrefix: String
 
     init(extensionID: String, defaults: UserDefaults = .standard, storageDirectory: URL? = nil) {
         self.extensionID = extensionID
@@ -17,6 +18,9 @@ final class ExtensionStorage {
         self.storageDirectory = storageDirectory ?? FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         )[0].appendingPathComponent("Xtend/ExtensionStorage", isDirectory: true)
+        // Use a fixed filename prefix for all reads and writes in this instance.
+        self.filenamePrefix = SHA256.hash(data: Data(extensionID.utf8))
+            .map { String(format: "%02x", $0) }.joined()
     }
 
     func get(area: String, keys: Any?) throws -> [String: Any] {
@@ -139,11 +143,8 @@ final class ExtensionStorage {
     }
 
     private func namespaceFile(for area: String) -> URL {
-        // Extension IDs are not paths. Hashing prevents traversal and collisions
-        // between different IDs and keeps each namespace under our own directory.
-        let digest = SHA256.hash(data: Data(extensionID.utf8))
-            .map { String(format: "%02x", $0) }.joined()
-        return storageDirectory.appendingPathComponent("\(digest)-\(area).json")
+        // Hash-based names keep untrusted extension IDs out of file paths.
+        storageDirectory.appendingPathComponent("\(filenamePrefix)-\(area).json")
     }
 
     private func validate(area: String) throws {

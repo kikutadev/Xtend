@@ -143,6 +143,39 @@ final class ExtensionStorageTests: XCTestCase {
         XCTAssertEqual(try storage.get(area: "sync", keys: "enabled")["enabled"] as? Bool, true)
     }
 
+    func testCorruptFileDoesNotSilentlyRestoreStalePreferences() throws {
+        let suite = "XtendTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let storage = ExtensionStorage(extensionID: "extension-a", defaults: defaults, storageDirectory: directory)
+        _ = try storage.set(area: "local", items: ["current": true])
+        let oldData = try JSONSerialization.data(withJSONObject: ["stale": true])
+        defaults.set(oldData, forKey: "xtend.extension.storage.extension-a.local")
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        let file = try XCTUnwrap(files.first)
+        try Data("invalid-json".utf8).write(to: file, options: .atomic)
+        XCTAssertThrowsError(try storage.get(area: "local", keys: nil)) { error in
+            XCTAssertEqual(error.localizedDescription, StorageError.corruptNamespace.localizedDescription)
+        }
+    }
+
+    func testExtensionIDCannotEscapeStorageDirectory() throws {
+        let suite = "XtendTests.\(UUID().uuidString)"
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storage = ExtensionStorage(extensionID: "../../../../../escape", storageDirectory: directory)
+        _ = try storage.set(area: "local", items: ["safe": true])
+        let files = try FileManager.default.contentsOfDirectory(at: directory,
+                                                                includingPropertiesForKeys: nil)
+        XCTAssertEqual(files.count, 1)
+        XCTAssertTrue(try XCTUnwrap(files.first).lastPathComponent.hasSuffix("-local.json"))
+        XCTAssertEqual(try storage.get(area: "local", keys: "safe")["safe"] as? Bool, true)
+    }
+
     func testUnchangedValueDoesNotBroadcast() throws {
         let suite = "XtendTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
