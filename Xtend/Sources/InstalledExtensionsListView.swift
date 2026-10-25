@@ -69,6 +69,7 @@ enum InstalledExtensionCatalog {
         default:
             try CommunityExtensionStore().uninstall(id: id)
         }
+        GitHubReleaseLinks.remove(id)
         // Installed extension settings must not survive uninstall.
         let prefix = "xtend.extension.storage.\(id)."
         UserDefaults.standard.removeObject(forKey: prefix + "local")
@@ -119,6 +120,7 @@ enum InstalledExtensionCatalog {
 final class InstalledExtensionsListView: UIView {
     var onRemove: ((InstalledExtensionInfo) -> Void)?
     var onSettings: ((InstalledExtensionInfo) -> Void)?
+    var onCheckRelease: ((InstalledExtensionInfo) -> Void)?
     private let content = UIStackView()
 
     override init(frame: CGRect) {
@@ -214,7 +216,24 @@ final class InstalledExtensionsListView: UIView {
             row.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
             row.backgroundColor = .secondarySystemGroupedBackground
             row.layer.cornerRadius = 14
-            content.addArrangedSubview(row)
+            if let onCheckRelease {
+                let checkButton = UIButton(type: .system)
+                checkButton.setTitle("更新を確認", for: .normal)
+                checkButton.setImage(UIImage(systemName: "arrow.clockwise"), for: .normal)
+                checkButton.tintColor = .tintColor
+                checkButton.contentHorizontalAlignment = .leading
+                checkButton.accessibilityIdentifier = "xtend.release.check.\(item.id)"
+                checkButton.accessibilityLabel = "\(item.name)の更新を確認"
+                checkButton.isEnabled = item.issue == nil
+                checkButton.addAction(UIAction { _ in onCheckRelease(item) }, for: .touchUpInside)
+                checkButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+                let column = UIStackView(arrangedSubviews: [row, checkButton])
+                column.axis = .vertical
+                column.spacing = 0
+                content.addArrangedSubview(column)
+            } else {
+                content.addArrangedSubview(row)
+            }
         }
 
         isHidden = false

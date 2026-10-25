@@ -1,4 +1,5 @@
 import XCTest
+import ZIPFoundation
 @testable import Xtend
 
 final class CommunityExtensionStoreTests: XCTestCase {
@@ -19,6 +20,34 @@ final class CommunityExtensionStoreTests: XCTestCase {
         XCTAssertEqual(try store.installFromZIP(zip).id, first.id, "Local ZIP updates retain the same extension identity")
         try store.uninstall(id: first.id)
         XCTAssertTrue(store.installedRoots().isEmpty)
+    }
+
+    func testReleaseUpdatePreservesInstalledIdentityAndRejectsDifferentPackage() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let zip = base.appendingPathComponent("fixture.zip")
+        try XCTUnwrap(Data(base64Encoded: fixtureZIP)).write(to: zip)
+        let store = CommunityExtensionStore(directoryOverride: base.appendingPathComponent("Extensions"))
+        let installed = try store.installFromZIP(zip)
+        let updated = try store.installFromZIP(zip, updatingID: installed.id)
+        XCTAssertEqual(updated.id, installed.id)
+        XCTAssertEqual(store.installedRoots().count, 1)
+        XCTAssertThrowsError(try store.installFromZIP(zip, updatingID: "zip-other-extension"))
+
+        let unpacked = base.appendingPathComponent("unpacked")
+        try FileManager.default.unzipItem(at: zip, to: unpacked)
+        let manifestURL = unpacked.appendingPathComponent("manifest.json")
+        var manifest = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
+        manifest["name"] = "Unrelated Extension"
+        try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
+        let maliciousZIP = base.appendingPathComponent("unrelated.zip")
+        try FileManager.default.zipItem(at: unpacked, to: maliciousZIP)
+        XCTAssertThrowsError(try store.installFromZIP(maliciousZIP, updatingID: installed.id))
+        XCTAssertEqual(try CommunityExtensionStore.validateManifest(
+            at: XCTUnwrap(store.installedRoots()[installed.id])).name, installed.manifest.name)
+        XCTAssertEqual(store.installedRoots().count, 1)
     }
 
     func testBrokenPackageIsRejectedWithoutReplacingExistingVersion() throws {

@@ -82,6 +82,8 @@ Xtendの初回画面または設定画面に、GitHubリポジトリのURL（例
 PrivateリポジトリはGitHubの読み取り専用トークンが必要です。Fine-grained Personal Access Tokenを対象リポジトリに限定し、**Contents: Read-only**で発行して入力してください。成功後は端末内Keychainへ保存され、設定画面から削除できます。GitHubへの接続は利用者がインストールを押した場合のみ行い、拡張機能の自動更新は行いません。
 
 ※ x-home-anchorの配布ZIPはGitHub Releasesではなくリポジトリ内の`release/`にあるため、従来のZIPインストールを利用します。
+設定画面のインストール済み一覧には「更新を確認」ボタンがあります。GitHubから導入済みなら取得元を再利用し、ZIPやWeb Storeから導入した拡張機能では一度だけGitHubのクローンURL（HTTPSの`.git`、`git@github.com:owner/repo.git`も可）を貼り付けます。新しいReleaseがあれば「最新版を取り込む」を押すことで、同じ拡張機能を検証して更新します。自動チェック・自動適用はしません。
+
 
 ## ZIPから拡張機能を更新
 

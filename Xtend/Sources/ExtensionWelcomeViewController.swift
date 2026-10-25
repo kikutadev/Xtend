@@ -138,16 +138,12 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
     private func installFromURL(_ value: String, githubToken: String?) {
         guard !busy else { return }
         view.endEditing(true)
-        guard let url = URL(string: value) else {
-            showError(ExtensionInstallError.invalidChromeWebStoreURL)
-            return
-        }
         setBusy(true, message: "拡張機能を取得しています…")
         Task { [weak self] in
             guard let self else { return }
             do {
                 _ = try await Task.detached(priority: .userInitiated) {
-                    try await ExtensionURLInstaller.install(url, githubToken: githubToken)
+                    try await ExtensionURLInstaller.install(value, githubToken: githubToken)
                 }.value
                 setBusy(false, message: nil)
                 installForm.didFinishInstallation()
