@@ -187,22 +187,24 @@ struct GitHubReleaseCheck: Sendable {
 
 enum GitHubReleaseInstaller {
     static func check(repository: GitHubReleaseRepository, installedVersion: String,
-                      installedTag: String?, tokenOverride: String? = nil) async throws -> GitHubReleaseCheck {
+                      installedTag: String?, tokenOverride: String? = nil,
+                      session: URLSession = .shared) async throws -> GitHubReleaseCheck {
         let token = tokenOverride?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
             ?? GitHubReleaseCredentials.load()
-        let release = try await fetchLatest(repository: repository, token: token)
+        let release = try await fetchLatest(repository: repository, token: token, session: session)
         return GitHubReleaseCheck(release: release,
             needsUpdate: GitHubReleaseVersion.needsUpdate(installed: installedVersion,
                 latestTag: release.tagName, installedTag: installedTag))
     }
 
-    private static func fetchLatest(repository: GitHubReleaseRepository, token: String?) async throws -> GitHubRelease {
+    private static func fetchLatest(repository: GitHubReleaseRepository, token: String?,
+                                    session: URLSession) async throws -> GitHubRelease {
         var request = URLRequest(url: repository.apiURL)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("Xtend", forHTTPHeaderField: "User-Agent")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
 
-        let (responseData, response) = try await URLSession.shared.data(for: request)
+        let (responseData, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
               http.url?.scheme == "https", http.url?.host?.lowercased() == "api.github.com"
         else { throw GitHubReleaseError.invalidResponse }
@@ -222,10 +224,10 @@ enum GitHubReleaseInstaller {
     /// Resolves the newest Release and safely updates an existing extension when specified.
     @discardableResult
     static func installLatest(repository: GitHubReleaseRepository, newToken: String?,
-                              existingID: String? = nil) async throws -> String {
+                              existingID: String? = nil, session: URLSession = .shared) async throws -> String {
         let token = newToken?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
             ?? GitHubReleaseCredentials.load()
-        let release = try await fetchLatest(repository: repository, token: token)
+        let release = try await fetchLatest(repository: repository, token: token, session: session)
         let asset = try release.extensionZIP()
 
         let assetURL = URL(string: "https://api.github.com/repos/\(repository.owner)/\(repository.name)/releases/assets/\(asset.id)")!
@@ -238,7 +240,7 @@ enum GitHubReleaseInstaller {
         let downloaded: URL
         let downloadResponse: URLResponse
         do {
-            (downloaded, downloadResponse) = try await URLSession.shared.download(for: assetRequest, delegate: limiter)
+            (downloaded, downloadResponse) = try await session.download(for: assetRequest, delegate: limiter)
         } catch {
             if limiter.didExceedLimit { throw ExtensionInstallError.packageTooLarge }
             throw error
