@@ -15,6 +15,13 @@ final class XtendBrowserUITests: XCTestCase {
         }
     }
 
+    private func captureBrowserEvidence(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     private func settingsEntry() -> XCUIElement {
         let native = app.buttons["Xtendの拡張機能設定"]
         if native.exists && native.isHittable { return native }
