@@ -1,4 +1,6 @@
 import Foundation
+import UIKit
+import WebKit
 import XCTest
 @testable import Xtend
 
@@ -353,5 +355,130 @@ final class ExtensionArchiveSafetyTests: XCTestCase {
         let url = try archiveURL(base64: "UEsDBBQAAAAAAAAAIQDuQOUFBwAAAAcAAAAGAAAAb2sudHh0Zml4dHVyZVBLAQIUAxQAAAAAAAAAIQDuQOUFBwAAAAcAAAAGAAAAAAAAAAAAAACkgQAAAABvay50eHRQSwUGAAAAAAEAAQA0AAAAKwAAAAAA")
         defer { try? FileManager.default.removeItem(at: url) }
         XCTAssertNoThrow(try ExtensionInstallStore.validateArchive(at: url))
+    }
+}
+/// Mobile X does not render the desktop profile link expected by Nyatto.
+/// These tests use the installed extension with Xtend's isolated WebKit world.
+@MainActor
+final class MobileViewerCompatibilityTests: XCTestCase {
+    private let extensionID = ExtensionInstallStore.supportedExtensionID
+
+    private func fixture(html: String) throws -> (WKWebView, ExtensionHost, UIWindow, ExtensionStorage, URL, UserDefaults, String) {
+        guard let root = ExtensionInstallStore().existingRoot else {
+            throw XCTSkip("Nyatto must be installed in the Simulator app")
+        }
+        let package = try ExtensionPackage.installed(id: extensionID, root: root)
+        let suiteName = "XtendMobileViewerQA.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let storage = ExtensionStorage(extensionID: extensionID, defaults: defaults, storageDirectory: directory)
+        let host = try ExtensionHost(packages: [package], storageByID: [extensionID: storage])
+        let config = WKWebViewConfiguration()
+        try host.installBrowserRuntime(into: config)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let controller = UIViewController()
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        let view = WKWebView(frame: controller.view.bounds, configuration: config)
+        controller.view.addSubview(view)
+        host.attach(to: view)
+        view.loadHTMLString(html, baseURL: URL(string: "https://x.com/notifications")!)
+        return (view, host, window, storage, directory, defaults, suiteName)
+    }
+
+    private func script(_ script: String, view: WKWebView) async throws -> String {
+        let world = ExtensionPackage.contentWorld(for: extensionID)
+        return try await withCheckedThrowingContinuation { continuation in
+            view.evaluateJavaScript(script, in: nil, in: world) { result in
+                switch result {
+                case .success(let value): continuation.resume(returning: String(describing: value))
+                case .failure(let error): continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func testMobileDrawerExposesOnlyConfirmedViewer() async throws {
+        let html = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+        <body><button data-testid="DashButton_ProfileIcon_Link" aria-expanded="true" style="width:40px;height:40px">Menu</button>
+          <div role="dialog" style="position:fixed;top:0;left:0;width:260px;height:100vh;background:white">
+            <span>@ringfixture</span><a href="/ringfixture">Account</a><a href="/ringfixture">Profile</a>
+          </div>
+          <article><a href="/unrelated_user">Unrelated notification author</a></article>
+        </body></html>
+        """
+        let (view, host, window, storage, directory, defaults, suiteName) = try fixture(html: html)
+        _ = host
+        defer {
+            window.isHidden = true
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        var restored: String?
+        for _ in 0..<55 {
+            restored = try? await script("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", view: view)
+            if restored == "/ringfixture" { break }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        let probe = try await script("JSON.stringify({ready:document.readyState, width:innerWidth, link:!!document.getElementById('xtend-mobile-current-viewer'), dialogs:document.querySelectorAll('[role=dialog]').length, hostname:location.hostname})", view: view)
+        XCTAssertEqual(restored, "/ringfixture", probe)
+        let saved = try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")
+        XCTAssertEqual(saved["xtend:mobile-confirmed-viewer"] as? String, "ringfixture")
+
+        // While switching accounts, a mismatched menu must invalidate the
+        // previously saved viewer instead of exposing the old profile link.
+        _ = try await script("document.querySelector('[role=dialog] span').textContent='@newfixture'; 'changed'", view: view)
+        var invalidated = false
+        for _ in 0..<55 {
+            let link = try? await script("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", view: view)
+            let stored = try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")
+            if link != "/ringfixture", stored["xtend:mobile-confirmed-viewer"] == nil {
+                invalidated = true
+                break
+            }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        XCTAssertTrue(invalidated, "The previous account must be invalidated before accepting another")
+
+        // Once both the profile links and the visible account label agree,
+        // the new account is allowed and the old one is not reused.
+        _ = try await script("document.querySelectorAll('[role=dialog] a').forEach(a=>a.setAttribute('href','/newfixture')); 'changed'", view: view)
+        var newViewer: String?
+        for _ in 0..<55 {
+            newViewer = try? await script("document.querySelector('a[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href')", view: view)
+            if newViewer == "/newfixture" { break }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        XCTAssertEqual(newViewer, "/newfixture")
+        XCTAssertEqual(try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")["xtend:mobile-confirmed-viewer"] as? String, "newfixture")
+    }
+
+    func testUnverifiedDrawerDoesNotUseNotificationAuthor() async throws {
+        let html = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+        <body><button data-testid="DashButton_ProfileIcon_Link" aria-expanded="true" style="width:40px;height:40px">Menu</button>
+          <div role="dialog" style="position:fixed;top:0;left:0;width:260px;height:100vh;background:white">
+            <span>@different_user</span><a href="/ringfixture">Account</a><a href="/ringfixture">Profile</a>
+          </div>
+          <article><a href="/unrelated_user">Unrelated notification author</a></article>
+        </body></html>
+        """
+        let (view, host, window, storage, directory, defaults, suiteName) = try fixture(html: html)
+        _ = host
+        defer {
+            window.isHidden = true
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        for _ in 0..<25 {
+            if (try? await script("typeof globalThis.chrome?.storage?.local", view: view)) == "object" { break }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        try await Task.sleep(for: .milliseconds(500))
+        let linkVisible = try await script("Boolean(document.querySelector('a[data-testid=AppTabBar_Profile_Link]'))", view: view)
+        XCTAssertTrue(["false", "0"].contains(linkVisible), "The viewer link must not be created")
+        XCTAssertNil(try storage.get(area: "local", keys: "xtend:mobile-confirmed-viewer")["xtend:mobile-confirmed-viewer"])
     }
 }
