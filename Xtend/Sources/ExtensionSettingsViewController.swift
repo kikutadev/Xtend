@@ -7,6 +7,7 @@ import WebKit
 final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerDelegate {
     private let onReload: () -> Void
     private let onChange: () -> Void
+    private let onPromoPreferencesChanged: () -> Void
     private let onFinish: () -> Void
     private let scrollView = UIScrollView()
     private let stack = UIStackView()
@@ -16,10 +17,14 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private let activity = UIActivityIndicatorView(style: .medium)
     private let status = UILabel()
     private var busy = false
+    private let getAppSwitch = UISwitch()
+    private let subscribeSwitch = UISwitch()
 
-    init(onReload: @escaping () -> Void, onChange: @escaping () -> Void, onFinish: @escaping () -> Void) {
+    init(onReload: @escaping () -> Void, onChange: @escaping () -> Void,
+         onPromoPreferencesChanged: @escaping () -> Void, onFinish: @escaping () -> Void) {
         self.onReload = onReload
         self.onChange = onChange
+        self.onPromoPreferencesChanged = onPromoPreferencesChanged
         self.onFinish = onFinish
         super.init(nibName: nil, bundle: nil)
         title = "Xtendの設定"
@@ -76,7 +81,10 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         branding.alignment = .center
         branding.spacing = 14
         stack.addArrangedSubview(branding)
-        stack.setCustomSpacing(28, after: branding)
+        stack.setCustomSpacing(24, after: branding)
+        let promoSettings = makePromoSettings()
+        stack.addArrangedSubview(promoSettings)
+        stack.setCustomSpacing(30, after: promoSettings)
 
         installedList.onRemove = { [weak self] in self?.confirmRemove($0) }
         installedList.onSettings = { [weak self] in self?.openExtensionSettings($0) }
@@ -123,7 +131,102 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         hint.textColor = .secondaryLabel
         stack.addArrangedSubview(hint)
         stack.setCustomSpacing(30, after: hint)
+        let developerSettings = makeDeveloperSettings()
+        stack.addArrangedSubview(developerSettings)
+        stack.setCustomSpacing(30, after: developerSettings)
         stack.addArrangedSubview(RecommendedExtensionsView())
+    }
+
+    private func makePromoSettings() -> UIView {
+        let masterSwitch = UISwitch()
+        masterSwitch.accessibilityIdentifier = "xtend.cleanup.enabled"
+        masterSwitch.isOn = XPromoPreferences.enabled
+
+        getAppSwitch.accessibilityIdentifier = "xtend.cleanup.getApp"
+        getAppSwitch.isOn = XPromoPreferences.getApp
+        subscribeSwitch.accessibilityIdentifier = "xtend.cleanup.subscribe"
+        subscribeSwitch.isOn = XPromoPreferences.subscribe
+
+        func toggleRow(_ text: String, control: UISwitch, inset: CGFloat = 0) -> UIView {
+            let label = UILabel()
+            label.text = text
+            label.font = .preferredFont(forTextStyle: inset == 0 ? .headline : .body)
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            let row = UIStackView(arrangedSubviews: [label, control])
+            row.axis = .horizontal
+            row.alignment = .center
+            row.spacing = 12
+            row.layoutMargins = UIEdgeInsets(top: 0, left: inset, bottom: 0, right: 0)
+            row.isLayoutMarginsRelativeArrangement = true
+            return row
+        }
+
+        masterSwitch.addAction(UIAction { [weak self] action in
+            guard let self, let control = action.sender as? UISwitch else { return }
+            XPromoPreferences.enabled = control.isOn
+            getAppSwitch.isEnabled = control.isOn
+            subscribeSwitch.isEnabled = control.isOn
+            self.onPromoPreferencesChanged()
+        }, for: .valueChanged)
+
+        getAppSwitch.addAction(UIAction { [weak self] action in
+            guard let control = action.sender as? UISwitch else { return }
+            XPromoPreferences.getApp = control.isOn
+            self?.onPromoPreferencesChanged()
+        }, for: .valueChanged)
+
+        subscribeSwitch.addAction(UIAction { [weak self] action in
+            guard let control = action.sender as? UISwitch else { return }
+            XPromoPreferences.subscribe = control.isOn
+            self?.onPromoPreferencesChanged()
+        }, for: .valueChanged)
+
+        getAppSwitch.isEnabled = masterSwitch.isOn
+        subscribeSwitch.isEnabled = masterSwitch.isOn
+
+        let section = UIStackView(arrangedSubviews: [
+            toggleRow("邪魔なものを消す", control: masterSwitch),
+            toggleRow("Get the app", control: getAppSwitch, inset: 16),
+            toggleRow("Subscribe", control: subscribeSwitch, inset: 16)
+        ])
+        section.axis = .vertical
+        section.spacing = 14
+        return section
+    }
+
+    private func makeDeveloperSettings() -> UIView {
+        let heading = UILabel()
+        heading.text = "開発者向け"
+        heading.font = .preferredFont(forTextStyle: .headline)
+
+        let label = UILabel()
+        label.text = "タッチ操作を表示"
+        label.font = .preferredFont(forTextStyle: .body)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let touchSwitch = UISwitch()
+        touchSwitch.accessibilityIdentifier = "xtend.developer.showTouches"
+        touchSwitch.isOn = DeveloperOptions.showsTouches
+        touchSwitch.addAction(UIAction { action in
+            guard let control = action.sender as? UISwitch else { return }
+            DeveloperOptions.showsTouches = control.isOn
+        }, for: .valueChanged)
+
+        let toggleRow = UIStackView(arrangedSubviews: [label, touchSwitch])
+        toggleRow.axis = .horizontal
+        toggleRow.alignment = .center
+        toggleRow.spacing = 12
+
+        let note = UILabel()
+        note.text = "タップ位置とスワイプの軌跡を画面に表示します。画面収録にも映ります。"
+        note.font = .preferredFont(forTextStyle: .footnote)
+        note.textColor = .secondaryLabel
+        note.numberOfLines = 0
+
+        let section = UIStackView(arrangedSubviews: [heading, toggleRow, note])
+        section.axis = .vertical
+        section.spacing = 12
+        return section
     }
 
     private func refreshInstalled(animated: Bool) {

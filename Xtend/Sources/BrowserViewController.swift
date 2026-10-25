@@ -7,6 +7,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
+    private var pageURLObservation: NSKeyValueObservation?
+    private weak var historyBackGesture: UIScreenEdgePanGestureRecognizer?
+    private weak var historyForwardGesture: UIScreenEdgePanGestureRecognizer?
     private weak var navigationBackButton: UIButton?
     private weak var settingsButton: UIButton?
     private var pageLoadFailed = false
@@ -81,6 +84,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         installSettingsMenu(into: configuration)
         let browser = WKWebView(frame: .zero, configuration: configuration)
         host?.attach(to: browser)
+        pageURLObservation = nil
+        historyBackGesture = nil
+        historyForwardGesture = nil
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
         webView?.removeFromSuperview()
@@ -88,7 +94,16 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.extensionHost = host
         self.webView = browser
         configure(browser)
+        installHistoryGestures(on: browser)
         updateNavigationControls(for: browser, url: url)
+        // X changes routes with the History API without a document navigation.
+        // Observe the effective URL so edge gestures switch on SPA transitions.
+        pageURLObservation = browser.observe(\.url, options: [.new]) { [weak self] observed, _ in
+            DispatchQueue.main.async { [weak self, weak observed] in
+                guard let self, let observed, self.webView === observed else { return }
+                self.updateNavigationControls(for: observed)
+            }
+        }
         view.sendSubviewToBack(browser)
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
     }
@@ -110,25 +125,51 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         ])
     }
 
+    private func installHistoryGestures(on browser: WKWebView) {
+        let back = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleHistoryEdge(_:)))
+        back.edges = .left
+        back.name = "xtend.history.back"
+        browser.addGestureRecognizer(back)
+        historyBackGesture = back
+
+        let forward = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleHistoryEdge(_:)))
+        forward.edges = .right
+        forward.name = "xtend.history.forward"
+        browser.addGestureRecognizer(forward)
+        historyForwardGesture = forward
+    }
+
+    @objc
+    private func handleHistoryEdge(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard gesture.state == .ended,
+              let browser = webView, gesture.view === browser else { return }
+        let movement = gesture.translation(in: browser)
+        guard abs(movement.x) >= 64, abs(movement.x) > abs(movement.y) * 1.4 else { return }
+        if gesture.edges == .left, movement.x > 0, browser.canGoBack {
+            browser.goBack()
+        } else if gesture.edges == .right, movement.x < 0, browser.canGoForward {
+            browser.goForward()
+        }
+    }
+
     private func installSettingsMenu(into configuration: WKWebViewConfiguration) {
-        let controller = configuration.userContentController
-        let world = WKContentWorld.world(name: "Xtend.Settings")
-        controller.add(SettingsMenuBridge(browser: self), contentWorld: world, name: "xtendSettings")
         #if DEBUG
         let forceTip = ProcessInfo.processInfo.arguments.contains("--xtend-test-show-settings-tip")
         #else
         let forceTip = false
         #endif
         let showTip = forceTip || !UserDefaults.standard.bool(forKey: Self.settingsTipSeenKey)
-        controller.addUserScript(WKUserScript(
-            source: "const __xtendShowSettingsTip = \(showTip ? "true" : "false");\n" + Self.settingsMenuScript,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true,
-            in: world
-        ))
+        do {
+            try XtendSettingsMenu.install(into: configuration, showTip: showTip) { [weak self] message in
+                self?.handleSettingsMessage(message)
+            }
+        } catch {
+            runtimeError = error.localizedDescription
+            hasShownExtensionWarning = false
+        }
     }
 
-    fileprivate func handleSettingsMessage(_ message: WKScriptMessage) {
+    private func handleSettingsMessage(_ message: WKScriptMessage) {
         guard message.webView === webView,
               message.frameInfo.isMainFrame,
               ["x.com", "twitter.com"].contains(message.frameInfo.securityOrigin.host),
@@ -147,181 +188,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             break
         }
     }
-
-    private static let settingsMenuScript = #"""
-    (() => {
-      if (!['x.com', 'twitter.com'].includes(location.hostname)) return;
-      const bridge = window.webkit?.messageHandlers?.xtendSettings;
-      if (!bridge) return;
-      const entryID = 'xtend-native-settings-entry';
-      const tipID = 'xtend-settings-tip';
-      let tipCompleted = !__xtendShowSettingsTip;
-      const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
-      let lastLogin = null;
-      let queued = false;
-
-      function loginVisible() {
-        const path = location.pathname;
-        if (loginPaths.some(p => path === p || path.startsWith(p + '/'))) return true;
-        // X can show a signed-out landing page without navigating to /login.
-        return path === '/' &&
-          !document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"]') &&
-          !!document.querySelector('a[href="/i/flow/login"], a[href="/login"], [data-testid="loginButton"]');
-      }
-
-      function findDrawer() {
-        if (innerWidth > 600) return null;
-        const toggle = document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"][aria-expanded="true"]');
-        if (!toggle || !toggle.getBoundingClientRect().width) return null;
-        return [...document.querySelectorAll('[role="dialog"]')].find(panel => {
-          const r = panel.getBoundingClientRect();
-          return r.width > 160 && r.width < innerWidth && r.height >= innerHeight * .8 && r.left < 12 && !!panel.querySelector('a[href]');
-        }) || null;
-      }
-
-      function insertSettings(drawer) {
-        if (drawer.querySelector('#' + entryID)) return;
-        const row = document.createElement('div');
-        row.id = entryID;
-        // Keep the footer on screen even when X's navigation links scroll.
-        row.style.cssText = 'position:absolute;left:0;right:0;bottom:max(64px,env(safe-area-inset-bottom));z-index:10;border-top:1px solid rgba(128,128,128,.25);background:Canvas;color:CanvasText;';
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.setAttribute('aria-label', 'Xtendの設定');
-        button.style.cssText = 'box-sizing:border-box;display:flex;align-items:center;gap:16px;width:100%;min-height:52px;padding:12px 16px;border:0;background:transparent;color:inherit;font:700 20px/1.3 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;text-align:left;cursor:pointer;';
-        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        icon.setAttribute('viewBox', '0 0 24 24');
-        icon.setAttribute('width', '23');
-        icon.setAttribute('height', '23');
-        icon.setAttribute('fill', 'none');
-        icon.setAttribute('stroke', 'currentColor');
-        icon.setAttribute('stroke-width', '2');
-        icon.setAttribute('stroke-linecap', 'round');
-        icon.setAttribute('stroke-linejoin', 'round');
-        for (const d of ['M4 7h16', 'M4 17h16', 'M8 4v6', 'M16 14v6']) {
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          line.setAttribute('d', d);
-          icon.appendChild(line);
-        }
-        button.append(icon, document.createTextNode('Xtendの設定'));
-        button.addEventListener('click', e => {
-          e.preventDefault();
-          e.stopPropagation();
-          completeTip();
-          bridge.postMessage({ action: 'open' });
-        });
-        row.appendChild(button);
-        drawer.appendChild(row);
-      }
-
-
-      let hasShownMenuTarget = false;
-      let lastDrawer = null;
-
-      function completeTip() {
-        if (tipCompleted) return;
-        tipCompleted = true;
-        document.getElementById(tipID)?.remove();
-        bridge.postMessage({ action: 'walkthroughDone' });
-      }
-
-      function hideTip() {
-        document.getElementById(tipID)?.remove();
-      }
-
-      function drawSpotlight(target, step) {
-        const r = target.getBoundingClientRect();
-        if (r.width < 20 || r.height < 20) { hideTip(); return; }
-        let tip = document.getElementById(tipID);
-        if (!tip) {
-          tip = document.createElement('div');
-          tip.id = tipID;
-          tip.style.cssText = 'position:fixed;inset:0;z-index:2147483000;pointer-events:none;font:600 14px -apple-system,BlinkMacSystemFont,sans-serif;';
-          const focus = document.createElement('div');
-          focus.dataset.xtendFocus = '';
-          focus.style.cssText = 'position:absolute;box-sizing:border-box;border:2px solid #6bd6ff;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.60),0 0 0 4px rgba(107,214,255,.22);pointer-events:none;';
-          tip.appendChild(focus);
-          document.body.appendChild(tip);
-        }
-        const focus = tip.querySelector('[data-xtend-focus]');
-        const pad = step === 'menu' ? 3 : 5;
-        focus.style.left = Math.max(2, r.left - pad) + 'px';
-        focus.style.top = Math.max(2, r.top - pad) + 'px';
-        focus.style.width = (r.width + pad * 2) + 'px';
-        focus.style.height = (r.height + pad * 2) + 'px';
-        focus.style.borderRadius = (step === 'menu' ? 12 : Math.ceil(r.height / 2 + pad)) + 'px';
-
-        let note = tip.querySelector('[data-xtend-note]');
-        if (step === 'avatar') {
-          if (!note) {
-            note = document.createElement('div');
-            note.dataset.xtendNote = '';
-            note.style.cssText = 'position:absolute;display:flex;align-items:center;gap:10px;border-radius:18px;padding:7px 8px 7px 12px;background:#fff;color:#111;box-shadow:0 3px 14px #0003;pointer-events:auto;';
-            const text = document.createElement('span');
-            text.textContent = '← 設定';
-            const close = document.createElement('button');
-            close.type = 'button';
-            close.textContent = '×';
-            close.setAttribute('aria-label', '案内を閉じる');
-            close.style.cssText = 'background:transparent;border:0;color:#666;font:22px -apple-system,sans-serif;width:30px;height:30px;padding:0;cursor:pointer;';
-            close.addEventListener('click', completeTip);
-            note.append(text, close);
-            tip.appendChild(note);
-          }
-          const left = Math.min(r.right + 12, innerWidth - 118);
-          note.style.left = Math.max(8, left) + 'px';
-          note.style.top = Math.max(8, r.top + r.height / 2 - 22) + 'px';
-        } else {
-          note?.remove();
-        }
-      }
-
-      function updateTip(drawer) {
-        if (tipCompleted) { hideTip(); return; }
-        if (hasShownMenuTarget && !drawer) { completeTip(); return; }
-        if (drawer) {
-          const button = drawer.querySelector('#' + entryID + ' button');
-          if (!button) { hideTip(); return; }
-          hasShownMenuTarget = true;
-          drawSpotlight(button, 'menu');
-          return;
-        }
-        const toggle = document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"]');
-        const composer = [...document.querySelectorAll('[role="dialog"]')].some(el => {
-          const rect = el.getBoundingClientRect();
-          return rect.width > 100 && rect.height > 100;
-        });
-        const visible = location.pathname === '/home' && !composer &&
-          !!toggle && toggle.getAttribute('aria-expanded') === 'false' &&
-          toggle.getBoundingClientRect().width > 0;
-        if (!visible) { hideTip(); return; }
-        drawSpotlight(toggle, 'avatar');
-      }
-
-      function sync() {
-        const visible = loginVisible();
-        if (visible !== lastLogin) {
-          lastLogin = visible;
-          bridge.postMessage({ action: 'login', visible });
-        }
-        const drawer = findDrawer();
-        if (drawer) insertSettings(drawer);
-        // Reposition the highlight after X's drawer slide animation finishes.
-        if (drawer && drawer !== lastDrawer && !tipCompleted) setTimeout(schedule, 350);
-        lastDrawer = drawer;
-        updateTip(drawer);
-      }
-      function schedule() {
-        if (queued) return;
-        queued = true;
-        requestAnimationFrame(() => { queued = false; sync(); });
-      }
-      new MutationObserver(schedule).observe(document.documentElement, {
-        childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded']
-      });
-      schedule();
-    })();
-    """#
 
     private func installSettingsButton() {
         var configuration = UIButton.Configuration.filled()
@@ -389,6 +255,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
                 }
             },
             onChange: { [weak self] in self?.markExtensionConfigurationChanged() },
+            onPromoPreferencesChanged: { [weak self] in
+                guard let webView = self?.webView else { return }
+                XtendSettingsMenu.updatePreferences(in: webView)
+            },
             onFinish: { [weak self] in self?.applyExtensionChanges() }
         )
         let navigation = UINavigationController(rootViewController: settings)
@@ -466,12 +336,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        guard self.webView === webView else { return }
         pageLoadFailed = false
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard self.webView === webView else { return }
         pageLoadFailed = false
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
@@ -537,10 +409,15 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func updateNavigationControls(for webView: WKWebView, url: URL? = nil) {
-        let onX = isXURL(url ?? webView.url)
+        let currentURL = url ?? webView.url
+        let onX = isXURL(currentURL)
         navigationBackButton?.isHidden = onX
-        // X has its own back controls and left drawer. Never run WebKit's
-        // competing edge-back recognizer over X's touch-driven navigation.
+        // On X home the leading edge belongs to the profile drawer. Other X
+        // routes use explicit iOS edge pans: X's SPA can prevent WebKit's
+        // built-in interactive history gestures from recognizing touches.
+        let useXHistoryEdges = onX && currentURL?.path != "/home"
+        historyBackGesture?.isEnabled = useXHistoryEdges
+        historyForwardGesture?.isEnabled = useXHistoryEdges
         webView.allowsBackForwardNavigationGestures = !onX
     }
 
@@ -571,19 +448,5 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
-    }
-}
-
-@MainActor
-private final class SettingsMenuBridge: NSObject, WKScriptMessageHandler {
-    weak var browser: BrowserViewController?
-
-    init(browser: BrowserViewController) {
-        self.browser = browser
-        super.init()
-    }
-
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        browser?.handleSettingsMessage(message)
     }
 }

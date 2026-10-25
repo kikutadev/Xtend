@@ -10,7 +10,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        let window = UIWindow(frame: UIScreen.main.bounds)
+        let window = TouchVisualizationWindow(frame: UIScreen.main.bounds)
         if UserDefaults.standard.bool(forKey: Self.openedXKey) {
             window.rootViewController = BrowserViewController()
         } else {

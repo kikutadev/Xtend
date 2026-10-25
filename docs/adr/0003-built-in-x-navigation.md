@@ -1,7 +1,7 @@
 # ADR 0003: Xの操作ジェスチャーをXtend本体の責務とする
 
 - 決定日: 2026-10-24
-- 状態: Accepted
+- 状態: Superseded by [ADR 0004](0004-home-only-drawer-edge.md)
 
 ## 背景
 

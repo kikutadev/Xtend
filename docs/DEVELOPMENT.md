@@ -104,25 +104,46 @@ WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使
 
 ## Xtend標準スワイプの検証
 
-スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。
+スワイプ処理はアプリの Xtend/Resources/xtend-swipe.js で管理します。WXT拡張機能のZIP導入は不要です。ホームだけ左端をメニュー操作にし、他のXページではiOS側の端ジェスチャーでWebViewの履歴を操作することは `node scripts/test-swipe-routing.mjs` と `BuiltInNavigationTests` で検証します。
 
 ### Simulatorによるスワイプ検証
 
-ログイン済みでXtendのXブラウザ画面が表示できるSimulatorに限り、`XtendUITests/XtendBrowserUITests.swift` の `testSwipeNavigationOnLoggedInX` がスワイプ操作と5枚のスクリーンショットを記録します。
+ログイン済みでXtendのXブラウザ画面が表示できるSimulatorに限り、`XtendUITests/XtendBrowserUITests.swift` の `testSwipeNavigationOnLoggedInX` がホームのタブ・メニューのスワイプとスクリーンショットを記録します。`testHistoryEdgesOnLoggedInX` では通知→検索→戻る→進むを実操作し、画面上の見出しも確認します。
 
 ```sh
-xcodebuild -project Xtend.xcodeproj -scheme Xtend \\
-  -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \\
-  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO \\
-  -only-testing:XtendUITests/XtendBrowserUITests/testSwipeNavigationOnLoggedInX \\
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -destination 'platform=iOS Simulator,id=<SimulatorのUUID>' \
+  -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO \
+  -only-testing:XtendUITests/XtendBrowserUITests/testSwipeNavigationOnLoggedInX \
+  -only-testing:XtendUITests/XtendBrowserUITests/testHistoryEdgesOnLoggedInX \
   -resultBundlePath .build/SwipeEvidence.xcresult test
 
-xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \\
+xcrun xcresulttool export attachments --path .build/SwipeEvidence.xcresult \
   --output-path .build/SwipeEvidenceAttachments
 python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 ```
 
 画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
+
+## Chrome Web Store導入・削除の受入テスト
+
+既存のXtendアプリと保存データを触らず、別Bundle IDのQAアプリを同じSimulatorに導入して実際のUI操作を検証します。新規導入時のURL入力 → 拡張機能の表示 → X画面 → 設定から削除 → X画面継続 → 削除状態を確認します。外部のChrome Web Storeへアクセスするためネットワーク接続が必要です。
+
+```sh
+SIMULATOR_ID="<既存のSimulator UUID>"
+xcodegen generate
+# QAアプリを再検証するときだけ、専用Bundle IDの前回分を削除する
+xcrun simctl uninstall "$SIMULATOR_ID" org.example.xtend.acceptance 2>/dev/null || true
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+  -derivedDataPath .build/AcceptanceQA \
+  -resultBundlePath .build/AcceptanceQA.xcresult \
+  -only-testing:XtendUITests/ExtensionAcceptanceUITests/testWebStoreInstallFromWelcomeAndRemoveThroughSettings \
+  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+  PRODUCT_BUNDLE_IDENTIFIER=org.example.xtend.acceptance test
+```
+
+このテストは一般拡張機能の導入・削除UIを確認するもので、にゃっとランド固有の設定挙動や実iPhoneでの実行を証明しません。テストソースは `XtendUITests/ExtensionAcceptanceUITests.swift` です。
 
 ## 配布時の注意
 

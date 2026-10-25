@@ -44,6 +44,115 @@ final class XtendBrowserUITests: XCTestCase {
                       "X's WebView should remain visible after closing settings.")
     }
 
+    private func closeXDrawer(in web: XCUIElement) {
+        let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
+        let end = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
+        start.press(forDuration: 0.1, thenDragTo: end)
+        sleep(1)
+    }
+
+    // X's selected tab is not consistently exposed through WebKit accessibility.
+    // Keep screenshots for comparing the before/after state of real X pages.
+    private func captureBrowserEvidence(_ name: String) {
+        XCTAssertEqual(app.state, .runningForeground,
+                       "Xtend must remain foreground after the gesture")
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func swipePageTab(in web: XCUIElement, y: CGFloat, left: Bool = true) {
+        let start = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.78 : 0.20, dy: y))
+        let end = web.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.17 : 0.80, dy: y))
+        start.press(forDuration: 0.12, thenDragTo: end)
+        sleep(2)
+    }
+
+    func testHidePromotionsSettingsOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        // X can display its WebView before the drawer listeners finish initializing.
+        sleep(5)
+        openSettings()
+
+        let master = app.switches["xtend.cleanup.enabled"]
+        let getApp = app.switches["xtend.cleanup.getApp"]
+        let subscribe = app.switches["xtend.cleanup.subscribe"]
+        XCTAssertTrue(master.waitForExistence(timeout: 10))
+        XCTAssertTrue(getApp.exists)
+        XCTAssertTrue(subscribe.exists)
+        let originalMaster = master.value as? String == "1"
+        let originalGetApp = getApp.value as? String == "1"
+        let originalSubscribe = subscribe.value as? String == "1"
+
+        // Master OFF shows both promotions, without erasing individual choices.
+        if !originalMaster { master.tap() }
+        if !originalSubscribe { subscribe.tap() }
+        if !originalGetApp { getApp.tap() }
+        master.tap()
+        XCTAssertEqual(master.value as? String, "0")
+        XCTAssertFalse(getApp.isEnabled)
+        XCTAssertFalse(subscribe.isEnabled)
+        returnToBrowser()
+        closeXDrawer(in: web)
+        sleep(2)
+        captureBrowserEvidence("promotions-master-off")
+        XCTAssertTrue(web.links["Subscribe"].isHittable,
+                      "The real X home Subscribe link should be restored without a reload.")
+
+        // Re-enable master; only Subscribe is allowed by its own switch.
+        openSettings()
+        XCTAssertTrue(master.waitForExistence(timeout: 10))
+        master.tap()
+        getApp.tap()
+        XCTAssertEqual(getApp.value as? String, "0")
+        XCTAssertEqual(subscribe.value as? String, "1")
+        returnToBrowser()
+        closeXDrawer(in: web)
+        sleep(2)
+        captureBrowserEvidence("promotions-subscribe-hidden")
+        XCTAssertFalse(web.links["Subscribe"].isHittable,
+                       "Subscribe should be hidden without a reload.")
+
+        // Reopen settings to prove values are persisted.
+        openSettings()
+        XCTAssertEqual(master.value as? String, "1")
+        XCTAssertEqual(getApp.value as? String, "0")
+        XCTAssertEqual(subscribe.value as? String, "1")
+        if getApp.value as? String != "1" { getApp.tap() }
+        if subscribe.value as? String != "1" { subscribe.tap() }
+        returnToBrowser()
+        closeXDrawer(in: web)
+    }
+
+    func testMenuPromotionsOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        sleep(4)
+        captureBrowserEvidence("01-X-home-after-promo-filter")
+        let visibleTopSubscribe = web.links.matching(identifier: "Subscribe")
+            .allElementsBoundByIndex
+            .filter { $0.isHittable }
+        XCTAssertTrue(visibleTopSubscribe.isEmpty,
+                      "The premium Subscribe banner must not remain on X home.")
+
+        let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+        edge.press(forDuration: 0.1, thenDragTo: open)
+        sleep(3)
+        captureBrowserEvidence("02-X-drawer-promotions")
+        XCTAssertTrue(web.buttons["Xtendの設定"].waitForExistence(timeout: 8),
+                      "Real X drawer should be open before checking its items.")
+        let candidates = web.descendants(matching: .any)
+            .matching(NSPredicate(format: "label IN %@", ["Get the app", "Subscribe"]))
+            .allElementsBoundByIndex
+            .filter { $0.isHittable }
+            .map { $0.label }
+        print("X_PROMO_VISIBLE_LABELS=\(candidates)")
+        XCTAssertFalse(candidates.contains("Get the app"), "Get the app should not be visible")
+    }
+
     func testBrowserSettingsRoundTrip() throws {
         try launchExistingBrowser()
         openSettings()
@@ -108,44 +217,154 @@ final class XtendBrowserUITests: XCTestCase {
     private func runSwipeScenario() throws {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch
-        // Simulator evidence is captured for visual inspection because X's tab
-        // selection is not consistently exposed through WebKit accessibility.
-        func evidence(_ name: String) {
-            XCTAssertEqual(app.state, .runningForeground, "Xtend must remain foreground after the gesture")
-            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            attachment.name = name
-            attachment.lifetime = .keepAlways
-            add(attachment)
-        }
         // Let the X home feed hydrate before receiving synthetic touch input.
         sleep(5)
-        evidence("01-before")
-        let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.34))
-        let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.34))
+        captureBrowserEvidence("01-before")
+        let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.16))
+        let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.16))
         leftStart.press(forDuration: 0.1, thenDragTo: leftEnd)
         sleep(3)
-        evidence("02-timeline-left")
+        captureBrowserEvidence("02-timeline-left")
         XCTAssertTrue(web.exists)
 
-        let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.34))
-        let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.34))
+        let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.16))
+        let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.16))
         rightStart.press(forDuration: 0.1, thenDragTo: rightEnd)
         sleep(3)
-        evidence("03-timeline-right")
+        captureBrowserEvidence("03-timeline-right")
 
-        // X mobile owns the drawer DOM, the extension owns the edge gesture.
+        // X owns the drawer DOM; Xtend owns the edge gesture.
         let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
         let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
         edge.press(forDuration: 0.1, thenDragTo: open)
         sleep(2)
-        evidence("04-menu-open")
+        captureBrowserEvidence("04-menu-open")
+        XCTAssertTrue(web.buttons["Xtendの設定"].waitForExistence(timeout: 8),
+                      "Home edge swipe must open the profile drawer.")
         let close = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
         let closeEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
         close.press(forDuration: 0.1, thenDragTo: closeEnd)
         sleep(2)
-        evidence("05-menu-close")
+        captureBrowserEvidence("05-menu-close")
+        XCTAssertFalse(web.buttons["Xtendの設定"].isHittable,
+                       "Closing the drawer must return control to the timeline.")
         XCTAssertTrue(web.exists)
     }
+
+    func testOtherPageTabsOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+
+        sleep(4)
+        captureBrowserEvidence("home-start")
+        let notifications = web.coordinate(withNormalizedOffset: CGVector(dx: 0.71, dy: 0.954))
+        notifications.tap()
+        sleep(4)
+        captureBrowserEvidence("notifications-before")
+        swipePageTab(in: web, y: 0.22)
+        captureBrowserEvidence("notifications-left")
+        swipePageTab(in: web, y: 0.22, left: false)
+        captureBrowserEvidence("notifications-right")
+
+        // The drawer edge gesture belongs to /home only. Return home first.
+        let home = web.coordinate(withNormalizedOffset: CGVector(dx: 0.13, dy: 0.954))
+        home.tap()
+        sleep(3)
+        captureBrowserEvidence("home-before-menu")
+        let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.42))
+        let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.64, dy: 0.42))
+        edge.press(forDuration: 0.1, thenDragTo: open)
+        sleep(2)
+        captureBrowserEvidence("profile-menu")
+        // In mobile X, "Profile" is duplicated in the accessibility tree.
+        // Tap the visible first drawer row at ~21% of the WebView height.
+        let topMenuProfile = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.21))
+        topMenuProfile.tap()
+        sleep(4)
+        captureBrowserEvidence("profile-before")
+        swipePageTab(in: web, y: 0.36)
+        captureBrowserEvidence("profile-left-y36")
+        swipePageTab(in: web, y: 0.55)
+        captureBrowserEvidence("profile-left-y55")
+        swipePageTab(in: web, y: 0.55, left: false)
+        captureBrowserEvidence("profile-right-y55")
+        swipePageTab(in: web, y: 0.55, left: false)
+        captureBrowserEvidence("profile-right-again-y55")
+    }
+
+    func testDeveloperTouchVisualizationSettings() throws {
+        try launchExistingBrowser()
+        let browser = app.webViews.firstMatch
+        let home = browser.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.95))
+        home.tap()
+        sleep(3)
+        openSettings()
+
+        let toggle = app.switches["xtend.developer.showTouches"]
+        let settingsScroll = app.scrollViews.firstMatch
+        for _ in 0..<8 where !toggle.isHittable {
+            settingsScroll.swipeUp()
+        }
+        XCTAssertTrue(toggle.isHittable, "Developer touch option should be accessible from Xtend settings.")
+        let original = toggle.value as? String == "1"
+
+        if !original { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, "1")
+        returnToBrowser()
+
+        let web = app.webViews.firstMatch
+        let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.4))
+        let end = web.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.4))
+        start.press(forDuration: 0.4, thenDragTo: end)
+        captureBrowserEvidence("developer-touch-visualization")
+
+        home.tap()
+        sleep(2)
+        openSettings()
+        for _ in 0..<8 where !toggle.isHittable {
+            settingsScroll.swipeUp()
+        }
+        XCTAssertEqual(toggle.value as? String, "1", "Developer option must remain enabled when settings reopens.")
+        if !original { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, original ? "1" : "0")
+        returnToBrowser()
+    }
+
+    func testHistoryEdgesOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        sleep(3)
+
+        // Two non-home SPA routes leave both WebKit history gestures enabled.
+        let notifications = web.coordinate(withNormalizedOffset: CGVector(dx: 0.71, dy: 0.954))
+        notifications.tap()
+        sleep(3)
+        captureBrowserEvidence("history-notifications")
+
+        let search = web.coordinate(withNormalizedOffset: CGVector(dx: 0.30, dy: 0.954))
+        search.tap()
+        sleep(3)
+        captureBrowserEvidence("history-search")
+
+        let backEdge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let backEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.76, dy: 0.44))
+        backEdge.press(forDuration: 0.15, thenDragTo: backEnd)
+        sleep(3)
+        captureBrowserEvidence("history-back")
+        XCTAssertTrue(web.staticTexts["Notifications"].waitForExistence(timeout: 8),
+                      "Back swipe must return to notifications, not merely preserve the WebView.")
+
+        let forwardEdge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.44))
+        let forwardEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.23, dy: 0.44))
+        forwardEdge.press(forDuration: 0.15, thenDragTo: forwardEnd)
+        sleep(3)
+        captureBrowserEvidence("history-forward")
+        XCTAssertTrue(web.staticTexts["Explore"].waitForExistence(timeout: 8),
+                      "Forward swipe must return to search, not switch to another X tab.")
+
+        XCTAssertTrue(web.exists)
+    }
+
 
     func testManualReloadReturnsToXBrowser() throws {
         try launchExistingBrowser()

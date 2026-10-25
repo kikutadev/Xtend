@@ -147,7 +147,12 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
             guard let self else { return }
             do {
                 _ = try await Task.detached(priority: .userInitiated) {
-                    try await ExtensionInstallStore().installFromChromeWebStore(url)
+                    let id = try ExtensionInstallStore.extensionID(from: url)
+                    if id == ExtensionInstallStore.supportedExtensionID {
+                        _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
+                    } else {
+                        _ = try await CommunityExtensionStore().installFromChromeWebStore(url)
+                    }
                 }.value
                 setBusy(false, message: nil)
                 refreshInstalled(animated: true)

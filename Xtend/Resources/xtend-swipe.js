@@ -30,26 +30,34 @@
   }
 
   function getTabTarget(doc, leftSwipe) {
-    if (doc.defaultView?.location.pathname !== '/home') return null;
     const primary = doc.querySelector('[data-testid="primaryColumn"]');
-    if (!primary) return null;
+    const win = doc.defaultView;
+    if (!primary || !win) return null;
 
-    // In mobile X the sticky home tab bar is sometimes outside primaryColumn.
-    // Select the visible ScrollSnap home tab bar without matching composer tabs.
-    for (const list of doc.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')) {
+    // X reuses tablists on home, notifications, profiles and search.
+    // Detect a real page tab bar rather than maintaining a pathname list.
+    for (const list of doc.querySelectorAll('[role="tablist"]')) {
+      if (!list.matches('[data-testid="ScrollSnap-List"]') &&
+          !list.closest('[data-testid="primaryColumn"]')) continue;
+      if (list.closest('[role="dialog"],[aria-modal="true"],article,[data-testid="cellInnerDiv"]')) continue;
+
       const bounds = list.getBoundingClientRect();
-      if (bounds.width < 80 || bounds.height < 30 || bounds.top < -10 || bounds.top > 160) continue;
+      if (bounds.width < 80 || bounds.height < 30 || bounds.bottom < -10 ||
+          bounds.left > win.innerWidth / 2 || bounds.right < win.innerWidth / 2) continue;
       const tabs = Array.from(list.querySelectorAll('[role="tab"]'))
         .filter(tab => !tab.hasAttribute('disabled') && tab.getAttribute('aria-disabled') !== 'true');
+      if (tabs.length < 2) continue;
       const index = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
-      const target = tabs[index + (leftSwipe ? 1 : -1)];
+      const target = leftSwipe == null
+        ? tabs[index + 1] ?? tabs[index - 1]
+        : tabs[index + (leftSwipe ? 1 : -1)];
       if (index < 0 || !target) continue;
 
-      // X virtualizes the timeline. Do not transform the entire page, its
-      // scrolling container, or its sticky header. Skip drag if no surface.
-      const surface = primary.querySelector('[data-xtend-swipe-surface]')
+      // Do not move a profile header or the tab bar itself while dragging.
+      const candidate = primary.querySelector('[data-xtend-swipe-surface]')
         ?? primary.querySelector('[data-testid="cellInnerDiv"]')?.parentElement
         ?? null;
+      const surface = candidate?.contains(list) ? null : candidate;
       return { tab: target, surface };
     }
     return null;
@@ -89,6 +97,13 @@
     return null;
   }
 
+  function rememberSurface(gesture, surface) {
+    gesture.surface = surface;
+    gesture.originalTransform = surface?.style.transform ?? '';
+    gesture.originalTransition = surface?.style.transition ?? '';
+    gesture.originalWillChange = surface?.style.willChange ?? '';
+  }
+
   function changeVisual(gesture, dx, win, doc) {
     if (gesture.mode === 'menu-open' && !gesture.openedDuringDrag) {
       // X mounts the real drawer on profile-button click. Mount it only after
@@ -100,10 +115,7 @@
     if (gesture.mode === 'menu-open' && !gesture.surface) {
       const panel = findMenu(doc)?.menu;
       if (!panel) return;
-      gesture.surface = panel;
-      gesture.originalTransform = panel.style.transform;
-      gesture.originalTransition = panel.style.transition;
-      gesture.originalWillChange = panel.style.willChange;
+      rememberSurface(gesture, panel);
       gesture.backdrop = panel.parentElement;
       gesture.originalBackdropColor = gesture.backdrop?.style.backgroundColor ?? '';
     }
@@ -143,19 +155,49 @@
     }
   }
 
-  function animateTo(gesture, amount, win, then) {
-    const surface = gesture.surface;
-    if (!surface?.isConnected) { then(); return; }
-    surface.style.transition = 'transform ' + FINISH_MS + 'ms cubic-bezier(.2,.8,.2,1)';
-    surface.style.transform = 'translate3d(' + amount + 'px,0,0)';
-    win.setTimeout(then, FINISH_MS);
-  }
-
   function startSwipeNavigation(doc) {
     const browserWindow = doc.defaultView;
     if (!browserWindow) return;
     const win = browserWindow;
     let active = null;
+    let settling = null;
+
+    function cancelSettling() {
+      if (!settling) return;
+      const pending = settling;
+      settling = null;
+      win.clearTimeout(pending.timer);
+      win.clearTimeout(pending.restoreTimer);
+      pending.onCancel?.();
+      restoreVisual(pending.gesture);
+    }
+
+    function animateTo(gesture, amount, then, restoreDelay = 0, onCancel = null) {
+      const pending = { gesture, timer: 0, restoreTimer: 0, onCancel };
+      settling = pending;
+      const complete = () => {
+        if (settling !== pending) return;
+        if (win.location.pathname !== gesture.path) { cancelSettling(); return; }
+        // Restore the old timeline before X processes the target tab click.
+        // Otherwise a reused DOM surface can briefly inherit our drag transform.
+        if (!restoreDelay) restoreVisual(gesture);
+        then();
+        if (restoreDelay) {
+          pending.restoreTimer = win.setTimeout(() => {
+            if (settling !== pending) return;
+            restoreVisual(gesture);
+            settling = null;
+          }, restoreDelay);
+        } else {
+          settling = null;
+        }
+      };
+      const surface = gesture.surface;
+      if (!surface?.isConnected) { complete(); return; }
+      surface.style.transition = 'transform ' + FINISH_MS + 'ms cubic-bezier(.2,.8,.2,1)';
+      surface.style.transform = 'translate3d(' + amount + 'px,0,0)';
+      pending.timer = win.setTimeout(complete, FINISH_MS);
+    }
 
     function abort() {
       if (!active) return;
@@ -169,6 +211,7 @@
     }
 
     function onStart(event) {
+      cancelSettling();
       if (active) abort();
       if (event.touches.length !== 1 || !isElement(event.target)) return;
       const touch = event.touches[0];
@@ -176,6 +219,8 @@
       const target = event.target;
       const menu = findMenu(doc);
       const edge = touch.clientX <= EDGE_WIDTH;
+      const historyEdge = win.location.pathname !== '/home' &&
+        (edge || touch.clientX >= win.innerWidth - EDGE_WIDTH);
       let mode;
       let surface = null;
       let toggle = null;
@@ -184,18 +229,23 @@
         mode = 'menu-close';
         surface = menu.menu;
         toggle = menu.toggle;
-      } else if (edge && menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
+      } else if (edge && win.location.pathname === '/home' &&
+                 menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR) &&
+                 (!isExcluded(target) ||
+                  target.closest('button[data-testid="DashButton_ProfileIcon_Link"]'))) {
         mode = 'menu-open';
         toggle = menu.toggle;
       } else {
-        if (edge || isExcluded(target)) return;
+        if (edge || historyEdge || isExcluded(target)) return;
         if (!target.closest('[data-testid="primaryColumn"]')) return;
-        if (!getTabTarget(doc, true) && !getTabTarget(doc, false)) return;
+        // No direction yet: only need to know whether an adjacent tab exists.
+        if (!getTabTarget(doc)) return;
         mode = 'tab';
       }
 
       active = {
-        mode, axis: 'undecided', startX: touch.clientX, startY: touch.clientY,
+        mode, axis: 'undecided', path: win.location.pathname,
+        startX: touch.clientX, startY: touch.clientY,
         x: touch.clientX, startAt: win.performance.now(),
         surface, originalTransform: surface?.style.transform ?? '',
         originalTransition: surface?.style.transition ?? '',
@@ -208,7 +258,10 @@
     function onMove(event) {
       const gesture = active;
       if (!gesture) return;
-      if (event.touches.length !== 1) { abort(); return; }
+      if (win.location.pathname !== gesture.path || event.touches.length !== 1) {
+        abort();
+        return;
+      }
       const touch = event.touches[0];
       if (!touch) return;
       const dx = touch.clientX - gesture.startX;
@@ -224,10 +277,7 @@
           const destination = getTabTarget(doc, dx < 0);
           if (!destination) { abort(); return; }
           gesture.tab = destination.tab;
-          gesture.surface = destination.surface;
-          gesture.originalTransform = destination.surface?.style.transform ?? '';
-          gesture.originalTransition = destination.surface?.style.transition ?? '';
-          gesture.originalWillChange = destination.surface?.style.willChange ?? '';
+          rememberSurface(gesture, destination.surface);
         } else if (gesture.mode === 'menu-open' && dx <= 0) {
           abort(); return;
         } else if (gesture.mode === 'menu-close' && dx >= 0) {
@@ -245,6 +295,7 @@
     function onEnd(event) {
       const gesture = active;
       if (!gesture) return;
+      if (win.location.pathname !== gesture.path) { abort(); return; }
       active = null;
       win.cancelAnimationFrame(gesture.frame);
       if (gesture.axis !== 'horizontal') {
@@ -259,17 +310,21 @@
       const committed = distance >= Math.max(MIN_SWIPE, win.innerWidth * 0.17) || fastFlick;
 
       if (gesture.mode === 'menu-open') {
+        // A fast flick may end before its scheduled animation frame executes.
+        if (!gesture.openedDuringDrag) changeVisual(gesture, dx, win, doc);
         if (!gesture.openedDuringDrag) {
           restoreVisual(gesture);
           return;
         }
         const width = gesture.surface?.getBoundingClientRect().width ?? 280;
-        animateTo(gesture, committed ? 0 : -width, win, () => {
+        animateTo(gesture, committed ? 0 : -width, () => {
           if (!committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') {
             gesture.toggle.click();
           }
-          // X owns the native 250ms drawer animation after close.
-          win.setTimeout(() => restoreVisual(gesture), committed ? 0 : 300);
+        }, committed ? 0 : 300, () => {
+          if (!committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') {
+            gesture.toggle.click();
+          }
         });
         if (committed && gesture.backdrop) {
           gesture.backdrop.style.backgroundColor = gesture.originalBackdropColor;
@@ -279,29 +334,34 @@
 
       if (gesture.mode === 'menu-close') {
         const width = gesture.surface?.getBoundingClientRect().width ?? 280;
-        animateTo(gesture, committed ? -width : 0, win, () => {
-          if (committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') gesture.toggle.click();
-          win.setTimeout(() => restoreVisual(gesture), committed ? 300 : 0);
-        });
+        animateTo(gesture, committed ? -width : 0, () => {
+          if (committed && gesture.toggle?.getAttribute('aria-expanded') === 'true') {
+            gesture.toggle.click();
+          }
+        }, committed ? 300 : 0);
         return;
       }
 
       if (!committed) {
-        animateTo(gesture, 0, win, () => restoreVisual(gesture));
+        animateTo(gesture, 0, () => {});
       } else {
         const next = gesture.tab;
         // X controls active tab, scroll position, and content loading.
         // Complete the outgoing motion before clicking the native tab.
         const outgoing = dx < 0 ? -win.innerWidth : win.innerWidth;
-        animateTo(gesture, outgoing, win, () => {
-          restoreVisual(gesture);
-          if (next?.isConnected) next.click();
+        animateTo(gesture, outgoing, () => {
+          if (win.location.pathname === gesture.path && next?.isConnected) next.click();
         });
       }
     }
 
     function onCancel() { abort(); }
-    function onVisibility() { if (doc.visibilityState === 'hidden') abort(); }
+    function onVisibility() {
+      if (doc.visibilityState === 'hidden') {
+        abort();
+        cancelSettling();
+      }
+    }
 
     doc.addEventListener('touchstart', onStart, { capture: true, passive: true });
     doc.addEventListener('touchmove', onMove, { capture: true, passive: false });
