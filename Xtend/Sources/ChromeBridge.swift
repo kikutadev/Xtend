@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import WebKit
 
 /// WebKitメッセージから拡張機能単位の保存領域・専用メッセージ処理を呼び出す。
@@ -6,6 +7,7 @@ import WebKit
 final class ChromeBridge: NSObject, WKScriptMessageHandlerWithReply {
     private let storage: ExtensionStorage
     private let runtimeMessageHandler: (([String: Any]) throws -> [String: Any])?
+    private let logger = Logger(subsystem: "Xtend", category: "ExtensionStorage")
 
     init(
         storage: ExtensionStorage,
@@ -31,7 +33,13 @@ final class ChromeBridge: NSObject, WKScriptMessageHandlerWithReply {
             switch operation {
             case "storage.get":
                 let area = try requiredString(request, key: "area")
-                replyHandler(try storage.get(area: area, keys: request["keys"]), nil)
+                let values = try storage.get(area: area, keys: request["keys"])
+                #if DEBUG
+                if (request["keys"] as? [String])?.contains("xff:liked-by") == true {
+                    logger.debug("Nyatto ring history read: area=\(area, privacy: .public), present=\(values["xff:liked-by"] != nil)")
+                }
+                #endif
+                replyHandler(values, nil)
 
             case "storage.set":
                 let area = try requiredString(request, key: "area")
@@ -39,6 +47,12 @@ final class ChromeBridge: NSObject, WKScriptMessageHandlerWithReply {
                     throw BridgeError.invalidPayload("items")
                 }
                 _ = try storage.set(area: area, items: items)
+                #if DEBUG
+                if let ring = items["xff:liked-by"] as? [String: Any] {
+                    let count = (ring["names"] as? [String: Any])?.count ?? 0
+                    logger.debug("Nyatto ring history saved: area=\(area, privacy: .public), count=\(count)")
+                }
+                #endif
                 replyHandler(["ok": true], nil)
 
             case "storage.remove":
@@ -56,6 +70,9 @@ final class ChromeBridge: NSObject, WKScriptMessageHandlerWithReply {
                 throw BridgeError.unsupportedOperation(operation)
             }
         } catch {
+            if operation.hasPrefix("storage.") {
+                logger.error("Extension storage error: operation=\(operation, privacy: .public), error=\(error.localizedDescription, privacy: .public)")
+            }
             replyHandler(nil, error.localizedDescription)
         }
     }

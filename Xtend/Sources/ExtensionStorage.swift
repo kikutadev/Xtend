@@ -65,6 +65,11 @@ final class ExtensionStorage {
 
         guard !changes.isEmpty else { return [:] }
         try saveNamespace(values, area: area)
+        // Ring histories are short-lived but must survive the user closing Xtend.
+        // Force the critical update to disk before acknowledging it to JavaScript.
+        if area == "local", items["xff:liked-by"] != nil, !defaults.synchronize() {
+            throw StorageError.persistenceFailed
+        }
         emitChanges(changes, area: area)
         return changes
     }
@@ -143,6 +148,7 @@ enum StorageError: LocalizedError {
     case unsupportedKeys
     case corruptNamespace
     case nonJSONValue
+    case persistenceFailed
 
     var errorDescription: String? {
         switch self {
@@ -150,6 +156,7 @@ enum StorageError: LocalizedError {
         case .unsupportedKeys: "Unsupported chrome.storage key shape"
         case .corruptNamespace: "Stored extension namespace is corrupt"
         case .nonJSONValue: "Extension attempted to store a non-JSON value"
+        case .persistenceFailed: "Extension storage could not be persisted to disk"
         }
     }
 }

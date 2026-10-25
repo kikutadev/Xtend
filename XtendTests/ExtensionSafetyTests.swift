@@ -1,4 +1,6 @@
 import Foundation
+import UIKit
+import WebKit
 import XCTest
 @testable import Xtend
 
@@ -208,5 +210,99 @@ final class ExtensionArchiveSafetyTests: XCTestCase {
         let url = try archiveURL(base64: "UEsDBBQAAAAAAAAAIQDuQOUFBwAAAAcAAAAGAAAAb2sudHh0Zml4dHVyZVBLAQIUAxQAAAAAAAAAIQDuQOUFBwAAAAcAAAAGAAAAAAAAAAAAAACkgQAAAABvay50eHRQSwUGAAAAAAEAAQA0AAAAKwAAAAAA")
         defer { try? FileManager.default.removeItem(at: url) }
         XCTAssertNoThrow(try ExtensionInstallStore.validateArchive(at: url))
+    }
+}
+/// Simulator QA using the installed, unmodified Nyatto extension and Xtend's actual WebKit bridge.
+/// Run write and read in separate xcodebuild test invocations to cross a real app process boundary.
+@MainActor
+final class NyattoRingPersistenceTests: XCTestCase {
+    private let extensionID = ExtensionInstallStore.supportedExtensionID
+    private let suite = "XtendRingPersistenceRestartQA.v1"
+    private let fixtureAccount = "xtend_fixture_liker"
+
+    private func javascript(_ script: String, in view: WKWebView, world: WKContentWorld) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            view.evaluateJavaScript(script, in: nil, in: world) { result in
+                switch result {
+                case .success(let value): continuation.resume(returning: String(describing: value))
+                case .failure(let error): continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    private func waitUntil(_ description: String, timeout: TimeInterval = 14,
+                           condition: @escaping () async -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if await condition() { return }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        XCTFail("Timed out: \(description)")
+        throw NSError(domain: "NyattoRingPersistenceQA", code: 1)
+    }
+
+    private func fixture() throws -> (WKWebView, ExtensionHost, UIWindow, UserDefaults, WKContentWorld) {
+        guard let root = ExtensionInstallStore().existingRoot else {
+            throw XCTSkip("Nyatto must be staged in the Simulator app's Extensions directory")
+        }
+        let package = try ExtensionPackage.installed(id: extensionID, root: root)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let host = try ExtensionHost(packages: [package], storageByID: [
+            extensionID: ExtensionStorage(extensionID: extensionID, defaults: defaults)
+        ])
+        let config = WKWebViewConfiguration()
+        try host.installBrowserRuntime(into: config)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let controller = UIViewController()
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        let view = WKWebView(frame: controller.view.bounds, configuration: config)
+        controller.view.addSubview(view)
+        host.attach(to: view)
+        view.loadHTMLString("<!doctype html><html><head></head><body><main id='qa'>Xtend ring storage QA</main></body></html>",
+                            baseURL: URL(string: "https://x.com/home")!)
+        return (view, host, window, defaults, ExtensionPackage.contentWorld(for: extensionID))
+    }
+
+    private func storedHistory(in defaults: UserDefaults) -> [String: Any]? {
+        let key = "xtend.extension.storage.\(extensionID).local"
+        guard let data = defaults.data(forKey: key),
+              let all = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return all["xff:liked-by"] as? [String: Any]
+    }
+
+    func test01WriteHistoryBeforeRestart() async throws {
+        let (view, host, window, defaults, world) = try fixture()
+        _ = host
+        defer { window.isHidden = true }
+        defaults.removePersistentDomain(forName: suite)
+        try await waitUntil("Nyatto browser runtime") {
+            (try? await self.javascript("typeof globalThis.XFFStorage + ':' + location.hostname", in: view, world: world)) == "object:x.com"
+        }
+        _ = try await javascript("globalThis.XFFStorage.update('xff:liked-by', old => ({version:1, names:{...(old?.names||{}), xtend_fixture_liker: Date.now()}, ids:{}}), ok => {globalThis.__xtendSaved=ok}); 'written'", in: view, world: world)
+        try await waitUntil("native storage persisted") {
+            let history = self.storedHistory(in: defaults)
+            return (history?["names"] as? [String: Any])?[self.fixtureAccount] != nil
+        }
+        let savedCallback = try await javascript("String(globalThis.__xtendSaved)", in: view, world: world)
+        XCTAssertEqual(savedCallback, "true")
+        XCTAssertTrue(defaults.synchronize())
+    }
+
+    func test02ReadHistoryAfterProcessRestart() async throws {
+        let (view, host, window, defaults, world) = try fixture()
+        _ = host
+        defer { window.isHidden = true }
+        XCTAssertNotNil((storedHistory(in: defaults)?["names"] as? [String: Any])?[fixtureAccount],
+                        "History must survive termination between the two tests")
+        try await waitUntil("Nyatto browser runtime") {
+            (try? await self.javascript("typeof globalThis.XFFStorage + ':' + location.hostname", in: view, world: world)) == "object:x.com"
+        }
+        _ = try await javascript("globalThis.XFFStorage.read(['xff:liked-by'], data => {globalThis.__xtendRestored = Boolean(data['xff:liked-by']?.names?.xtend_fixture_liker)}); 'reading'", in: view, world: world)
+        try await waitUntil("history restored via Chrome API") {
+            (try? await self.javascript("String(globalThis.__xtendRestored)", in: view, world: world)) == "true"
+        }
+        defaults.removePersistentDomain(forName: suite)
     }
 }
