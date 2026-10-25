@@ -201,6 +201,44 @@ final class XtendBrowserUITests: XCTestCase {
         captureBrowserEvidence("profile-right-again-y55")
     }
 
+    func testDeveloperTouchVisualizationSettings() throws {
+        try launchExistingBrowser()
+        let browser = app.webViews.firstMatch
+        let home = browser.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.95))
+        home.tap()
+        sleep(3)
+        openSettings()
+
+        let toggle = app.switches["xtend.developer.showTouches"]
+        let settingsScroll = app.scrollViews.firstMatch
+        for _ in 0..<8 where !toggle.isHittable {
+            settingsScroll.swipeUp()
+        }
+        XCTAssertTrue(toggle.isHittable, "Developer touch option should be accessible from Xtend settings.")
+        let original = toggle.value as? String == "1"
+
+        if !original { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, "1")
+        returnToBrowser()
+
+        let web = app.webViews.firstMatch
+        let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.4))
+        let end = web.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.4))
+        start.press(forDuration: 0.4, thenDragTo: end)
+        captureBrowserEvidence("developer-touch-visualization")
+
+        home.tap()
+        sleep(2)
+        openSettings()
+        for _ in 0..<8 where !toggle.isHittable {
+            settingsScroll.swipeUp()
+        }
+        XCTAssertEqual(toggle.value as? String, "1", "Developer option must remain enabled when settings reopens.")
+        if !original { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, original ? "1" : "0")
+        returnToBrowser()
+    }
+
     func testHistoryEdgesOnLoggedInX() throws {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch

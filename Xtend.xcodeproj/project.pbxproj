@@ -15,6 +15,7 @@
 		10D923F3892F1B97F035C8F8 /* ExtensionHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A678E57174F3902A4809A96 /* ExtensionHost.swift */; };
 		11E6DC35382D954EA8C35E07 /* ExtensionAcceptanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9045F83555582B984A35DA /* ExtensionAcceptanceUITests.swift */; };
 		1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */; };
+		1BB414DA540E550E5AE9ED5E /* TouchVisualization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0F408EA378D5ED3AB675DC /* TouchVisualization.swift */; };
 		26CACF9EC707CBE3772A3ED1 /* ExtensionInstallStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */; };
 		2F5B10CE47FEF1BED1002280 /* CommunityExtensionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */; };
 		41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */; };
@@ -29,6 +30,7 @@
 		705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */; };
 		7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */; };
 		9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */; };
+		A6D48D54E709C10B24843B5F /* TouchVisualizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3448C1BC9A03A0EB9857C06D /* TouchVisualizationTests.swift */; };
 		AEF4BFC76B0BE903C441E01E /* XtendSettingsMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE9117B560F9E342F5886CF /* XtendSettingsMenu.swift */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
@@ -62,12 +64,14 @@
 		0B65B670E94294446AA43DB6 /* BrowserViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewController.swift; sourceTree = "<group>"; };
 		14307402EA85E945B44C3A40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		15B3445714A6922592008694 /* xtend-swipe.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xtend-swipe.js"; sourceTree = "<group>"; };
+		3448C1BC9A03A0EB9857C06D /* TouchVisualizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchVisualizationTests.swift; sourceTree = "<group>"; };
 		3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSettingsPageTests.swift; sourceTree = "<group>"; };
 		3A9045F83555582B984A35DA /* ExtensionAcceptanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionAcceptanceUITests.swift; sourceTree = "<group>"; };
 		3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackedAssetStore.swift; sourceTree = "<group>"; };
 		3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42C7F7272D498831080B4BEC /* XtendTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
+		4F0F408EA378D5ED3AB675DC /* TouchVisualization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchVisualization.swift; sourceTree = "<group>"; };
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
 		595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericExtensionSettingsUITests.swift; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 				06404D2B8B2C0DAAD0F6BEC6 /* InstalledExtensionsListView.swift */,
 				C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */,
 				3B9EBD0C0FEE1EBA89F51A3D /* PackedAssetStore.swift */,
+				4F0F408EA378D5ED3AB675DC /* TouchVisualization.swift */,
 				FAAF84A5F946EA598D60B4E2 /* XHomeAnchorInstallStore.swift */,
 				C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */,
 				5DE9117B560F9E342F5886CF /* XtendSettingsMenu.swift */,
@@ -150,6 +155,7 @@
 				7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
 				3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */,
+				3448C1BC9A03A0EB9857C06D /* TouchVisualizationTests.swift */,
 			);
 			path = XtendTests;
 			sourceTree = "<group>";
@@ -309,6 +315,7 @@
 				E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
 				CCF88D48826BAA16E03CEE49 /* ExtensionSettingsPageTests.swift in Sources */,
+				A6D48D54E709C10B24843B5F /* TouchVisualizationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,6 +349,7 @@
 				41FE38CED7FDB4751C76425D /* InstalledExtensionsListView.swift in Sources */,
 				571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */,
 				C128A9CCEADA397678A30C29 /* PackedAssetStore.swift in Sources */,
+				1BB414DA540E550E5AE9ED5E /* TouchVisualization.swift in Sources */,
 				002AA1617F705047AC62D0B0 /* XHomeAnchorInstallStore.swift in Sources */,
 				9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */,
 				AEF4BFC76B0BE903C441E01E /* XtendSettingsMenu.swift in Sources */,

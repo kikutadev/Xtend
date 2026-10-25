@@ -123,7 +123,45 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         hint.textColor = .secondaryLabel
         stack.addArrangedSubview(hint)
         stack.setCustomSpacing(30, after: hint)
+        let developerSettings = makeDeveloperSettings()
+        stack.addArrangedSubview(developerSettings)
+        stack.setCustomSpacing(30, after: developerSettings)
         stack.addArrangedSubview(RecommendedExtensionsView())
+    }
+
+    private func makeDeveloperSettings() -> UIView {
+        let heading = UILabel()
+        heading.text = "開発者向け"
+        heading.font = .preferredFont(forTextStyle: .headline)
+
+        let label = UILabel()
+        label.text = "タッチ操作を表示"
+        label.font = .preferredFont(forTextStyle: .body)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let touchSwitch = UISwitch()
+        touchSwitch.accessibilityIdentifier = "xtend.developer.showTouches"
+        touchSwitch.isOn = DeveloperOptions.showsTouches
+        touchSwitch.addAction(UIAction { action in
+            guard let control = action.sender as? UISwitch else { return }
+            DeveloperOptions.showsTouches = control.isOn
+        }, for: .valueChanged)
+
+        let toggleRow = UIStackView(arrangedSubviews: [label, touchSwitch])
+        toggleRow.axis = .horizontal
+        toggleRow.alignment = .center
+        toggleRow.spacing = 12
+
+        let note = UILabel()
+        note.text = "タップ位置とスワイプの軌跡を画面に表示します。画面収録にも映ります。"
+        note.font = .preferredFont(forTextStyle: .footnote)
+        note.textColor = .secondaryLabel
+        note.numberOfLines = 0
+
+        let section = UIStackView(arrangedSubviews: [heading, toggleRow, note])
+        section.axis = .vertical
+        section.spacing = 12
+        return section
     }
 
     private func refreshInstalled(animated: Bool) {
