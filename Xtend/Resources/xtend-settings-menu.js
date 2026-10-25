@@ -5,12 +5,13 @@
   const entryID = 'xtend-native-settings-entry';
   const tipID = 'xtend-settings-tip';
   const promoStyle = document.createElement('style');
-  promoStyle.textContent = '[data-xtend-hidden-menu-promo]{display:none!important}';
+  promoStyle.textContent = '[data-xtend-hidden-menu-promo],[data-xtend-hidden-page-promo]{display:none!important}';
   (document.head || document.documentElement).appendChild(promoStyle);
   let tipCompleted = !__xtendShowSettingsTip;
   const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
   let lastLogin = null;
   let queued = false;
+
 
   function loginVisible() {
     const path = location.pathname;
@@ -34,6 +35,7 @@
   // Only remove the two promotional links from X's mobile navigation drawer.
   // Do not hide the same words in posts, profiles, or subscription controls.
   const hiddenPromoAttribute = 'data-xtend-hidden-menu-promo';
+  const pagePromoAttribute = 'data-xtend-hidden-page-promo';
   const promoLabels = new Set(['get the app', 'subscribe']);
 
   function hideMenuPromotions(drawer) {
@@ -46,6 +48,25 @@
       } else {
         item.removeAttribute(hiddenPromoAttribute);
       }
+    }
+  }
+
+  function hidePagePromotions() {
+    // Keep header promotions separate from drawer items and actual post controls.
+    for (const item of document.querySelectorAll('a[href], button, [role="link"], [role="button"]')) {
+      const label = (item.getAttribute('aria-label') || item.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const premiumUpsell = label === 'subscribe' &&
+        item.tagName === 'A' && item.getAttribute('href') === '/i/premium_sign_up';
+      const appUpsell = label === 'get the app';
+      if ((premiumUpsell || appUpsell) && !item.closest('article,[data-testid="tweet"]')) {
+        const rect = item.getBoundingClientRect();
+        if ((rect.width > 0 && rect.top >= 0 && rect.top < 150) ||
+            item.hasAttribute(pagePromoAttribute)) {
+          item.setAttribute(pagePromoAttribute, '');
+          continue;
+        }
+      }
+      item.removeAttribute(pagePromoAttribute);
     }
   }
 
@@ -183,6 +204,8 @@
     if (drawer && drawer !== lastDrawer && !tipCompleted) setTimeout(schedule, 350);
     lastDrawer = drawer;
     updateTip(drawer);
+    hidePagePromotions();
+
   }
   function schedule() {
     if (queued) return;

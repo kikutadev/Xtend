@@ -62,6 +62,33 @@ final class XtendBrowserUITests: XCTestCase {
         sleep(2)
     }
 
+    func testMenuPromotionsOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        sleep(4)
+        captureBrowserEvidence("01-X-home-after-promo-filter")
+        let visibleTopSubscribe = web.links.matching(identifier: "Subscribe")
+            .allElementsBoundByIndex
+            .filter { $0.isHittable }
+        XCTAssertTrue(visibleTopSubscribe.isEmpty,
+                      "The premium Subscribe banner must not remain on X home.")
+
+        let edge = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let open = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+        edge.press(forDuration: 0.1, thenDragTo: open)
+        sleep(3)
+        captureBrowserEvidence("02-X-drawer-promotions")
+        XCTAssertTrue(web.buttons["Xtendの設定"].waitForExistence(timeout: 8),
+                      "Real X drawer should be open before checking its items.")
+        let candidates = web.descendants(matching: .any)
+            .matching(NSPredicate(format: "label IN %@", ["Get the app", "Subscribe"]))
+            .allElementsBoundByIndex
+            .filter { $0.isHittable }
+            .map { $0.label }
+        print("X_PROMO_VISIBLE_LABELS=\(candidates)")
+        XCTAssertFalse(candidates.contains("Get the app"), "Get the app should not be visible")
+    }
+
     func testBrowserSettingsRoundTrip() throws {
         try launchExistingBrowser()
         openSettings()

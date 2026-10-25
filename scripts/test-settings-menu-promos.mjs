@@ -4,22 +4,30 @@ import { runInNewContext } from 'node:vm';
 
 const source = readFileSync(new URL('../Xtend/Resources/xtend-settings-menu.js', import.meta.url), 'utf8');
 const marker = 'data-xtend-hidden-menu-promo';
+const pageMarker = 'data-xtend-hidden-page-promo';
 
-function item(text, ariaLabel = null) {
+function item(text, ariaLabel = null, href = null) {
   const attrs = new Map(ariaLabel ? [['aria-label', ariaLabel]] : []);
+  if (href !== null) attrs.set('href', href);
   return {
     textContent: text,
+    tagName: 'A',
     getAttribute: name => attrs.get(name) ?? null,
     setAttribute: (name, value) => attrs.set(name, value),
     removeAttribute: name => attrs.delete(name),
     hasAttribute: name => attrs.has(name),
+    getBoundingClientRect: () => ({ width: 100, top: 12 }),
+    closest: () => null,
   };
 }
 
 function loadMenu(entries) {
   let observer;
   let expanded = true;
-  const outsideSubscribe = item('Subscribe');
+  const outsideSubscribe = item('Subscribe', null, '/i/premium_sign_up');
+  const headerGetApp = item('Get the app');
+  const postGetApp = item('Get the app');
+  postGetApp.closest = () => ({ id: 'tweet' });
   const injectedStyles = [];
   const drawer = {
     querySelector(selector) {
@@ -42,7 +50,10 @@ function loadMenu(entries) {
         : null;
     },
     querySelectorAll(selector) {
-      return selector === '[role="dialog"]' ? [drawer] : [];
+      if (selector === '[role="dialog"]') return [drawer];
+      if (selector === 'a[href="/i/premium_sign_up"]') return [outsideSubscribe];
+      if (selector.startsWith('a[href], button,')) return [outsideSubscribe, headerGetApp, postGetApp];
+      return [];
     },
   };
   const context = {
@@ -64,6 +75,8 @@ function loadMenu(entries) {
     close: () => { expanded = false; observer(); },
     open: () => { expanded = true; observer(); },
     outsideSubscribe,
+    headerGetApp,
+    postGetApp,
     injectedStyles,
   };
 }
@@ -80,7 +93,9 @@ const entries = [
 const menu = loadMenu(entries);
 assert.deepEqual(entries.map(entry => entry.hasAttribute(marker)),
   [true, true, true, false, false, false, true]);
-assert.equal(menu.outsideSubscribe.hasAttribute(marker), false, 'Outside the drawer is untouched');
+assert.equal(menu.outsideSubscribe.hasAttribute(pageMarker), true, 'Top Premium Subscribe link is hidden');
+assert.equal(menu.headerGetApp.hasAttribute(pageMarker), true, 'Top Get the app link is hidden');
+assert.equal(menu.postGetApp.hasAttribute(pageMarker), false, 'A normal post remains untouched');
 assert.match(menu.injectedStyles[0].textContent, /display:none!important/);
 
 entries[1].textContent = 'Messages';
@@ -88,6 +103,11 @@ entries[6].setAttribute('aria-label', 'Bookmarks');
 menu.rescan();
 assert.equal(entries[1].hasAttribute(marker), false, 'Reused items are restored');
 assert.equal(entries[6].hasAttribute(marker), false);
+menu.headerGetApp.textContent = 'Messages';
+menu.outsideSubscribe.textContent = 'Manage subscriptions';
+menu.rescan();
+assert.equal(menu.headerGetApp.hasAttribute(pageMarker), false, 'Reused header app CTA must be restored');
+assert.equal(menu.outsideSubscribe.hasAttribute(pageMarker), false, 'Reused Premium CTA must be restored');
 
 menu.close();
 entries[1].textContent = 'Subscribe';
