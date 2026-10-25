@@ -272,6 +272,12 @@ enum GitHubReleaseInstaller {
             throw GitHubReleaseError.unsafeDownload
         }
 
+        // Persist credentials before changing installed files. A failed Keychain
+        // write must not be reported as a failed installation after replacement.
+        if let newToken = newToken?.trimmingCharacters(in: .whitespacesAndNewlines), !newToken.isEmpty {
+            try GitHubReleaseCredentials.save(newToken, service: credentialsService)
+        }
+
         // Installed IDs must remain stable. The generic installer validates the original name
         // before replacing its files, and the special stores keep their fixed identities.
         let installedID: String
@@ -302,9 +308,6 @@ enum GitHubReleaseInstaller {
             }
         }
         GitHubReleaseLinks.save(id: installedID, repository: repository, tag: release.tagName)
-        if let newToken = newToken?.trimmingCharacters(in: .whitespacesAndNewlines), !newToken.isEmpty {
-            try GitHubReleaseCredentials.save(newToken, service: credentialsService)
-        }
         return release.tagName
     }
 }
