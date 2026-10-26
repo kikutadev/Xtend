@@ -70,6 +70,7 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、Xの操作ジェスチャー�
 - ブラウザ上で必要な`chrome.runtime`、`chrome.storage.local`、`chrome.storage.sync`等のAPIを限定的に提供する。`storage.sync`は**端末内の保存領域**であり、Chromeアカウントとの同期ではない。
 - `chrome.storage.local`と`chrome.storage.sync`は拡張機能ID・領域・キーごとにXtendのSQLiteへ保存する。旧`UserDefaults`または拡張機能別JSONファイルは初回アクセス時にデータを保持して移行する。`localStorage`/`IndexedDB`はWebKit標準の保存領域を使い、SQLiteへ転送しない。
 - `chrome.storage.local` / `chrome.storage.sync` は、拡張機能ID・領域・キーを複合キーとしてSQLiteへトランザクション保存し、**コミット成功後**に変更通知を返す。旧JSONファイルと旧UserDefaultsに異なるキーの値があれば両方を保存し、同一キーでは旧JSONを優先して一度だけ移行する。移行済みマーカーで旧データの復活を防止し、にゃっとランド固有のストレージ保存処理は作らない。
+- `chrome.storage.local`には`get/set/remove/clear/getKeys/getBytesInUse/setAccessLevel`、Promise・コールバック形式、`onChanged`と領域別`onChanged`を提供する。`getBytesInUse`はキーとJSON値のバイト数を返し、SQLiteファイルのバイト数ではない。`QUOTA_BYTES=10MiB`を表示し、`unlimitedStorage`許可のない拡張機能には書き込み時に同上限を適用する。許可があれば容量制限を緩和する（ディスク容量は無限ではない）。`TRUSTED_CONTEXTS`指定時はContent Scriptからの操作と変更通知を遮断する。信頼する設定画面は同じ拡張機能IDの`xtend-extension://`オリジンに限る。
 - 拡張機能の画像アセットはインストールされたパックデータから必要な範囲を読み出す。任意のChrome拡張機能やChrome APIすべてへの対応は保証しない。
 - 設定画面の拡張機能リソースは拡張機能IDごとに隔離した専用の`xtend-extension://`スキームで扱い、任意のWebサイトがその権限を使うことは許可しない。
 
