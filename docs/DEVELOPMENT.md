@@ -124,6 +124,43 @@ python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 
 画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
 
+### 実Xページビュー速度A/B計測（DEBUG限定）
+
+ログイン済みSimulatorのXtendで、標準タブ操作と先読みベータをそれぞれ10回往復させ、**操作開始から実際の投稿DOM切替（標準）／準備済みViewの交換（ベータ）を経て、WebKitの画面スナップショット完了まで**の所要時間をログに記録します。ユーザーの指のスワイプ検出時間は含みません。投稿本文やアカウント識別子はログに残しません。
+
+```sh
+# Debugビルドを既存Simulatorへインストール後、ログイン状態を保持して実行
+xcrun simctl terminate booted org.example.xtend || true
+xcrun simctl launch booted org.example.xtend --xtend-benchmark-pageview
+# XTEND_PAGEVIEW_BENCH summary mode=standard ... まで確認後に終了
+xcrun simctl terminate booted org.example.xtend
+xcrun simctl launch booted org.example.xtend --xtend-test-beta-preload --xtend-benchmark-pageview
+# XTEND_PAGEVIEW_BENCH summary mode=warm ... まで確認
+xcrun simctl spawn booted log show --last 5m --style compact \
+  --predicate 'process == "Xtend" AND eventMessage CONTAINS "XTEND_PAGEVIEW_BENCH"'
+```
+
+先読みの準備時間はログ中の`XTEND_BETA: preload selected`と`XTEND_BETA: standby ready`の差で確認できます。共有Simulatorで他のXCUITestが同時にアプリを入れ替えた測定は除外してください。実機の速度や、全リソースの通信完了時間とは別の指標です。計測結果はロードマップに記録しています。
+
+### Xホームの先読みベータ
+
+Xtendの設定画面の「ベータ機能 → タイムラインの先読み（ベータ）」で有効にできます。初期状態はオフで、オンにするとXホームのもう一方のタブを背面のWKWebViewで先読みします。両方のページがXと拡張機能を実行するためメモリ負荷が増えます。X以外の画面・メモリ警告・バックグラウンドでは第二WebViewを解放します。
+
+DEBUGでのみ、設定を書き換えずに機能を試す起動引数を使えます。
+
+```sh
+xcrun simctl launch booted org.example.xtend --xtend-test-beta-preload
+# ネイティブ入れ替えだけの確認（実タッチ操作のテストではない）
+xcrun simctl launch --terminate-running-process booted org.example.xtend \
+  --xtend-test-beta-preload --xtend-test-beta-swap
+xcrun simctl spawn booted log show --last 1m --style compact \
+  --predicate 'eventMessage CONTAINS "XTEND_BETA"'
+```
+
+ブラウザのジェスチャーとタブクリックの単体試験は`scripts/test-beta-tab-bridge.mjs`、実XのXCUITestは`testBetaTimelinePreloadOnActualX`です。実Xでは画面内のリンク・画像・動画上で開始したスワイプが意図的に無効化される場合があり、さらにインストール済みのキーボードショートカット案内が画面へ残るケースもあります。XCUITestの成功だけで体感やメモリの改善を断定しないでください。
+
+`footprint -p <Xtend PID> -p <WebContent PID> ... --noCategories`を利用し、Xtend本体だけでなくWKWebViewの各WebContentプロセスを含めて比較します。共有Simulatorへ別作業が割り込んだ試行は結果から除外してください。
+
 ## GitHub Release ZIPのSimulator検証
 
 Private ReleasesのZIPは、トークンをテストソース・Git・テストログへ記録せず、認証済みGitHub CLIで配布ZIPを取得する。QA用Bundle IDは org.example.xtend.githubrelease.qa 。Simulatorの同Bundle IDのアプリデータディレクトリ（xcrun simctl get_app_container booted org.example.xtend.githubrelease.qa data）の Documents/XtendGitHubReleaseQAFixtures/ に、x-ad-hider-0.1.0-chrome.zip と x-timeline-filter-0.1.0-chrome.zip を配置する。
@@ -131,6 +168,7 @@ Private ReleasesのZIPは、トークンをテストソース・Git・テスト�
 CommunityExtensionStoreTests.testPublishedGitHubReleaseZIPsInstallAndLoadInSimulator は実配布ZIPのインストールと拡張機能ホストへの読み込みを検証する。未配置時はSkipになる。実行後、QAアプリのDocumentsからZIPを削除する。
 
 GitHubReleaseInstallerTests.testReleaseCheckInstallAndRollbackWithSimulatedGitHub はGitHub APIの応答・配信を模擬し、旧版確認・ダウンロード・更新・設定保持・別拡張機能の拒否を検証する。認証付きGitHub APIへのXtend画面からの実通信とは区別する。
+
 
 ## 配布時の注意
 
