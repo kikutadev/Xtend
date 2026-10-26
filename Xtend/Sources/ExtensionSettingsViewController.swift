@@ -95,6 +95,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         installForm.onInstallURL = { [weak self] value, token in self?.installFromURL(value, githubToken: token) }
         installForm.onSelectZIP = { [weak self] in self?.selectZIP() }
         recommendations.onInstallURL = { [weak self] value in self?.installFromURL(value, githubToken: nil) }
+        recommendations.onRequireGitHubToken = { [weak self] value in self?.prepareRecommendedGitHubURL(value) }
         stack.setCustomSpacing(30, after: empty)
         stack.addArrangedSubview(installForm)
 
@@ -148,6 +149,13 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         status.text = message
         status.isHidden = message == nil
         busy ? activity.startAnimating() : activity.stopAnimating()
+    }
+
+    private func prepareRecommendedGitHubURL(_ value: String) {
+        guard !busy else { return }
+        installForm.prepareGitHubURL(value)
+        scrollView.scrollRectToVisible(installForm.convert(installForm.bounds, to: scrollView),
+                                       animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
     private func installFromURL(_ value: String, githubToken: String?) {

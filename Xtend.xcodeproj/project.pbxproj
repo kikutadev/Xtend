@@ -33,6 +33,7 @@
 		86188CCCCDBEFAA92D83203A /* GitHubReleaseInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EFB71789DF1E1D25EEA3AD2 /* GitHubReleaseInstaller.swift */; };
 		8688525F320CF5F1372E9949 /* NyattoMobileXAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E730A5C71F589826EDACE6A8 /* NyattoMobileXAdapter.swift */; };
 		9B8410BAC2FAA44E5D0BC7F2 /* XtendNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */; };
+		A00F60A77D48E73406A1ADA7 /* RecommendedExtensionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFF9010F146A698898F3C39 /* RecommendedExtensionsUITests.swift */; };
 		ACC8F0989AA73D1144B991DE /* xtend-quote-longpress.js in Resources */ = {isa = PBXBuildFile; fileRef = C22F20AF35C7F854DCA678BC /* xtend-quote-longpress.js */; };
 		AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B65B670E94294446AA43DB6 /* BrowserViewController.swift */; };
 		BE765724238256C6D25BAADB /* ExtensionResourceSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */; };
@@ -78,6 +79,7 @@
 		763876C4A99F6EB5FAE28F53 /* ExtensionInstallFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallFormView.swift; sourceTree = "<group>"; };
 		77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendBrowserUITests.swift; sourceTree = "<group>"; };
 		7B10CD308ABF8332CF062670 /* ExtensionWelcomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionWelcomeViewController.swift; sourceTree = "<group>"; };
+		7CFF9010F146A698898F3C39 /* RecommendedExtensionsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendedExtensionsUITests.swift; sourceTree = "<group>"; };
 		89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeBridge.swift; sourceTree = "<group>"; };
 		8EFB71789DF1E1D25EEA3AD2 /* GitHubReleaseInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseInstaller.swift; sourceTree = "<group>"; };
 		9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallStore.swift; sourceTree = "<group>"; };
@@ -144,6 +146,7 @@
 			isa = PBXGroup;
 			children = (
 				595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */,
+				7CFF9010F146A698898F3C39 /* RecommendedExtensionsUITests.swift */,
 				77001CA2F49BFC2FD7B1BE51 /* XtendBrowserUITests.swift */,
 			);
 			path = XtendUITests;
@@ -328,6 +331,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5F427D9F8324760852BAC185 /* GenericExtensionSettingsUITests.swift in Sources */,
+				A00F60A77D48E73406A1ADA7 /* RecommendedExtensionsUITests.swift in Sources */,
 				7C837A021FEE128AF35FDC5D /* XtendBrowserUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

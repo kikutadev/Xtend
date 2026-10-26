@@ -69,6 +69,7 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
         installForm.onInstallURL = { [weak self] value, token in self?.installFromURL(value, githubToken: token) }
         installForm.onSelectZIP = { [weak self] in self?.selectZIP() }
         recommendations.onInstallURL = { [weak self] value in self?.installFromURL(value, githubToken: nil) }
+        recommendations.onRequireGitHubToken = { [weak self] value in self?.prepareRecommendedGitHubURL(value) }
         stack.setCustomSpacing(32, after: heading)
         stack.addArrangedSubview(installForm)
 
@@ -137,6 +138,13 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
         statusLabel.text = message
         statusLabel.isHidden = message == nil
         value ? activity.startAnimating() : activity.stopAnimating()
+    }
+
+    private func prepareRecommendedGitHubURL(_ value: String) {
+        guard !busy else { return }
+        installForm.prepareGitHubURL(value)
+        scrollView.scrollRectToVisible(installForm.convert(installForm.bounds, to: scrollView),
+                                       animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
     private func installFromURL(_ value: String, githubToken: String?) {
