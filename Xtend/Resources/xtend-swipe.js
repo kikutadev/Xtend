@@ -151,11 +151,78 @@
     win.setTimeout(then, FINISH_MS);
   }
 
+  // Switch X's own tab as soon as the gesture is committed. WebKit keeps
+  // the outgoing frame alive while the next timeline starts loading.
+  // Never duplicate the X DOM or issue a speculative X API request.
+  function switchTabAheadOfAnimation(doc, win, gesture, next, dx) {
+    if (win.location.pathname !== gesture.path || !next?.isConnected) {
+      restoreVisual(gesture);
+      return null;
+    }
+    const surface = gesture.surface;
+    const bounds = surface?.getBoundingClientRect();
+    if (!surface?.isConnected || typeof doc.startViewTransition !== 'function' ||
+        win.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+        !bounds || bounds.height > win.innerHeight * 3) {
+      restoreVisual(gesture);
+      next.click();
+      return null;
+    }
+
+    const previousName = surface.style.viewTransitionName;
+    const style = doc.createElement('style');
+    const direction = dx < 0 ? '-' : '';
+    style.textContent = `
+      @keyframes xtend-swipe-exit { to { transform: translateX(${direction}100vw); } }
+      ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+      ::view-transition-old(xtend-timeline) {
+        animation: ${FINISH_MS}ms cubic-bezier(.2,.8,.2,1) both xtend-swipe-exit;
+      }
+      ::view-transition-new(xtend-timeline) { animation: none; }
+    `;
+    (doc.head || doc.documentElement).appendChild(style);
+    surface.style.viewTransitionName = 'xtend-timeline';
+    let cleaned = false;
+    let applied = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      surface.style.viewTransitionName = previousName;
+      style.remove();
+    };
+    const applyTabChange = () => {
+      if (applied) return;
+      applied = true;
+      restoreVisual(gesture);
+      if (win.location.pathname === gesture.path && next.isConnected) next.click();
+    };
+    try {
+      const transition = doc.startViewTransition(applyTabChange);
+      // A skipped or rejected transition must not leave any styles behind.
+      transition.finished.then(cleanup, cleanup);
+      return {
+        finished: transition.finished,
+        abort() {
+          // Even if the user touches again before WebKit takes its snapshot,
+          // the previous committed swipe must still select its destination.
+          applyTabChange();
+          cleanup();
+          transition.skipTransition();
+        },
+      };
+    } catch (_) {
+      cleanup();
+      applyTabChange();
+      return null;
+    }
+  }
+
   function startSwipeNavigation(doc) {
     const browserWindow = doc.defaultView;
     if (!browserWindow) return;
     const win = browserWindow;
     let active = null;
+    let tabTransition = null;
 
     function abort() {
       if (!active) return;
@@ -169,6 +236,10 @@
     }
 
     function onStart(event) {
+      if (tabTransition) {
+        tabTransition.abort();
+        tabTransition = null;
+      }
       if (active) abort();
       if (event.touches.length !== 1 || !isElement(event.target)) return;
       const touch = event.touches[0];
@@ -195,7 +266,7 @@
       }
 
       active = {
-        mode, axis: 'undecided', startX: touch.clientX, startY: touch.clientY,
+        mode, path: win.location.pathname, axis: 'undecided', startX: touch.clientX, startY: touch.clientY,
         x: touch.clientX, startAt: win.performance.now(),
         surface, originalTransform: surface?.style.transform ?? '',
         originalTransition: surface?.style.transition ?? '',
@@ -290,18 +361,26 @@
         animateTo(gesture, 0, win, () => restoreVisual(gesture));
       } else {
         const next = gesture.tab;
-        // X controls active tab, scroll position, and content loading.
-        // Complete the outgoing motion before clicking the native tab.
-        const outgoing = dx < 0 ? -win.innerWidth : win.innerWidth;
-        animateTo(gesture, outgoing, win, () => {
-          restoreVisual(gesture);
-          if (next?.isConnected) next.click();
-        });
+        // Start the next timeline while the outgoing visual is animating,
+        // instead of holding X's tab click for FINISH_MS.
+        const transition = switchTabAheadOfAnimation(doc, win, gesture, next, dx);
+        tabTransition = transition;
+        transition?.finished.then(
+          () => { if (tabTransition === transition) tabTransition = null; },
+          () => { if (tabTransition === transition) tabTransition = null; }
+        );
       }
     }
 
     function onCancel() { abort(); }
-    function onVisibility() { if (doc.visibilityState === 'hidden') abort(); }
+    function onVisibility() {
+      if (doc.visibilityState !== 'hidden') return;
+      abort();
+      if (tabTransition) {
+        tabTransition.abort();
+        tabTransition = null;
+      }
+    }
 
     doc.addEventListener('touchstart', onStart, { capture: true, passive: true });
     doc.addEventListener('touchmove', onMove, { capture: true, passive: false });
