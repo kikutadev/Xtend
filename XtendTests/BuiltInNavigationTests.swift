@@ -9,11 +9,12 @@ final class BuiltInNavigationTests: XCTestCase {
         let (configuration, host) = try runtime.makeBrowserConfiguration()
         XCTAssertNil(host)
         let scripts = configuration.userContentController.userScripts
-        XCTAssertEqual(scripts.count, 1)
-        XCTAssertEqual(scripts.first?.injectionTime, .atDocumentEnd)
-        XCTAssertEqual(scripts.first?.isForMainFrameOnly, true)
+        XCTAssertEqual(scripts.count, 2)
+        XCTAssertTrue(scripts.allSatisfy { $0.injectionTime == .atDocumentEnd && $0.isForMainFrameOnly })
         XCTAssertTrue(scripts.first?.source.contains("startSwipeNavigation(document)") == true)
         XCTAssertTrue(scripts.first?.source.contains("ScrollSnap-List") == true)
+        XCTAssertTrue(scripts.last?.source.contains("quoteURLFor(button)") == true)
+        XCTAssertTrue(scripts.last?.source.contains("/quotes") == true)
     }
 
     func testInstalledLegacySwipeIsIgnoredWithoutDisablingHealthyExtensions() throws {
