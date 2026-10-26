@@ -15,6 +15,13 @@ final class XtendBrowserUITests: XCTestCase {
         }
     }
 
+    private func captureBrowserEvidence(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     private func settingsEntry() -> XCUIElement {
         let native = app.buttons["Xtendの拡張機能設定"]
         if native.exists && native.isHittable { return native }
@@ -145,6 +152,46 @@ final class XtendBrowserUITests: XCTestCase {
         sleep(2)
         evidence("05-menu-close")
         XCTAssertTrue(web.exists)
+    }
+
+    func testQuoteLongPressOnLoggedInX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        // Persisted X sessions can restore the profile drawer on launch.
+        // Dismiss it using the dimmed region; hidden accessibility nodes are
+        // still sometimes reported as hittable.
+        sleep(2)
+        web.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.43)).tap()
+        sleep(1)
+        let reposts = web.descendants(matching: .any).matching(NSPredicate(
+            format: "label ENDSWITH[cd] %@ OR label ENDSWITH[cd] %@ OR label ENDSWITH[cd] %@",
+            ". Repost", ". Undo repost", ". リポスト"
+        ))
+        var visibleRepost: XCUIElement?
+        for attempt in 0..<7 {
+            visibleRepost = (0..<min(reposts.count, 60))
+                .map { reposts.element(boundBy: $0) }
+                .first { $0.isHittable && $0.frame.width < 110 && $0.frame.height < 75 }
+            if visibleRepost != nil { break }
+            web.swipeUp()
+            if attempt > 2 { sleep(1) }
+        }
+        guard let repost = visibleRepost else {
+            captureBrowserEvidence("quote-no-repost-control")
+            XCTFail("No visible X Repost button found in the live timeline")
+            return
+        }
+        captureBrowserEvidence("quote-longpress-before")
+        repost.press(forDuration: 0.8)
+        XCTAssertTrue(web.staticTexts["Post activity"].waitForExistence(timeout: 12),
+                      "Long press should open X's quote-posts activity screen")
+        captureBrowserEvidence("quote-longpress-after")
+        XCTAssertFalse(web.buttons["Quote"].isHittable,
+                       "Long press must not open the quote composer menu")
+
+        // X handles its own back stack, which can return via post details.
+        // UI acceptance here tests the quote view and absence of the repost menu;
+        // X's back arrows are checked separately in the live manual scenario.
     }
 
     func testManualReloadReturnsToXBrowser() throws {
