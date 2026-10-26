@@ -250,7 +250,10 @@ final class ExtensionHost: NSObject {
         } else {
             handler = nil
         }
-        let bridge = ChromeBridge(storage: storage, runtimeMessageHandler: handler)
+        let bridge = ChromeBridge(storage: storage, extensionID: package.id,
+                                  trustedContext: settingsExtensionID == package.id,
+                                  unlimitedStorage: package.manifest.permissions?.contains("unlimitedStorage") == true,
+                                  runtimeMessageHandler: handler)
         bridges.append(bridge)
         controller.addScriptMessageHandler(
             bridge, contentWorld: world,
@@ -264,6 +267,8 @@ final class ExtensionHost: NSObject {
               storageByID[extensionID] != nil,
               let area = notification.userInfo?["area"] as? String,
               let changes = notification.userInfo?["changes"] as? [String: [String: Any]],
+              (settingsExtensionID == extensionID ||
+               (try? storageByID[extensionID]?.allowsUntrusted(area: area)) == true),
               let changesJSON = try? jsonLiteral(changes),
               let areaJSON = try? jsonLiteral(area) else { return }
 

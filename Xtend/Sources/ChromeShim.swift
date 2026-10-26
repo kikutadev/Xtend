@@ -21,7 +21,6 @@ enum ChromeShim {
           const bridge = globalThis.webkit?.messageHandlers?.[\#(bridgeName)];
           if (!bridge) return;
 
-          const storageListeners = new Set();
           const messageListeners = new Set();
           let lastError = null;
 
@@ -52,37 +51,61 @@ enum ChromeShim {
             }
           });
 
-          function invoke(op, payload, callback) {
-            const promise = bridge.postMessage({ op, ...payload });
+          // Promise and callback forms share one error/return contract.
+          // Mutation callbacks receive no value. runtime.lastError is scoped
+          // to the callback invocation, even if a callback itself throws.
+          function invoke(op, payload, callback, returnsVoid = false) {
+            const promise = bridge.postMessage({ op, ...payload }).then(
+              value => returnsVoid ? undefined : value
+            );
             if (typeof callback !== 'function') return promise;
             promise.then(
-              value => { lastError = null; callback(value); },
+              value => { lastError = null; returnsVoid ? callback() : callback(value); },
               error => {
                 lastError = { message: String(error?.message || error || 'Extension bridge error') };
-                callback(undefined);
-                queueMicrotask(() => { lastError = null; });
+                try { returnsVoid ? callback() : callback(undefined); }
+                finally { queueMicrotask(() => { lastError = null; }); }
               }
             );
             return undefined;
           }
 
+          const storageListeners = new Set();
+          const areaListeners = { local: new Set(), sync: new Set() };
+          const event = listeners => Object.freeze({
+            addListener(fn) { if (typeof fn === 'function') listeners.add(fn); },
+            removeListener(fn) { listeners.delete(fn); },
+            hasListener(fn) { return listeners.has(fn); }
+          });
+          const onChanged = event(storageListeners);
           function makeStorageArea(area) {
             return Object.freeze({
-              get(keys, callback) { return invoke('storage.get', { area, keys: keys ?? null }, callback); },
-              set(items, callback) { return invoke('storage.set', { area, items: items || {} }, callback); },
-              remove(keys, callback) { return invoke('storage.remove', { area, keys: keys ?? null }, callback); }
+              QUOTA_BYTES: area === 'local' ? 10485760 : 102400,
+              get(keys, callback) {
+                if (typeof keys === 'function') { callback = keys; keys = null; }
+                return invoke('storage.get', { area, keys: keys ?? null }, callback);
+              },
+              getKeys(callback) { return invoke('storage.getKeys', { area }, callback); },
+              getBytesInUse(keys, callback) {
+                if (typeof keys === 'function') { callback = keys; keys = null; }
+                return invoke('storage.getBytesInUse', { area, keys: keys ?? null }, callback);
+              },
+              set(items, callback) { return invoke('storage.set', { area, items }, callback, true); },
+              remove(keys, callback) { return invoke('storage.remove', { area, keys }, callback, true); },
+              clear(callback) { return invoke('storage.clear', { area }, callback, true); },
+              setAccessLevel(options, callback) {
+                return invoke('storage.setAccessLevel', { area, accessLevel: options?.accessLevel }, callback, true);
+              },
+              onChanged: event(areaListeners[area])
             });
           }
-
-          const onChanged = Object.freeze({
-            addListener(listener) { if (typeof listener === 'function') storageListeners.add(listener); },
-            removeListener(listener) { storageListeners.delete(listener); },
-            hasListener(listener) { return storageListeners.has(listener); }
-          });
 
           globalThis.__xtendDispatchStorageChange = (changes, area) => {
             for (const listener of [...storageListeners]) {
               try { listener(changes || {}, area); } catch (_) {}
+            }
+            for (const listener of [...(areaListeners[area] || [])]) {
+              try { listener(changes || {}); } catch (_) {}
             }
           };
 
