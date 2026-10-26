@@ -132,13 +132,19 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
     }
 }
 
-/// おすすめリンクは開くかコピーするだけ。入力欄への自動入力は行わない。
+/// 初回案内と設定画面で共通利用する、X向け拡張機能の追加導線。
+/// 配布用Releaseがないリポジトリは直接インストール対象にしない。
 @MainActor
 final class RecommendedExtensionsView: UIStackView {
+    var onInstallURL: ((String) -> Void)?
+    private var busy = false
+    private var installButtons: [(source: String, name: String, button: UIButton)] = []
+    private var installedSources: Set<String> = []
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         axis = .vertical
-        spacing = 14
+        spacing = 12
 
         let heading = UILabel()
         heading.text = "おすすめChrome拡張機能"
@@ -148,66 +154,128 @@ final class RecommendedExtensionsView: UIStackView {
 
         addArrangedSubview(makeRecommendation(
             title: "にゃっとランドforX",
-            destination: "Chrome Web Store",
-            url: ExtensionInstallStore.defaultStoreURL
+            detail: "Xでの交流や反応を見やすくする",
+            sourceName: "Chrome Web Store",
+            sourceURL: ExtensionInstallStore.defaultStoreURL,
+            installURL: ExtensionInstallStore.defaultStoreURL.absoluteString,
+            installedSource: ExtensionInstallStore.supportedExtensionID
         ))
         addArrangedSubview(makeRecommendation(
-            title: "X ホームの閲覧位置",
-            destination: "GitHub",
-            url: URL(string: "https://github.com/akiweb8528/x-home-anchor")!,
-            note: "このリポジトリにはGitHub Releasesがないため、release/の配布ZIPを「ZIPでインストール」してください。"
+            title: "X Ad Hider",
+            detail: "Xの広告ポストを非表示にする",
+            sourceName: "GitHub",
+            sourceURL: URL(string: "https://github.com/kikutadev/x-ad-hider")!,
+            installURL: "https://github.com/kikutadev/x-ad-hider"
+        ))
+        addArrangedSubview(makeRecommendation(
+            title: "X Timeline Filter",
+            detail: "指定したアカウントの投稿だけを表示する",
+            sourceName: "GitHub",
+            sourceURL: URL(string: "https://github.com/kikutadev/x-timeline-filter")!,
+            installURL: "https://github.com/kikutadev/x-timeline-filter"
+        ))
+        addArrangedSubview(makeRecommendation(
+            title: "x-home-anchor",
+            detail: "ホームの閲覧位置を維持する",
+            sourceName: "配布ZIPを開く",
+            sourceURL: URL(string: "https://github.com/akiweb8528/x-home-anchor/tree/main/release")!,
+            note: "配布用ZIPを保存して「ZIPでインストール」から選択してください。このリポジトリには公開Releaseがありません。"
         ))
     }
 
     @available(*, unavailable)
     required init(coder: NSCoder) { fatalError() }
 
+    func setBusy(_ value: Bool) {
+        busy = value
+        refreshActions()
+    }
+
+    func updateInstalled(items: [InstalledExtensionInfo]) {
+        installedSources = Set(items.map(\.id))
+        for item in items {
+            if item.name.caseInsensitiveCompare("X Ad Hider") == .orderedSame {
+                installedSources.insert("https://github.com/kikutadev/x-ad-hider")
+            }
+            if item.name.caseInsensitiveCompare("X Timeline Filter") == .orderedSame {
+                installedSources.insert("https://github.com/kikutadev/x-timeline-filter")
+            }
+            if let linked = GitHubReleaseLinks.get(item.id) {
+                installedSources.insert(linked.repository)
+            }
+        }
+        refreshActions()
+    }
+
+    private func refreshActions() {
+        for (source, name, button) in installButtons {
+            let installed = installedSources.contains(source)
+            var configuration = button.configuration ?? .bordered()
+            configuration.title = installed ? "追加済み" : "追加"
+            button.configuration = configuration
+            button.isEnabled = !busy && !installed
+            button.accessibilityLabel = installed ? "\(name)は追加済み" : "\(name)を追加"
+        }
+    }
+
     private func makeRecommendation(
-        title: String, destination: String, url: URL,
-        note: String? = nil, copyLink: Bool = true
+        title: String, detail: String, sourceName: String, sourceURL: URL,
+        installURL: String? = nil, installedSource: String? = nil, note: String? = nil
     ) -> UIView {
         let name = UILabel()
         name.text = title
-        name.font = .preferredFont(forTextStyle: .headline)
-        name.adjustsFontForContentSizeCategory = true
+        name.font = .preferredFont(forTextStyle: .body)
         name.numberOfLines = 0
+        name.adjustsFontForContentSizeCategory = true
 
-        let linkButton = UIButton(type: .system)
-        linkButton.contentHorizontalAlignment = .leading
-        linkButton.setTitle("\(destination)  ↗", for: .normal)
-        linkButton.addAction(UIAction { _ in UIApplication.shared.open(url) }, for: .touchUpInside)
+        let header = UIStackView(arrangedSubviews: [name])
+        header.axis = .horizontal
+        header.alignment = .center
+        header.spacing = 10
 
-        let links = UIStackView(arrangedSubviews: [linkButton, UIView()])
-        links.axis = .horizontal
-        links.alignment = .center
-        if copyLink {
-            let copyButton = UIButton(type: .system)
-            copyButton.setImage(UIImage(systemName: "doc.on.doc"), for: .normal)
-            copyButton.accessibilityLabel = "\(title)のリンクをコピー"
-            copyButton.addAction(UIAction { _ in
-                UIPasteboard.general.string = url.absoluteString
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                UIAccessibility.post(notification: .announcement, argument: "リンクをコピーしました")
+        if let installURL {
+            let button = UIButton(type: .system)
+            var config = UIButton.Configuration.bordered()
+            config.title = "追加"
+            config.buttonSize = .medium
+            button.configuration = config
+            button.accessibilityIdentifier = "xtend.recommend.install.\(title)"
+            button.addAction(UIAction { [weak self] _ in
+                self?.onInstallURL?(installURL)
             }, for: .touchUpInside)
-            copyButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
-            copyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
-            links.addArrangedSubview(copyButton)
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            header.addArrangedSubview(button)
+            installButtons.append((installedSource ?? installURL, title, button))
         }
 
-        let column = UIStackView(arrangedSubviews: [name, links])
+        let description = UILabel()
+        description.text = detail
+        description.font = .preferredFont(forTextStyle: .footnote)
+        description.textColor = .secondaryLabel
+        description.adjustsFontForContentSizeCategory = true
+        description.numberOfLines = 0
+
+        let link = UIButton(type: .system)
+        link.contentHorizontalAlignment = .leading
+        link.setTitle("\(sourceName) ↗", for: .normal)
+        link.titleLabel?.font = .preferredFont(forTextStyle: .footnote)
+        link.accessibilityLabel = "\(title)の配布元を開く"
+        link.addAction(UIAction { _ in UIApplication.shared.open(sourceURL) }, for: .touchUpInside)
+        link.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+
+        let column = UIStackView(arrangedSubviews: [header, description, link])
         column.axis = .vertical
-        column.spacing = 4
+        column.spacing = 2
         if let note {
             let help = UILabel()
             help.text = note
             help.font = .preferredFont(forTextStyle: .footnote)
             help.textColor = .secondaryLabel
             help.numberOfLines = 0
-            help.adjustsFontForContentSizeCategory = true
             column.addArrangedSubview(help)
         }
         column.isLayoutMarginsRelativeArrangement = true
-        column.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14)
+        column.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
         column.layer.cornerRadius = 12
         column.backgroundColor = .secondarySystemGroupedBackground
         return column

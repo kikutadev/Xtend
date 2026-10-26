@@ -21,6 +21,7 @@
 		4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */; };
 		4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5523AE88483B76D72E8E474B /* ChromeShim.swift */; };
 		571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */; };
+		5825BBB577C7FC8FF245F736 /* RecommendedExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8FE4C42E020F65FF322AAC1 /* RecommendedExtensionsTests.swift */; };
 		58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B884C456033A9D3781F2BC /* CRX3Package.swift */; };
 		5F427D9F8324760852BAC185 /* GenericExtensionSettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */; };
 		63EAA3269941DF7058CD6FC1 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 4C808A67CB794F23FE6E1456 /* ZIPFoundation */; };
@@ -81,6 +82,7 @@
 		8EFB71789DF1E1D25EEA3AD2 /* GitHubReleaseInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseInstaller.swift; sourceTree = "<group>"; };
 		9182D6AC057B7B397F5048C6 /* ExtensionInstallStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionInstallStore.swift; sourceTree = "<group>"; };
 		A6D92A7B258086159E985772 /* ExtensionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSettingsViewController.swift; sourceTree = "<group>"; };
+		A8FE4C42E020F65FF322AAC1 /* RecommendedExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendedExtensionsTests.swift; sourceTree = "<group>"; };
 		AC05D9BC22A3D88568FB5CA1 /* ExtensionStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionStorage.swift; sourceTree = "<group>"; };
 		B8E44C1D83F2C2E3B50E140F /* ExtensionResourceSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionResourceSchemeHandler.swift; sourceTree = "<group>"; };
 		C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInNavigationTests.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
 				3616A8426A7E8233ED12FD94 /* ExtensionSettingsPageTests.swift */,
 				5592C79FE1D7F301160BCB03 /* GitHubReleaseInstallerTests.swift */,
+				A8FE4C42E020F65FF322AAC1 /* RecommendedExtensionsTests.swift */,
 			);
 			path = XtendTests;
 			sourceTree = "<group>";
@@ -316,6 +319,7 @@
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
 				CCF88D48826BAA16E03CEE49 /* ExtensionSettingsPageTests.swift in Sources */,
 				3D95C702DEB5FEFF025F27CB /* GitHubReleaseInstallerTests.swift in Sources */,
+				5825BBB577C7FC8FF245F736 /* RecommendedExtensionsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

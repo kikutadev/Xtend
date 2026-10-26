@@ -12,6 +12,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private let stack = UIStackView()
     private let installedList = InstalledExtensionsListView()
     private let installForm = ExtensionInstallFormView()
+    private let recommendations = RecommendedExtensionsView()
     private let reloadButton = UIButton(type: .system)
     private let activity = UIActivityIndicatorView(style: .medium)
     private let status = UILabel()
@@ -93,6 +94,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
         installForm.onInstallURL = { [weak self] value, token in self?.installFromURL(value, githubToken: token) }
         installForm.onSelectZIP = { [weak self] in self?.selectZIP() }
+        recommendations.onInstallURL = { [weak self] value in self?.installFromURL(value, githubToken: nil) }
         stack.setCustomSpacing(30, after: empty)
         stack.addArrangedSubview(installForm)
 
@@ -124,12 +126,13 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         hint.textColor = .secondaryLabel
         stack.addArrangedSubview(hint)
         stack.setCustomSpacing(30, after: hint)
-        stack.addArrangedSubview(RecommendedExtensionsView())
+        stack.addArrangedSubview(recommendations)
     }
 
     private func refreshInstalled(animated: Bool) {
         let items = InstalledExtensionCatalog.all()
         installedList.update(items: items, animated: animated)
+        recommendations.updateInstalled(items: items)
         stack.arrangedSubviews.first(where: { $0.tag == 101 })?.isHidden = !items.isEmpty
     }
 
@@ -138,6 +141,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         isModalInPresentation = busy
         navigationItem.rightBarButtonItem?.isEnabled = !busy
         installForm.setBusy(busy)
+        recommendations.setBusy(busy)
         reloadButton.isEnabled = !busy
         status.text = message
         status.isHidden = message == nil

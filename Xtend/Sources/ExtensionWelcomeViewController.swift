@@ -8,6 +8,7 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
     private let scrollView = UIScrollView()
     private let stack = UIStackView()
     private let installForm = ExtensionInstallFormView()
+    private let recommendations = RecommendedExtensionsView()
     private let continueButton = UIButton(type: .system)
     private let installedList = InstalledExtensionsListView()
     private let statusLabel = UILabel()
@@ -67,6 +68,7 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
 
         installForm.onInstallURL = { [weak self] value, token in self?.installFromURL(value, githubToken: token) }
         installForm.onSelectZIP = { [weak self] in self?.selectZIP() }
+        recommendations.onInstallURL = { [weak self] value in self?.installFromURL(value, githubToken: nil) }
         stack.setCustomSpacing(32, after: heading)
         stack.addArrangedSubview(installForm)
 
@@ -100,7 +102,7 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
         stack.addArrangedSubview(loginNote)
 
         stack.setCustomSpacing(36, after: loginNote)
-        stack.addArrangedSubview(RecommendedExtensionsView())
+        stack.addArrangedSubview(recommendations)
     }
 
     private func label(_ text: String, style: UIFont.TextStyle) -> UILabel {
@@ -115,6 +117,7 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
     private func refreshInstalled(animated: Bool) {
         let items = InstalledExtensionCatalog.all()
         installedList.update(items: items, animated: animated)
+        recommendations.updateInstalled(items: items)
         var config = continueButton.configuration ?? .borderedProminent()
         config.title = items.isEmpty ? "インストールせずにXを見る" : "Xを見る"
         continueButton.configuration = config
@@ -129,6 +132,7 @@ final class ExtensionWelcomeViewController: UIViewController, UIDocumentPickerDe
     private func setBusy(_ value: Bool, message: String?) {
         busy = value
         installForm.setBusy(value)
+        recommendations.setBusy(value)
         continueButton.isEnabled = !value
         statusLabel.text = message
         statusLabel.isHidden = message == nil
