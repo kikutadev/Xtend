@@ -12,6 +12,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private let stack = UIStackView()
     private let installedList = InstalledExtensionsListView()
     private let installForm = ExtensionInstallFormView()
+    private let recommendations = RecommendedExtensionsView()
     private let reloadButton = UIButton(type: .system)
     private let activity = UIActivityIndicatorView(style: .medium)
     private let status = UILabel()
@@ -80,6 +81,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
         installedList.onRemove = { [weak self] in self?.confirmRemove($0) }
         installedList.onSettings = { [weak self] in self?.openExtensionSettings($0) }
+        installedList.onCheckRelease = { [weak self] in self?.checkRelease($0) }
         // Opt-in: the second X page may consume hundreds of MB of memory.
         let betaToggle = UISwitch()
         betaToggle.accessibilityLabel = "タイムラインの先読み（ベータ）"
@@ -108,6 +110,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         betaSection.spacing = 6
         stack.addArrangedSubview(betaSection)
         stack.setCustomSpacing(24, after: betaSection)
+
         stack.addArrangedSubview(installedList)
 
         let empty = UILabel()
@@ -118,8 +121,9 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         empty.tag = 101
         stack.addArrangedSubview(empty)
 
-        installForm.onInstallURL = { [weak self] value in self?.installFromStore(value) }
+        installForm.onInstallURL = { [weak self] value, token in self?.installFromURL(value, githubToken: token) }
         installForm.onSelectZIP = { [weak self] in self?.selectZIP() }
+        recommendations.onInstallURL = { [weak self] value in self?.installFromURL(value, githubToken: nil) }
         stack.setCustomSpacing(30, after: empty)
         stack.addArrangedSubview(installForm)
 
@@ -133,6 +137,9 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         progress.alignment = .center
         progress.spacing = 8
         stack.addArrangedSubview(progress)
+
+        stack.setCustomSpacing(24, after: progress)
+        stack.addArrangedSubview(recommendations)
 
         var reloadConfig = UIButton.Configuration.borderedProminent()
         reloadConfig.title = "Xのページを再読み込み"
@@ -150,13 +157,13 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         hint.numberOfLines = 0
         hint.textColor = .secondaryLabel
         stack.addArrangedSubview(hint)
-        stack.setCustomSpacing(30, after: hint)
-        stack.addArrangedSubview(RecommendedExtensionsView())
+
     }
 
     private func refreshInstalled(animated: Bool) {
         let items = InstalledExtensionCatalog.all()
         installedList.update(items: items, animated: animated)
+        recommendations.updateInstalled(items: items)
         stack.arrangedSubviews.first(where: { $0.tag == 101 })?.isHidden = !items.isEmpty
     }
 
@@ -165,35 +172,184 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         isModalInPresentation = busy
         navigationItem.rightBarButtonItem?.isEnabled = !busy
         installForm.setBusy(busy)
+        recommendations.setBusy(busy)
         reloadButton.isEnabled = !busy
         status.text = message
         status.isHidden = message == nil
         busy ? activity.startAnimating() : activity.stopAnimating()
     }
 
-    private func installFromStore(_ value: String) {
+    private func installFromURL(_ value: String, githubToken: String?) {
         guard !busy else { return }
         view.endEditing(true)
-        guard let url = URL(string: value) else {
-            showError(ExtensionInstallError.invalidChromeWebStoreURL)
-            return
-        }
-        setBusy(true, message: "Chrome Web Storeから取得しています…")
+        setBusy(true, message: "拡張機能を取得しています…")
         Task { [weak self] in
             guard let self else { return }
             do {
-                let id = try ExtensionInstallStore.extensionID(from: url)
-                if id == ExtensionInstallStore.supportedExtensionID {
-                    _ = try await ExtensionInstallStore().installFromChromeWebStore(url)
-                } else {
-                    _ = try await CommunityExtensionStore().installFromChromeWebStore(url)
-                }
+                _ = try await Task.detached(priority: .userInitiated) {
+                    try await ExtensionURLInstaller.install(value, githubToken: githubToken)
+                }.value
                 setBusy(false, message: nil)
+                installForm.didFinishInstallation()
                 refreshInstalled(animated: true)
                 onChange()
             } catch {
                 setBusy(false, message: nil)
                 showError(error)
+            }
+        }
+    }
+
+    private func checkRelease(_ item: InstalledExtensionInfo) {
+        guard !busy else { return }
+        if let storeURL = item.chromeWebStoreURL {
+            checkWebStoreUpdate(for: item, from: storeURL)
+            return
+        }
+        let linked = GitHubReleaseLinks.get(item.id)
+        if let linked, let repo = GitHubReleaseRepository(input: linked.repository) {
+            fetchRelease(for: item, repository: repo, token: nil)
+        } else {
+            promptForRepository(item)
+        }
+    }
+
+    private func checkWebStoreUpdate(for item: InstalledExtensionInfo, from storeURL: URL) {
+        guard !busy else { return }
+        setBusy(true, message: "Chrome Web Storeの最新版を確認しています…")
+        Task { [weak self] in
+            do {
+                let checked = try await ExtensionURLInstaller.checkWebStoreUpdate(storeURL)
+                guard let self else { return }
+                setBusy(false, message: nil)
+                let needsUpdate = GitHubReleaseVersion.needsUpdate(
+                    installed: item.version, latestTag: checked.version, installedTag: nil)
+                let alert = UIAlertController(title: needsUpdate ? "更新があります" : "最新です",
+                    message: "インストール済み：\(item.version)\nChrome Web Store：\(checked.version)",
+                    preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "閉じる", style: .cancel))
+                if needsUpdate {
+                    alert.addAction(UIAlertAction(title: "最新版を取り込む", style: .default) { [weak self] _ in
+                        self?.applyWebStoreUpdate(checked)
+                    })
+                }
+                present(alert, animated: true)
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
+            }
+        }
+    }
+
+    private func applyWebStoreUpdate(_ checked: CheckedWebStoreUpdate) {
+        guard !busy else { return }
+        setBusy(true, message: "Chrome Web Storeから更新しています…")
+        Task { [weak self] in
+            do {
+                try await Task.detached(priority: .userInitiated) { try checked.install() }.value
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+                onChange()
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
+            }
+        }
+    }
+
+    private func promptForRepository(_ item: InstalledExtensionInfo) {
+        let alert = UIAlertController(title: "\(item.name)のGitHub取得元",
+                                      message: "GitHubのクローンURLを貼り付けてください。", preferredStyle: .alert)
+        alert.addTextField { field in
+            field.placeholder = "https://github.com/owner/repo.git"
+            field.text = GitHubReleaseLinks.get(item.id)?.repository
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.accessibilityLabel = "GitHubクローンURL"
+        }
+        alert.addTextField { field in
+            field.placeholder = "Private用トークン（必要な場合）"
+            field.isSecureTextEntry = true
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.accessibilityLabel = "GitHub読み取り用トークン"
+        }
+        alert.addAction(UIAlertAction(title: "キャンセル", style: .cancel))
+        alert.addAction(UIAlertAction(title: "更新を確認", style: .default) { [weak self, weak alert] _ in
+            guard let self, let alert else { return }
+            let input = alert.textFields?[0].text ?? ""
+            let token = alert.textFields?[1].text
+            guard let repository = GitHubReleaseRepository(input: input) else {
+                self.showError(GitHubReleaseError.invalidURL)
+                return
+            }
+            self.fetchRelease(for: item, repository: repository, token: token)
+        })
+        present(alert, animated: true)
+    }
+
+    private func fetchRelease(for item: InstalledExtensionInfo, repository: GitHubReleaseRepository,
+                              token: String?) {
+        guard !busy else { return }
+        setBusy(true, message: "GitHubの最新Releaseを確認しています…")
+        Task { [weak self] in
+            do {
+                let previous = GitHubReleaseLinks.get(item.id)
+                let storedTag = previous?.repository == repository.webURL.absoluteString
+                    ? previous?.installedTag : nil
+                let result = try await GitHubReleaseInstaller.check(
+                    repository: repository, installedVersion: item.version,
+                    installedTag: storedTag, tokenOverride: token
+                )
+                if let trimmed = token?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !trimmed.isEmpty {
+                    try GitHubReleaseCredentials.save(trimmed)
+                }
+                GitHubReleaseLinks.save(id: item.id, repository: repository, tag: storedTag)
+                guard let self else { return }
+                setBusy(false, message: nil)
+                let message = "インストール済み：\(item.version)\n最新Release：\(result.release.tagName)"
+                let alert = UIAlertController(title: result.needsUpdate ? "更新があります" : "最新です",
+                                              message: message, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "閉じる", style: .cancel))
+                if result.needsUpdate {
+                    alert.addAction(UIAlertAction(title: "最新版を取り込む", style: .default) { [weak self] _ in
+                        self?.applyGitHubUpdate(item, repository: repository)
+                    })
+                }
+                alert.addAction(UIAlertAction(title: "取得元を変更", style: .default) { [weak self] _ in
+                    self?.promptForRepository(item)
+                })
+                present(alert, animated: true)
+            } catch {
+                self?.setBusy(false, message: nil)
+                let alert = UIAlertController(title: "確認できませんでした",
+                                              message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "閉じる", style: .cancel))
+                alert.addAction(UIAlertAction(title: "取得元を変更", style: .default) { [weak self] _ in
+                    self?.promptForRepository(item)
+                })
+                self?.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func applyGitHubUpdate(_ item: InstalledExtensionInfo, repository: GitHubReleaseRepository) {
+        guard !busy else { return }
+        setBusy(true, message: "最新Releaseを取得しています…")
+        Task { [weak self] in
+            do {
+                _ = try await GitHubReleaseInstaller.installLatest(
+                    repository: repository, newToken: nil, existingID: item.id
+                )
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+                onChange()
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
             }
         }
     }

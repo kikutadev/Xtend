@@ -36,17 +36,22 @@ final class CommunityExtensionStore {
         return result
     }
 
-    func installFromZIP(_ url: URL) throws -> (id: String, manifest: InstalledExtensionManifest) {
+    func installFromZIP(_ url: URL, updatingID: String? = nil) throws -> (id: String, manifest: InstalledExtensionManifest) {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         return try install(data: Data(contentsOf: url, options: [.mappedIfSafe]),
-                           storeID: nil, source: .localZIP(url.lastPathComponent))
+                           storeID: nil, source: .localZIP(url.lastPathComponent), updatingID: updatingID)
     }
 
     func installFromChromeWebStore(_ url: URL) async throws -> (id: String, manifest: InstalledExtensionManifest) {
         let id = try ExtensionInstallStore.extensionID(from: url)
         let payload = try await ExtensionInstallStore.verifiedDownload(extensionID: id)
-        return try install(data: payload, storeID: id, source: .chromeWebStore(url))
+        return try installVerifiedWebStoreZIP(payload, storeURL: url)
+    }
+
+    func installVerifiedWebStoreZIP(_ payload: Data, storeURL: URL) throws -> (id: String, manifest: InstalledExtensionManifest) {
+        let id = try ExtensionInstallStore.extensionID(from: storeURL)
+        return try install(data: payload, storeID: id, source: .chromeWebStore(storeURL))
     }
 
     func uninstall(id: String) throws {
@@ -57,7 +62,8 @@ final class CommunityExtensionStore {
     }
 
     @discardableResult
-    private func install(data: Data, storeID: String?, source: ExtensionInstallSource) throws
+    private func install(data: Data, storeID: String?, source: ExtensionInstallSource,
+                         updatingID: String? = nil) throws
         -> (id: String, manifest: InstalledExtensionManifest) {
         guard !data.isEmpty else { throw ExtensionInstallError.emptyPackage }
         guard data.count <= ExtensionInstallStore.maximumPackageBytes else {
@@ -76,7 +82,16 @@ final class CommunityExtensionStore {
         let root = try ExtensionInstallStore.findExtensionRoot(in: unpacked, fileManager: fileManager)
         let manifest = try Self.validateManifest(at: root)
         let id: String
-        if let storeID {
+        if let updatingID {
+            guard isValidID(updatingID),
+                  updatingID != ExtensionInstallStore.supportedExtensionID,
+                  updatingID != ExtensionPackage.homeAnchorID,
+                  updatingID != "x-swipe-navigation",
+                  let original = installedRoots()[updatingID],
+                  let current = try? Self.validateManifest(at: original),
+                  current.name == manifest.name else { throw GitHubReleaseError.unrelatedExtension }
+            id = updatingID
+        } else if let storeID {
             guard isValidID(storeID), storeID != ExtensionInstallStore.supportedExtensionID,
                   storeID != ExtensionPackage.homeAnchorID, storeID != "x-swipe-navigation" else { throw CommunityExtensionError.invalidIdentity }
             id = storeID

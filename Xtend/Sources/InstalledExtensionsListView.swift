@@ -7,6 +7,7 @@ struct InstalledExtensionInfo {
     let icon: UIImage?
     let issue: String?
     var hasSettings = false
+    var chromeWebStoreURL: URL?
 }
 
 @MainActor
@@ -69,6 +70,7 @@ enum InstalledExtensionCatalog {
         default:
             try CommunityExtensionStore().uninstall(id: id)
         }
+        GitHubReleaseLinks.remove(id)
         // Installed extension settings must not survive uninstall.
         let prefix = "xtend.extension.storage.\(id)."
         UserDefaults.standard.removeObject(forKey: prefix + "local")
@@ -88,7 +90,23 @@ enum InstalledExtensionCatalog {
         }
         var entry = InstalledExtensionInfo(id: id, name: name, version: manifest.version, icon: icon, issue: nil)
         entry.hasSettings = ExtensionPackage(id: id, root: root.standardizedFileURL, manifest: manifest).settingsPage != nil
+        entry.chromeWebStoreURL = chromeWebStoreURL(for: id, root: root)
         return entry
+    }
+
+    static func chromeWebStoreURL(for id: String, root: URL) -> URL? {
+        // Prefer the verified source recorded at install time over an unrelated GitHub repository.
+        let metadataURL = root.appendingPathComponent(".xtend-install.json")
+        if let data = try? Data(contentsOf: metadataURL),
+           let metadata = try? JSONDecoder().decode(ExtensionInstallMetadata.self, from: data),
+           metadata.id == id,
+           case .chromeWebStore(let url) = metadata.source,
+           (try? ExtensionInstallStore.extensionID(from: url)) == id {
+            return url
+        }
+        // Existing Nyatto installs may predate install metadata.
+        return id == ExtensionInstallStore.supportedExtensionID
+            ? ExtensionInstallStore.defaultStoreURL : nil
     }
 
     private static func localized(_ name: String, locale: String?, root: URL) -> String {
@@ -119,6 +137,7 @@ enum InstalledExtensionCatalog {
 final class InstalledExtensionsListView: UIView {
     var onRemove: ((InstalledExtensionInfo) -> Void)?
     var onSettings: ((InstalledExtensionInfo) -> Void)?
+    var onCheckRelease: ((InstalledExtensionInfo) -> Void)?
     private let content = UIStackView()
 
     override init(frame: CGRect) {
@@ -214,7 +233,24 @@ final class InstalledExtensionsListView: UIView {
             row.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
             row.backgroundColor = .secondarySystemGroupedBackground
             row.layer.cornerRadius = 14
-            content.addArrangedSubview(row)
+            if let onCheckRelease {
+                let checkButton = UIButton(type: .system)
+                checkButton.setTitle("更新を確認", for: .normal)
+                checkButton.setImage(UIImage(systemName: "arrow.clockwise"), for: .normal)
+                checkButton.tintColor = .tintColor
+                checkButton.contentHorizontalAlignment = .leading
+                checkButton.accessibilityIdentifier = "xtend.release.check.\(item.id)"
+                checkButton.accessibilityLabel = "\(item.name)の更新を確認"
+                checkButton.isEnabled = item.issue == nil
+                checkButton.addAction(UIAction { _ in onCheckRelease(item) }, for: .touchUpInside)
+                checkButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+                let column = UIStackView(arrangedSubviews: [row, checkButton])
+                column.axis = .vertical
+                column.spacing = 0
+                content.addArrangedSubview(column)
+            } else {
+                content.addArrangedSubview(row)
+            }
         }
 
         isHidden = false
