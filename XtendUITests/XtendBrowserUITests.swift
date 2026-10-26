@@ -108,6 +108,56 @@ final class XtendBrowserUITests: XCTestCase {
         }
     }
 
+    /// Dismiss overlays X may restore on launch; otherwise swipes hit the
+    /// drawer while the test incorrectly reports the browser is alive.
+    private func dismissXOverlays(in web: XCUIElement) {
+        sleep(5)
+        web.coordinate(withNormalizedOffset: CGVector(dx: 0.69, dy: 0.94)).tap()
+        sleep(1)
+        web.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.44)).tap()
+        sleep(1)
+        if web.buttons["Xtendの設定"].exists {
+            let from = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.17))
+            let to = web.coordinate(withNormalizedOffset: CGVector(dx: 0.07, dy: 0.17))
+            from.press(forDuration: 0.1, thenDragTo: to)
+            sleep(2)
+        }
+    }
+
+    func testTimelineSwitchOnActualX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        dismissXOverlays(in: web)
+        let following = web.buttons.matching(NSPredicate(
+            format: "label ==[cd] %@ OR label ==[cd] %@", "Following", "フォロー中"
+        )).firstMatch
+        let forYou = web.buttons.matching(NSPredicate(
+            format: "label ==[cd] %@ OR label ==[cd] %@", "For you", "おすすめ"
+        )).firstMatch
+        captureBrowserEvidence("01-live-X-after-drawer-dismissed")
+        print("LIVE_TABS initial following=\(following.exists) forYou=\(forYou.exists) followingSelected=\(following.exists ? following.isSelected : false)")
+        XCTAssertTrue(following.waitForExistence(timeout: 8),
+                      "X home Following tab must be visible before testing a timeline swipe")
+        XCTAssertTrue(forYou.exists, "X home For you tab must be visible")
+        if following.isSelected { forYou.tap() }
+        captureBrowserEvidence("02-live-X-for-you")
+        let leftStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.34))
+        let leftEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.34))
+        leftStart.press(forDuration: 0.1, thenDragTo: leftEnd)
+        sleep(2)
+        captureBrowserEvidence("03-live-X-following-after-swipe")
+        print("LIVE_TABS left followingSelected=\(following.isSelected) forYouSelected=\(forYou.isSelected)")
+        XCTAssertTrue(following.isSelected, "X Following tab must be selected after swipe left")
+        let rightStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.21, dy: 0.34))
+        let rightEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: 0.34))
+        rightStart.press(forDuration: 0.1, thenDragTo: rightEnd)
+        sleep(2)
+        captureBrowserEvidence("04-live-X-for-you-after-return")
+        print("LIVE_TABS right followingSelected=\(following.isSelected) forYouSelected=\(forYou.isSelected)")
+        XCTAssertTrue(forYou.isSelected, "X For you tab must be selected after swipe right")
+        XCTAssertTrue(web.exists)
+    }
+
     func testSwipeNavigationOnLoggedInX() throws {
         try runSwipeScenario()
     }
