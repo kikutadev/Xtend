@@ -9,10 +9,6 @@
   <a href="./docs/images/app-store/03-manage-extensions.png"><img src="./docs/images/app-store/03-manage-extensions.png" alt="拡張機能を設定・管理" width="45%"></a>
 </p>
 
-## Xの操作ジェスチャー
-
-ホームの左右スワイプによるタブ切り替えと左メニューの開閉はXtendの標準機能です。追加のChrome拡張機能は不要です。
-
 ## おすすめの拡張機能
 
 ### 🐈 [にゃっとランドforX](https://chromewebstore.google.com/detail/にゃっとランドforx/kchlmbffcbaambfigakeiamkhgacemng)
