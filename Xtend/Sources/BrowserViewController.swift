@@ -15,6 +15,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var standbyView: WKWebView?
     private var standbyHost: ExtensionHost?
     private var standbyTarget: Int?
+    private var standbyReady = false
     private var visibleTab: Int?
     private var warmupScheduled = false
     private var visibleURLObservation: NSKeyValueObservation?
@@ -515,6 +516,11 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        if standbyView === webView {
+            standbyReady = false
+            setBetaBridge(false, in: self.webView)
+            return
+        }
         guard self.webView === webView else { return }
         if webView.url?.path != "/home" { releasePreload() }
         pageLoadFailed = false
@@ -754,6 +760,7 @@ private extension BrowserViewController {
         ])
         visibleTab = selected
         standbyTarget = 1 - selected
+        standbyReady = false
         standbyHost = host
         standbyView = alternate
         alternate.load(URLRequest(url: URL(string: "https://x.com/home")!))
@@ -773,8 +780,10 @@ private extension BrowserViewController {
             tabs[\(target)].click();
             return 0;
           }
-          return document.querySelectorAll('[data-testid="cellInnerDiv"]').length > 0 &&
-                 tabs[\(target)].getAttribute('aria-selected') === 'true' ? 1 : 0;
+          // Cells can be placeholders. A real rendered post is required before
+          // exchanging WebViews, otherwise the beta can expose a loading feed.
+          const posts = document.querySelectorAll('[data-testid="tweet"], [data-testid="tweetText"]');
+          return posts.length > 0 && tabs[\(target)].getAttribute('aria-selected') === 'true' ? 1 : 0;
         })()
         """
         browser.evaluateJavaScript(choose) { [weak self, weak browser] result, _ in
@@ -807,6 +816,7 @@ private extension BrowserViewController {
         #if DEBUG
         NSLog("XTEND_BETA: standby ready target=%ld", target)
         #endif
+        standbyReady = true
         setBetaBridge(true, in: webView)
         setBetaBridge(true, in: browser)
         #if DEBUG
@@ -822,7 +832,7 @@ private extension BrowserViewController {
         #if DEBUG
         NSLog("XTEND_BETA: swap request=%ld visible=%@ standby=%@", target, String(describing: visibleTab), String(describing: standbyTarget))
         #endif
-        guard preloadEnabled, !preloadSuspended,
+        guard preloadEnabled, !preloadSuspended, standbyReady,
               let old = webView, let next = standbyView,
               old.url?.path == "/home", next.url?.path == "/home",
               standbyTarget == target, visibleTab == 1 - target else {
@@ -866,6 +876,10 @@ private extension BrowserViewController {
         guard webView === old, standbyView === next else { return }
         #if DEBUG
         NSLog("XTEND_BETA: swap accepted to=%ld", target)
+        if ProcessInfo.processInfo.arguments.contains("--xtend-test-beta-audit") {
+            auditBetaWebView(old, stage: "leaving")
+            auditBetaWebView(next, stage: "before-swap")
+        }
         #endif
         view.insertSubview(next, aboveSubview: old)
         old.accessibilityIdentifier = "Xtend.StandbyTimelineWebView"
@@ -880,8 +894,46 @@ private extension BrowserViewController {
         swap(&extensionHost, &standbyHost)
         standbyTarget = 1 - target
         visibleTab = target
+        standbyReady = true // The old visible page has already been rendered.
         updateNavigationControls(for: next)
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--xtend-test-beta-audit") {
+            auditBetaWebView(next, stage: "after-swap")
+        }
+        #endif
     }
+
+    #if DEBUG
+    /// Reports DOM lifetime and rendered-post count, not post text or account data.
+    /// A true warm switch keeps the same timeOrigin and populated DOM.
+    private func auditBetaWebView(_ browser: WKWebView, stage: String) {
+        let script = """
+        (() => ({
+          timeOrigin: performance.timeOrigin,
+          path: location.pathname,
+          selected: [...document.querySelectorAll('[role="tab"]')].findIndex(t => t.getAttribute('aria-selected') === 'true'),
+          posts: document.querySelectorAll('[data-testid="tweet"], [data-testid="tweetText"]').length,
+          cells: document.querySelectorAll('[data-testid="cellInnerDiv"]').length,
+          scrollY: Math.round(window.scrollY),
+          scrollTop: Math.round(document.scrollingElement?.scrollTop ?? 0),
+          navigationEntries: performance.getEntriesByType('navigation').length,
+          readyState: document.readyState
+        }))()
+        """
+        browser.evaluateJavaScript(script) { result, error in
+            NSLog("XTEND_BETA_AUDIT %@ %@ nativeScroll=%0.1f error=%@", stage,
+                  String(describing: result), browser.scrollView.contentOffset.y, String(describing: error))
+        }
+        if stage == "after-swap" {
+            // A snapshot validates that WebKit can paint the already hydrated
+            // standby immediately after it becomes the frontmost page.
+            browser.takeSnapshot(with: nil) { image, error in
+                NSLog("XTEND_BETA_AUDIT snapshot visible=%@ size=%@ error=%@",
+                      String(image != nil), String(describing: image?.size), String(describing: error))
+            }
+        }
+    }
+    #endif
 
     private func clickOriginalXTab(_ target: Int, in browser: WKWebView) {
         guard browser.url?.path == "/home", target == 0 || target == 1 else { return }
@@ -907,6 +959,7 @@ private extension BrowserViewController {
 
     private func releasePreload() {
         warmupScheduled = false
+        standbyReady = false
         setBetaBridge(false, in: webView)
         setBetaBridge(false, in: standbyView)
         standbyView?.stopLoading()
