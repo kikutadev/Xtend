@@ -1,8 +1,40 @@
 import XCTest
+import ZIPFoundation
 @testable import Xtend
 
 final class CommunityExtensionStoreTests: XCTestCase {
     private let fixtureZIP = "UEsDBBQAAAAIAFiNWF07D7rBugAAAAYBAAANAAAAbWFuaWZlc3QuanNvbj2OQWrDQAxFrxK0LMZO6G72IRforgQzkdV4ko7GSHISML57NQ50JelJPP0FcuT0Q2r9g0RTYQifDXDMBAGOr5inX9qdiEkS7r5Gct7A/ykc2n27dzKR5KQVKoRvUCsSrwTnBi4R71cpMw8QFlCSR0Lqn0XuJC54N+1NYW0ACxux9YqSJqumxfMZjrRZR7NJQ9e9Wiy5+6j227YYklqXY+LqcYq6YS9vWmfHMnMfzZ8OBedcH5GnWs/rH1BLAwQUAAAACABYjVhdA4x0jC4AAAA2AAAADAAAAGRpc3QvbWFpbi5qc0vJTy7NTc0r0UuBMlxzUiH8xJLE4tQSvfTUvNSizGTXisTcgpxUW6XK1GIlawBQSwMEFAAAAAgAWI1YXR92Lv8rAAAAKQAAAAwAAABjc3MvbWFpbi5jc3OLTkksSdRNT81LLcpM1k2tSMwtyEmNVahWSMksLshJrLRSyMvPS7VWqAUAUEsDBBQAAAAIAFiNWF2BdhKqHgAAABwAAAAJAAAAd29ya2VyLmpz09dX8MsvUUitSE0uLUlNUcjPUwj3Dk9NCstMLQcAUEsBAhQDFAAAAAgAWI1YXTsPusG6AAAABgEAAA0AAAAAAAAAAAAAAIABAAAAAG1hbmlmZXN0Lmpzb25QSwECFAMUAAAACABYjVhdA4x0jC4AAAA2AAAADAAAAAAAAAAAAAAAgAHlAAAAZGlzdC9tYWluLmpzUEsBAhQDFAAAAAgAWI1YXR92Lv8rAAAAKQAAAAwAAAAAAAAAAAAAAIABPQEAAGNzcy9tYWluLmNzc1BLAQIUAxQAAAAIAFiNWF2BdhKqHgAAABwAAAAJAAAAAAAAAAAAAACAAZIBAAB3b3JrZXIuanNQSwUGAAAAAAQABADmAAAA1wEAAAAA"
+
+    /// Opt-in device test. Release ZIPs are staged into the QA app's Documents folder,
+    /// not committed to Xtend or bundled into the production application.
+    @MainActor
+    func testPublishedGitHubReleaseZIPsInstallAndLoadInSimulator() throws {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fixtures = documents.appendingPathComponent("XtendGitHubReleaseQAFixtures")
+        guard FileManager.default.fileExists(atPath: fixtures.path) else {
+            throw XCTSkip("Published Release fixture ZIPs are not staged for this QA run.")
+        }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("published-github-qa-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = CommunityExtensionStore(directoryOverride: root)
+        for (filename, name) in [
+            ("x-ad-hider-0.1.0-chrome.zip", "X Ad Hider"),
+            ("x-timeline-filter-0.1.0-chrome.zip", "X Timeline Filter")
+        ] {
+            let archive = fixtures.appendingPathComponent(filename)
+            let installed = try store.installFromZIP(archive)
+            XCTAssertEqual(installed.manifest.name, name)
+            XCTAssertEqual(installed.manifest.version, "0.1.0")
+            XCTAssertNotNil(store.installedRoots()[installed.id])
+            let runtime = ExtensionRuntime(installedRoots: store.installedRoots())
+            XCTAssertTrue(runtime.loadIssues.isEmpty)
+            XCTAssertEqual(runtime.packages.count, store.installedRoots().count)
+            let (configuration, host) = try runtime.makeBrowserConfiguration()
+            XCTAssertNotNil(host)
+            XCTAssertGreaterThan(configuration.userContentController.userScripts.count, 1)
+        }
+    }
 
     func testGenericZIPInstallUpdateAndRemove() throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -19,6 +51,34 @@ final class CommunityExtensionStoreTests: XCTestCase {
         XCTAssertEqual(try store.installFromZIP(zip).id, first.id, "Local ZIP updates retain the same extension identity")
         try store.uninstall(id: first.id)
         XCTAssertTrue(store.installedRoots().isEmpty)
+    }
+
+    func testReleaseUpdatePreservesInstalledIdentityAndRejectsDifferentPackage() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let zip = base.appendingPathComponent("fixture.zip")
+        try XCTUnwrap(Data(base64Encoded: fixtureZIP)).write(to: zip)
+        let store = CommunityExtensionStore(directoryOverride: base.appendingPathComponent("Extensions"))
+        let installed = try store.installFromZIP(zip)
+        let updated = try store.installFromZIP(zip, updatingID: installed.id)
+        XCTAssertEqual(updated.id, installed.id)
+        XCTAssertEqual(store.installedRoots().count, 1)
+        XCTAssertThrowsError(try store.installFromZIP(zip, updatingID: "zip-other-extension"))
+
+        let unpacked = base.appendingPathComponent("unpacked")
+        try FileManager.default.unzipItem(at: zip, to: unpacked)
+        let manifestURL = unpacked.appendingPathComponent("manifest.json")
+        var manifest = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
+        manifest["name"] = "Unrelated Extension"
+        try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
+        let maliciousZIP = base.appendingPathComponent("unrelated.zip")
+        try FileManager.default.zipItem(at: unpacked, to: maliciousZIP)
+        XCTAssertThrowsError(try store.installFromZIP(maliciousZIP, updatingID: installed.id))
+        XCTAssertEqual(try CommunityExtensionStore.validateManifest(
+            at: XCTUnwrap(store.installedRoots()[installed.id])).name, installed.manifest.name)
+        XCTAssertEqual(store.installedRoots().count, 1)
     }
 
     func testBrokenPackageIsRejectedWithoutReplacingExistingVersion() throws {

@@ -8,6 +8,15 @@ final class GenericExtensionSettingsUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    func testGitHubURLShowsPrivateTokenInput() throws {
+        app.launch()
+        let urlField = app.textFields["拡張機能のURL"]
+        XCTAssertTrue(urlField.waitForExistence(timeout: 20))
+        urlField.tap()
+        urlField.typeText("https://github.com/example-org/demo-extension")
+        XCTAssertTrue(app.secureTextFields["GitHubの読み取り用トークン"].waitForExistence(timeout: 10))
+    }
+
     func testMinimalThemeSettingsOpensFromInstalledExtensions() throws {
         app.launch()
         let web = app.webViews.firstMatch

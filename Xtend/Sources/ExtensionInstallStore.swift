@@ -2,12 +2,34 @@ import Foundation
 import ZIPFoundation
 
 /// Cancels the transfer as soon as the CRX download exceeds the limit.
-private final class LimitedPackageDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+final class LimitedPackageDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     private let limit: Int64
+    private let allowedRedirectHosts: Set<String>?
     private let lock = NSLock()
     private var exceeded = false
 
-    init(limit: Int64) { self.limit = limit }
+    init(limit: Int64, allowedRedirectHosts: Set<String>? = nil) {
+        self.limit = limit
+        self.allowedRedirectHosts = allowedRedirectHosts
+    }
+
+    func safeRedirect(_ request: URLRequest, from previousURL: URL?) -> URLRequest? {
+        guard let allowedRedirectHosts else { return request }
+        guard let next = request.url, next.scheme == "https",
+              let host = next.host?.lowercased(), allowedRedirectHosts.contains(host) else { return nil }
+        var clean = request
+        if previousURL?.host?.lowercased() != host {
+            clean.setValue(nil, forHTTPHeaderField: "Authorization")
+        }
+        return clean
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(safeRedirect(request, from: response.url))
+    }
 
     var didExceedLimit: Bool {
         lock.lock()
