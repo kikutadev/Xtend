@@ -69,7 +69,7 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、Xの操作ジェスチャー�
 - モバイル版Xにデスクトップ向けプロフィールリンクが存在しない場合、にゃっとランドの本人別履歴のため、専用の `NyattoMobileXAdapter` を当該拡張機能の実行領域にのみ適用し、開いたアカウントメニューで本人のハンドルを確認できた場合に限り互換リンクを補完する。通知や投稿の著者から本人を推定しない。ログアウト・アカウント切替時、または表示中のアカウントメニューを確認できない場合には既存の識別状態を無効化する。履歴自体の保存は共通の `chrome.storage` を使う。
 - ブラウザ上で必要な`chrome.runtime`、`chrome.storage.local`、`chrome.storage.sync`等のAPIを限定的に提供する。`storage.sync`は**端末内の保存領域**であり、Chromeアカウントとの同期ではない。
 - `chrome.storage.local`と`chrome.storage.sync`は拡張機能ID・領域・キーごとにXtendのSQLiteへ保存する。旧`UserDefaults`または拡張機能別JSONファイルは初回アクセス時にデータを保持して移行する。`localStorage`/`IndexedDB`はWebKit標準の保存領域を使い、SQLiteへ転送しない。
-- `chrome.storage.local` / `chrome.storage.sync` は、どの拡張機能もIDと保存領域を分離したファイルへアトミックに書き込み、書込完了後に成功と変更通知を返す。既存の `UserDefaults` 保存値はファイルがない場合だけ移行用に読み込み、次回更新でファイルへ保存する。ファイルが空の場合も古い値を復活させない。にゃっとランド固有のストレージ保存処理は作らない。
+- `chrome.storage.local` / `chrome.storage.sync` は、拡張機能ID・領域・キーを複合キーとしてSQLiteへトランザクション保存し、**コミット成功後**に変更通知を返す。旧JSONファイルと旧UserDefaultsに異なるキーの値があれば両方を保存し、同一キーでは旧JSONを優先して一度だけ移行する。移行済みマーカーで旧データの復活を防止し、にゃっとランド固有のストレージ保存処理は作らない。
 - 拡張機能の画像アセットはインストールされたパックデータから必要な範囲を読み出す。任意のChrome拡張機能やChrome APIすべてへの対応は保証しない。
 - 設定画面の拡張機能リソースは拡張機能IDごとに隔離した専用の`xtend-extension://`スキームで扱い、任意のWebサイトがその権限を使うことは許可しない。
 

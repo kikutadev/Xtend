@@ -71,10 +71,8 @@ enum InstalledExtensionCatalog {
             try CommunityExtensionStore().uninstall(id: id)
         }
         GitHubReleaseLinks.remove(id)
-        // Installed extension settings must not survive uninstall.
-        let prefix = "xtend.extension.storage.\(id)."
-        UserDefaults.standard.removeObject(forKey: prefix + "local")
-        UserDefaults.standard.removeObject(forKey: prefix + "sync")
+        // Clear SQLite values and migration leftovers, not only UserDefaults.
+        try ExtensionStorage(extensionID: id).eraseAll()
     }
 
     private static func info(id: String, root: URL, manifest: InstalledExtensionManifest) -> InstalledExtensionInfo {
