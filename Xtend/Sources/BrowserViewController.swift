@@ -1,16 +1,30 @@
 import UIKit
 import WebKit
 
+enum BetaTimelinePreferences {
+    static let key = "xtend.beta.timelinePreload"
+    static var enabled: Bool { UserDefaults.standard.bool(forKey: key) }
+}
+
 @MainActor
 final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, UIAdaptivePresentationControllerDelegate {
     private let initialURL: URL?
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
-    #if DEBUG
-    private var prewarmProbeView: WKWebView?
-    private var prewarmProbeHost: ExtensionHost?
-    #endif
+    private var standbyView: WKWebView?
+    private var standbyHost: ExtensionHost?
+    private var standbyTarget: Int?
+    private var visibleTab: Int?
+    private var warmupScheduled = false
+    private var visibleURLObservation: NSKeyValueObservation?
+    private var preloadSuspended = false
+    private var preloadEnabled: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--xtend-test-beta-preload") { return true }
+        #endif
+        return BetaTimelinePreferences.enabled
+    }
     private weak var navigationBackButton: UIButton?
     private weak var settingsButton: UIButton?
     private var pageLoadFailed = false
@@ -35,6 +49,12 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
 
         installSettingsButton()
         installBackButton()
+        NotificationCenter.default.addObserver(self, selector: #selector(suspendPreload),
+            name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(releasePreloadInBackground),
+            name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(resumePreload),
+            name: UIApplication.didBecomeActiveNotification, object: nil)
         buildBrowser(initialURL ?? URL(string: "https://x.com/home")!)
     }
 
@@ -62,11 +82,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func buildBrowser(_ url: URL) {
-        #if DEBUG
-        prewarmProbeView?.removeFromSuperview()
-        prewarmProbeView = nil
-        prewarmProbeHost = nil
-        #endif
+        releasePreload()
         let runtime = ExtensionRuntime()
         let configuration: WKWebViewConfiguration
         let host: ExtensionHost?
@@ -88,7 +104,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             hasShownExtensionWarning = false
         }
         installSettingsMenu(into: configuration)
+        installBetaBridge(into: configuration)
         let browser = WKWebView(frame: .zero, configuration: configuration)
+        browser.accessibilityIdentifier = "Xtend.ActiveTimelineWebView"
         host?.attach(to: browser)
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
@@ -96,65 +114,16 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         self.runtime = runtime
         self.extensionHost = host
         self.webView = browser
+        observeVisibleURL()
         configure(browser)
         updateNavigationControls(for: browser, url: url)
         view.sendSubviewToBack(browser)
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--xtend-probe-preload") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self, weak browser] in
-                guard let self, let browser, self.webView === browser else { return }
-                self.startPrewarmProbe()
-            }
-        }
+        NSLog("XTEND_BETA: build enabled=%@", String(preloadEnabled))
         #endif
+        if preloadEnabled { schedulePreload() }
     }
-
-    #if DEBUG
-    /// Isolated experiment: warm a second X runtime without changing the visible
-    /// page. It is never enabled in a production launch.
-    private func startPrewarmProbe() {
-        guard prewarmProbeView == nil, let runtime, let visible = webView,
-              visible.url?.path == "/home", let url = URL(string: "https://x.com/home") else { return }
-        guard let (configuration, host) = try? runtime.makeBrowserConfiguration() else { return }
-        let alternate = WKWebView(frame: .zero, configuration: configuration)
-        host?.attach(to: alternate)
-        alternate.translatesAutoresizingMaskIntoConstraints = false
-        alternate.isOpaque = true
-        view.insertSubview(alternate, belowSubview: visible)
-        NSLayoutConstraint.activate([
-            alternate.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            alternate.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            alternate.topAnchor.constraint(equalTo: view.topAnchor),
-            alternate.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-        prewarmProbeView = alternate
-        prewarmProbeHost = host
-        NSLog("XTEND_PREWARM_PROBE: second WebView created")
-        alternate.load(URLRequest(url: url))
-        for delay in [4.0, 9.0, 16.0] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak alternate] in
-                guard let alternate else { return }
-                let script = """
-                (() => {
-                  const lists = [...document.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')];
-                  const list = lists.find(x => x.querySelectorAll('[role="tab"]').length >= 2);
-                  const tabs = list?.querySelectorAll('[role="tab"]');
-                  if (!tabs) return {state:'waiting', url:location.pathname};
-                  if (tabs[1].getAttribute('aria-selected') !== 'true') tabs[1].click();
-                  return {state:'following-clicked', url:location.pathname,
-                    selected:tabs[1].getAttribute('aria-selected'),
-                    cells:document.querySelectorAll('[data-testid="cellInnerDiv"]').length};
-                })()
-                """
-                alternate.evaluateJavaScript(script) { result, error in
-                    NSLog("XTEND_PREWARM_PROBE: after %.0fs result=%@ error=%@", delay,
-                          String(describing: result), String(describing: error))
-                }
-            }
-        }
-    }
-    #endif
 
     private func configure(_ webView: WKWebView) {
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -189,6 +158,19 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             forMainFrameOnly: true,
             in: world
         ))
+    }
+
+    fileprivate func handleBetaTabMessage(_ message: WKScriptMessage) {
+        guard message.name == "xtendBetaTab", message.webView === webView,
+              message.frameInfo.isMainFrame,
+              ["x.com", "twitter.com"].contains(message.frameInfo.securityOrigin.host),
+              let body = message.body as? [String: Any],
+              body["action"] as? String == "switch",
+              let target = body["target"] as? Int, target == 0 || target == 1 else { return }
+        #if DEBUG
+        NSLog("XTEND_BETA: bridge requested tab=%ld", target)
+        #endif
+        swapPreloadedTab(target)
     }
 
     fileprivate func handleSettingsMessage(_ message: WKScriptMessage) {
@@ -452,7 +434,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
                 }
             },
             onChange: { [weak self] in self?.markExtensionConfigurationChanged() },
-            onFinish: { [weak self] in self?.applyExtensionChanges() }
+            onFinish: { [weak self] in
+                self?.applyExtensionChanges()
+                self?.applyPreloadSetting()
+            }
         )
         let navigation = UINavigationController(rootViewController: settings)
         navigation.modalPresentationStyle = .pageSheet
@@ -466,6 +451,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
         applyExtensionChanges()
+        applyPreloadSetting()
     }
 
     func markExtensionConfigurationChanged() {
@@ -529,15 +515,23 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        guard self.webView === webView else { return }
+        if webView.url?.path != "/home" { releasePreload() }
         pageLoadFailed = false
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if standbyView === webView {
+            checkStandbyReady(webView)
+            return
+        }
+        guard self.webView === webView else { return }
         pageLoadFailed = false
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
+        schedulePreload()
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -549,7 +543,13 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        if standbyView === webView {
+            preloadSuspended = true
+            releasePreload()
+            return
+        }
         guard self.webView === webView else { return }
+        releasePreload()
         let now = Date()
         if let previous = lastWebProcessTermination, now.timeIntervalSince(previous) < 30 {
             // A repeating WebContent crash must not turn into an endless reload loop.
@@ -563,6 +563,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func reportNavigationFailure(_ error: Error, in webView: WKWebView) {
+        if standbyView === webView { releasePreload(); return }
         guard self.webView === webView,
               (error as NSError).code != NSURLErrorCancelled else { return }
         pageLoadFailed = true
@@ -648,5 +649,298 @@ private final class SettingsMenuBridge: NSObject, WKScriptMessageHandler {
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         browser?.handleSettingsMessage(message)
+    }
+}
+// Keeping all beta lifecycle transitions together makes the normal browser
+// controller independent of its optional second WebView.
+private extension BrowserViewController {
+    private func installBetaBridge(into configuration: WKWebViewConfiguration) {
+        configuration.userContentController.add(BetaTabMessageBridge(owner: self),
+            contentWorld: WKContentWorld.world(name: "Xtend.Navigation"), name: "xtendBetaTab")
+    }
+
+    private func setBetaBridge(_ enabled: Bool, in browser: WKWebView?) {
+        guard let browser else { return }
+        browser.evaluateJavaScript("window.__xtendBetaTabReady = \(enabled ? "true" : "false")",
+            in: nil, in: WKContentWorld.world(name: "Xtend.Navigation"), completionHandler: nil)
+    }
+
+    /// Close X overlays only in the offscreen WebView. Never dismiss UI that
+    /// the user intentionally opened on the visible timeline.
+    private static let clearStandbyOverlays = """
+        (() => {
+          const drawer = document.querySelector('button[data-testid="DashButton_ProfileIcon_Link"][aria-expanded="true"]');
+          if (drawer) { drawer.click(); return false; }
+          const shortcut = [...document.querySelectorAll('[aria-label="Close"]')]
+            .find(button => {
+              const rect=button.getBoundingClientRect();
+              return rect.width > 0 && rect.bottom > innerHeight * .75 && rect.right > innerWidth * .5;
+            });
+          if (shortcut) { shortcut.click(); return false; }
+          return true;
+        })()
+        """
+
+    private static let selectedTabScript = """
+        (() => {
+          const list = [...document.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')]
+            .find(el => { const r=el.getBoundingClientRect(); return r.width>=80 && r.top>=-10 && r.top<=160 && el.querySelectorAll('[role="tab"]').length>=2; });
+          const tabs=list?.querySelectorAll('[role="tab"]');
+          if (!tabs) return -1;
+          return [0,1].find(i=>tabs[i]?.getAttribute('aria-selected')==='true') ?? -1;
+        })()
+        """
+
+    private func schedulePreload(attempt: Int = 0) {
+        #if DEBUG
+        NSLog("XTEND_BETA: schedule enabled=%@ suspended=%@ standby=%@", String(preloadEnabled), String(preloadSuspended), String(standbyView != nil))
+        #endif
+        guard preloadEnabled, !preloadSuspended, standbyView == nil, !warmupScheduled,
+              webView?.url?.path == "/home" else { return }
+        warmupScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self else { return }
+            self.warmupScheduled = false
+            guard self.preloadEnabled, !self.preloadSuspended, self.standbyView == nil,
+                  let browser = self.webView, browser.url?.path == "/home", self.presentedViewController == nil else { return }
+            browser.evaluateJavaScript(Self.selectedTabScript) { [weak self, weak browser] result, error in
+                #if DEBUG
+                NSLog("XTEND_BETA: selected tab=%@ error=%@", String(describing: result), String(describing: error))
+                #endif
+                guard let self, let browser, self.webView === browser else { return }
+                if let selected = result as? Int, selected == 0 || selected == 1 {
+                    self.startPreload(oppositeOf: selected)
+                } else if attempt < 10 {
+                    // X hydrates its tab bar asynchronously, often after didFinish.
+                    self.schedulePreload(attempt: attempt + 1)
+                }
+            }
+        }
+    }
+
+    private func startPreload(oppositeOf selected: Int) {
+        #if DEBUG
+        NSLog("XTEND_BETA: preload selected=%ld", selected)
+        #endif
+        guard standbyView == nil, let runtime, let browser = webView, browser.url?.path == "/home",
+              let (config, host) = try? runtime.makeBrowserConfiguration() else { return }
+        installSettingsMenu(into: config)
+        installBetaBridge(into: config)
+        let alternate = WKWebView(frame: .zero, configuration: config)
+        alternate.accessibilityIdentifier = "Xtend.StandbyTimelineWebView"
+        alternate.accessibilityElementsHidden = true
+        alternate.isUserInteractionEnabled = false
+        alternate.navigationDelegate = self
+        alternate.uiDelegate = self
+        host?.attach(to: alternate)
+        alternate.translatesAutoresizingMaskIntoConstraints = false
+        alternate.scrollView.contentInsetAdjustmentBehavior = .automatic
+        alternate.isOpaque = false
+        alternate.backgroundColor = .systemBackground
+        view.insertSubview(alternate, belowSubview: browser)
+        NSLayoutConstraint.activate([
+            alternate.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            alternate.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            alternate.topAnchor.constraint(equalTo: view.topAnchor),
+            alternate.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        visibleTab = selected
+        standbyTarget = 1 - selected
+        standbyHost = host
+        standbyView = alternate
+        alternate.load(URLRequest(url: URL(string: "https://x.com/home")!))
+    }
+
+    private func checkStandbyReady(_ browser: WKWebView, attempts: Int = 0) {
+        guard standbyView === browser, let target = standbyTarget, preloadEnabled,
+              !preloadSuspended, webView?.url?.path == "/home" else { return }
+        // X hydrates its tabs after WKNavigationDelegate.didFinish.
+        let choose = """
+        (() => {
+          const list = [...document.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')]
+            .find(el=>el.querySelectorAll('[role="tab"]').length >= 2);
+          const tabs=list?.querySelectorAll('[role="tab"]');
+          if (!tabs) return -1;
+          if (tabs[\(target)].getAttribute('aria-selected') !== 'true') {
+            tabs[\(target)].click();
+            return 0;
+          }
+          return document.querySelectorAll('[data-testid="cellInnerDiv"]').length > 0 &&
+                 tabs[\(target)].getAttribute('aria-selected') === 'true' ? 1 : 0;
+        })()
+        """
+        browser.evaluateJavaScript(choose) { [weak self, weak browser] result, _ in
+            guard let self, let browser, self.standbyView === browser else { return }
+            if (result as? Int) == 1 {
+                browser.evaluateJavaScript(Self.clearStandbyOverlays) { [weak self, weak browser] clean, _ in
+                    guard let self, let browser, self.standbyView === browser else { return }
+                    if (clean as? Bool) != true {
+                        if attempts < 12 {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak browser] in
+                                guard let self, let browser else { return }
+                                self.checkStandbyReady(browser, attempts: attempts + 1)
+                            }
+                        } else { self.releasePreload() }
+                        return
+                    }
+                    self.finishStandbyPreparation(browser, target: target)
+                }
+            } else if attempts < 12 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self, weak browser] in
+                    guard let self, let browser else { return }
+                    self.checkStandbyReady(browser, attempts: attempts + 1)
+                }
+            } else { self.releasePreload() }
+        }
+    }
+
+    private func finishStandbyPreparation(_ browser: WKWebView, target: Int) {
+        guard standbyView === browser, standbyTarget == target else { return }
+        #if DEBUG
+        NSLog("XTEND_BETA: standby ready target=%ld", target)
+        #endif
+        setBetaBridge(true, in: webView)
+        setBetaBridge(true, in: browser)
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--xtend-test-beta-swap") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.swapPreloadedTab(target)
+            }
+        }
+        #endif
+    }
+
+    private func swapPreloadedTab(_ target: Int, attempts: Int = 0) {
+        #if DEBUG
+        NSLog("XTEND_BETA: swap request=%ld visible=%@ standby=%@", target, String(describing: visibleTab), String(describing: standbyTarget))
+        #endif
+        guard preloadEnabled, !preloadSuspended,
+              let old = webView, let next = standbyView,
+              old.url?.path == "/home", next.url?.path == "/home",
+              standbyTarget == target, visibleTab == 1 - target else {
+            if let browser = webView { clickOriginalXTab(target, in: browser) }
+            return
+        }
+        // If X changed tabs on its own (e.g. another extension), don't swap
+        // stale feeds. Fall back to X and discard the stale standby.
+        old.evaluateJavaScript(Self.selectedTabScript) { [weak self, weak old, weak next] result, _ in
+            guard let self, let old, let next,
+                  self.webView === old, self.standbyView === next else { return }
+            guard (result as? Int) == self.visibleTab else {
+                // The visible X page may have changed tabs independently.
+                // Don't swallow a gesture when the warm copy is stale.
+                self.releasePreload()
+                self.clickOriginalXTab(target, in: old)
+                self.schedulePreload()
+                return
+            }
+            next.evaluateJavaScript(Self.clearStandbyOverlays) { [weak self, weak old, weak next] clear, _ in
+                guard let self, let old, let next, self.webView === old, self.standbyView === next else { return }
+                if (clear as? Bool) != true {
+                    if attempts >= 6 {
+                        // An overlay that cannot close must not trap navigation.
+                        self.preloadSuspended = true
+                        self.releasePreload()
+                        self.clickOriginalXTab(target, in: old)
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                            self?.swapPreloadedTab(target, attempts: attempts + 1)
+                        }
+                    }
+                    return
+                }
+                self.completeTabSwap(from: old, to: next, target: target)
+            }
+        }
+    }
+
+    private func completeTabSwap(from old: WKWebView, to next: WKWebView, target: Int) {
+        guard webView === old, standbyView === next else { return }
+        #if DEBUG
+        NSLog("XTEND_BETA: swap accepted to=%ld", target)
+        #endif
+        view.insertSubview(next, aboveSubview: old)
+        old.accessibilityIdentifier = "Xtend.StandbyTimelineWebView"
+        old.accessibilityElementsHidden = true
+        old.isUserInteractionEnabled = false
+        next.accessibilityIdentifier = "Xtend.ActiveTimelineWebView"
+        next.accessibilityElementsHidden = false
+        next.isUserInteractionEnabled = true
+        webView = next
+        standbyView = old
+        observeVisibleURL()
+        swap(&extensionHost, &standbyHost)
+        standbyTarget = 1 - target
+        visibleTab = target
+        updateNavigationControls(for: next)
+    }
+
+    private func clickOriginalXTab(_ target: Int, in browser: WKWebView) {
+        guard browser.url?.path == "/home", target == 0 || target == 1 else { return }
+        let script = """
+        (() => {
+            const list=[...document.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')]
+                .find(el=>el.querySelectorAll('[role="tab"]').length>=2);
+            list?.querySelectorAll('[role="tab"]')[\(target)]?.click();
+        })()
+        """
+        browser.evaluateJavaScript(script, in: nil, in: WKContentWorld.world(name: "Xtend.Navigation"), completionHandler: nil)
+    }
+
+    private func observeVisibleURL() {
+        visibleURLObservation = webView?.observe(\.url, options: [.new]) { [weak self] browser, _ in
+            Task { @MainActor [weak self, weak browser] in
+                guard let self, let browser, self.webView === browser else { return }
+                if browser.url?.path == "/home" { self.schedulePreload() }
+                else { self.releasePreload() }
+            }
+        }
+    }
+
+    private func releasePreload() {
+        warmupScheduled = false
+        setBetaBridge(false, in: webView)
+        setBetaBridge(false, in: standbyView)
+        standbyView?.stopLoading()
+        standbyView?.navigationDelegate = nil
+        standbyView?.uiDelegate = nil
+        standbyView?.removeFromSuperview()
+        standbyView = nil
+        standbyHost = nil
+        standbyTarget = nil
+        visibleTab = nil
+    }
+
+    @objc private func suspendPreload() {
+        #if DEBUG
+        NSLog("XTEND_BETA: memory warning, suspending")
+        #endif
+        preloadSuspended = true
+        releasePreload()
+    }
+
+    @objc private func releasePreloadInBackground() { releasePreload() }
+
+    @objc private func resumePreload() { schedulePreload() }
+
+    private func applyPreloadSetting() {
+        preloadSuspended = false
+        if preloadEnabled { schedulePreload() }
+        else { releasePreload() }
+    }
+
+}
+
+/// WKUserContentController retains its handlers. Do not retain the browser
+/// controller from both the active and the standby page's configurations.
+@MainActor
+private final class BetaTabMessageBridge: NSObject, WKScriptMessageHandler {
+    weak var owner: BrowserViewController?
+
+    init(owner: BrowserViewController) { self.owner = owner }
+
+    func userContentController(_ userContentController: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        owner?.handleBetaTabMessage(message)
     }
 }

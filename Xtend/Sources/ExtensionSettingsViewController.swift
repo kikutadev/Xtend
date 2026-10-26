@@ -80,6 +80,34 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
         installedList.onRemove = { [weak self] in self?.confirmRemove($0) }
         installedList.onSettings = { [weak self] in self?.openExtensionSettings($0) }
+        // Opt-in: the second X page may consume hundreds of MB of memory.
+        let betaToggle = UISwitch()
+        betaToggle.accessibilityLabel = "タイムラインの先読み（ベータ）"
+        betaToggle.isOn = BetaTimelinePreferences.enabled
+        betaToggle.addAction(UIAction { _ in
+            UserDefaults.standard.set(betaToggle.isOn, forKey: BetaTimelinePreferences.key)
+        }, for: .valueChanged)
+        let betaLabel = UILabel()
+        betaLabel.text = "タイムラインの先読み（ベータ）"
+        betaLabel.font = .preferredFont(forTextStyle: .headline)
+        betaLabel.numberOfLines = 0
+        let betaRow = UIStackView(arrangedSubviews: [betaLabel, betaToggle])
+        betaRow.axis = .horizontal
+        betaRow.spacing = 10
+        betaRow.alignment = .center
+        let betaFootnote = UILabel()
+        betaFootnote.text = "おすすめとフォロー中を先読みします。メモリ使用量が増えるため、問題がある場合はオフにしてください。"
+        betaFootnote.font = .preferredFont(forTextStyle: .footnote)
+        betaFootnote.textColor = .secondaryLabel
+        betaFootnote.numberOfLines = 0
+        let betaTitle = UILabel()
+        betaTitle.text = "ベータ機能"
+        betaTitle.font = .preferredFont(forTextStyle: .headline)
+        let betaSection = UIStackView(arrangedSubviews: [betaTitle, betaRow, betaFootnote])
+        betaSection.axis = .vertical
+        betaSection.spacing = 6
+        stack.addArrangedSubview(betaSection)
+        stack.setCustomSpacing(24, after: betaSection)
         stack.addArrangedSubview(installedList)
 
         let empty = UILabel()

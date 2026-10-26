@@ -217,6 +217,23 @@
     }
   }
 
+  // The beta preloader only redirects gestures when the other fully hydrated
+  // WKWebView is ready. With the flag off, X's native tabs work as before.
+  function requestWarmTab(doc, next) {
+    const win = doc.defaultView;
+    if (win?.__xtendBetaTabReady !== true || win.location.pathname !== '/home' || !next) return false;
+    const list = next.closest('[data-testid="ScrollSnap-List"][role="tablist"]');
+    const tabs = list && Array.from(list.querySelectorAll('[role="tab"]'));
+    if (!tabs || tabs.length < 2 || ![tabs[0], tabs[1]].includes(next)) return false;
+    const index = tabs.indexOf(next);
+    const target = getTabTarget(doc, index === 1)?.tab;
+    if (target !== next) return false;
+    const bridge = win.webkit?.messageHandlers?.xtendBetaTab;
+    if (!bridge) return false;
+    bridge.postMessage({ action: 'switch', target: index });
+    return true;
+  }
+
   function startSwipeNavigation(doc) {
     const browserWindow = doc.defaultView;
     if (!browserWindow) return;
@@ -361,6 +378,10 @@
         animateTo(gesture, 0, win, () => restoreVisual(gesture));
       } else {
         const next = gesture.tab;
+        if (requestWarmTab(doc, next)) {
+          restoreVisual(gesture);
+          return;
+        }
         // Start the next timeline while the outgoing visual is animating,
         // instead of holding X's tab click for FINISH_MS.
         const transition = switchTabAheadOfAnimation(doc, win, gesture, next, dx);
@@ -381,6 +402,15 @@
         tabTransition = null;
       }
     }
+
+    function onTabClick(event) {
+      if (!event.isTrusted || !isElement(event.target)) return;
+      const tab = event.target.closest('[role="tab"]');
+      if (!tab || !requestWarmTab(doc, tab)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+    doc.addEventListener('click', onTabClick, { capture: true });
 
     doc.addEventListener('touchstart', onStart, { capture: true, passive: true });
     doc.addEventListener('touchmove', onMove, { capture: true, passive: false });

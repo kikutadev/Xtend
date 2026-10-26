@@ -124,6 +124,32 @@ final class XtendBrowserUITests: XCTestCase {
         }
     }
 
+    func testBetaTimelinePreloadOnActualX() throws {
+        app.launchArguments.append("--xtend-test-beta-preload")
+        try launchExistingBrowser()
+        sleep(17)
+        let active = app.webViews["Xtend.ActiveTimelineWebView"]
+        XCTAssertTrue(active.waitForExistence(timeout: 12))
+        // The background timeline must not be reachable by accessibility.
+        XCTAssertFalse(app.webViews["Xtend.StandbyTimelineWebView"].exists)
+        dismissXOverlays(in: active)
+        captureBrowserEvidence("beta-initial")
+        let currentForYou = active.buttons["For you"].isSelected
+        let currentFollowing = active.buttons["Following"].isSelected
+        XCTAssertTrue(currentForYou || currentFollowing, "Visible X must have a selected home tab")
+        active.coordinate(withNormalizedOffset: CGVector(dx: currentForYou ? 0.32 : 0.12, dy: 0.09)).tap()
+        sleep(2)
+        captureBrowserEvidence("beta-switched")
+        XCTAssertTrue(app.webViews["Xtend.ActiveTimelineWebView"].buttons[currentForYou ? "Following" : "For you"].isSelected,
+                      "Beta must switch to the prefetched X timeline")
+        let newActive = app.webViews["Xtend.ActiveTimelineWebView"]
+        newActive.coordinate(withNormalizedOffset: CGVector(dx: currentForYou ? 0.12 : 0.32, dy: 0.09)).tap()
+        sleep(2)
+        XCTAssertTrue(app.webViews["Xtend.ActiveTimelineWebView"].buttons[currentForYou ? "For you" : "Following"].isSelected,
+                      "Beta must return to the previously loaded X timeline")
+        print("BETA_ROUND_TRIP passed")
+    }
+
     func testTimelineSwitchOnActualX() throws {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch

@@ -124,17 +124,24 @@ python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 
 画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
 
-### Xホームの第二WebView先読みプローブ（DEBUG限定）
+### Xホームの先読みベータ
 
-第二WebViewの先読みが成立するかを調べる開発用プローブです。**通常起動では動作せず、先読み切り替え機能としては未完成**です。既存のログイン済みSimulatorで、Xホームを表示できる状態に限ります。プローブは第二WebViewを背面に生成し、Xの標準タブをクリックして`Following`を表示します。検証ログにはタブ選択状態とセル件数のみを出します。
+Xtendの設定画面の「ベータ機能 → タイムラインの先読み（ベータ）」で有効にできます。初期状態はオフで、オンにするとXホームのもう一方のタブを背面のWKWebViewで先読みします。両方のページがXと拡張機能を実行するためメモリ負荷が増えます。X以外の画面・メモリ警告・バックグラウンドでは第二WebViewを解放します。
+
+DEBUGでのみ、設定を書き換えずに機能を試す起動引数を使えます。
 
 ```sh
-xcrun simctl launch booted org.example.xtend --xtend-probe-preload
-xcrun simctl spawn booted log show --last 2m --style compact \
-  --predicate 'process == "Xtend" AND eventMessage CONTAINS "XTEND_PREWARM_PROBE"'
+xcrun simctl launch booted org.example.xtend --xtend-test-beta-preload
+# ネイティブ入れ替えだけの確認（実タッチ操作のテストではない）
+xcrun simctl launch --terminate-running-process booted org.example.xtend \
+  --xtend-test-beta-preload --xtend-test-beta-swap
+xcrun simctl spawn booted log show --last 1m --style compact \
+  --predicate 'eventMessage CONTAINS "XTEND_BETA"'
 ```
 
-`footprint -p <Xtend PID> -p <WebContent PID> ... --noCategories` で関連プロセスの物理メモリを測ります。第二WebViewの実プロセスを特定してから計測し、共有Simulatorの他作業が入ったサンプルは除外してください。単にWebViewを生成するだけでは、ネイティブでタブ切り替えする体験の完成を意味しません。
+ブラウザのジェスチャーとタブクリックの単体試験は`scripts/test-beta-tab-bridge.mjs`、実XのXCUITestは`testBetaTimelinePreloadOnActualX`です。実Xでは画面内のリンク・画像・動画上で開始したスワイプが意図的に無効化される場合があり、さらにインストール済みのキーボードショートカット案内が画面へ残るケースもあります。XCUITestの成功だけで体感やメモリの改善を断定しないでください。
+
+`footprint -p <Xtend PID> -p <WebContent PID> ... --noCategories`を利用し、Xtend本体だけでなくWKWebViewの各WebContentプロセスを含めて比較します。共有Simulatorへ別作業が割り込んだ試行は結果から除外してください。
 
 ## 配布時の注意
 
