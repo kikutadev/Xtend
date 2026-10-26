@@ -1,0 +1,9 @@
+[submodule "extensions/x-ad-hider"]
+	path = extensions/x-ad-hider
+	url = https://github.com/kikutadev/x-ad-hider.git
+[submodule "extensions/x-timeline-filter"]
+	path = extensions/x-timeline-filter
+	url = https://github.com/kikutadev/x-timeline-filter.git
+[submodule "extensions/x-follower-analyzer"]
+	path = extensions/x-follower-analyzer
+	url = https://github.com/kikutadev/x-follower-analyzer.git

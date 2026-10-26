@@ -90,17 +90,26 @@ zip -r ../../x-home-anchor.zip .
 
 ## X向けWXT拡張機能の共通開発用Chrome
 
-X向けWXT拡張機能 `../x-ad-hider/`、`../x-timeline-filter/` は `~/.wxt-shared-chrome` を共有します。
+X向けChrome拡張機能は `extensions/` 配下の**独立Gitリポジトリ（Git Submodule）**として管理します。
+
+- `extensions/x-timeline-filter/`：X Timeline Filter
+- `extensions/x-ad-hider/`：X Ad Hider
+- `extensions/x-follower-analyzer/`：X FF Analyzer
+
+Xtendを初回取得する場合は `git clone --recurse-submodules https://github.com/kikutadev/Xtend.git`、取得済みの場合はXtendルートで `git submodule update --init --recursive` を実行します。各拡張のソース変更・コミット・Pushは**各Submodule内のGit**で行い、Xtend側では使用するコミットIDの更新を別途コミットします。Xtend本体は公開リポジトリですが、FF Analyzerは非公開なので、そのSubmoduleを取得するにはGitHubのアクセス権が必要です（第三者が全Submoduleを一括cloneできる構成ではありません）。
+
+WXT開発用Chromeは `~/.wxt-shared-chrome` を使用します。Xtendルートから：
 
 ```sh
 scripts/open-x-wxt-chrome.sh
-cd ../x-timeline-filter
-pnpm dev:shared
+cd extensions/x-timeline-filter
+pnpm install
+node scripts/dev-shared.mjs
+# FF Analyzerも同じChromeを使う場合：別ターミナルで
+# cd extensions/x-follower-analyzer && pnpm install && pnpm dev:shared
 ```
 
-`pnpm dev:shared` はWXT開発サーバーを起動し、ChromeのCDP（localhost:9341）で拡張機能を自動読み込みします。複数プロジェクトから同時利用でき、Chromeは1つです。Cookieは各拡張機能にはコピーしません。
-
-WXT標準のChrome自動起動は、macOSで保存済みログインCookieを使えなくする可能性があるため無効化します。通常の `pnpm dev` はビルドのみです。**共通ランチャーはChromeを自動起動せず**、CDP 9341の接続先が指定プロファイルの通常版Chromeかを検証してから拡張機能を読み込みます。起動スクリプトも既存Chromeが動作中なら二重起動しません。起動状態・プロファイル・WXT設定が不正な場合は停止します。新しいX用WXTプロジェクトも `../x-timeline-filter/scripts/dev-shared.mjs` を利用します。 開発サーバーのポートはプロジェクト名から割り当て、同時起動時の衝突を避けます。変更が必要なら `X_WXT_PORT` を指定します。
+共有ランチャーはWXT開発サーバーを起動し、ChromeのCDP（localhost:9341）経由で拡張機能を読み込みます。Chromeを勝手に新規起動せず、プロファイルとポートの一致を検証します。ポートはプロジェクト名から割り当て、必要な場合は `X_WXT_PORT` で変更できます。X Ad Hiderは `cd extensions/x-ad-hider && pnpm install && pnpm build` でビルドし、`.output/chrome-mv3` をChromeで読み込めます。WXTの生成物はSubmodule側で管理し、Xtend本体には同梱しません。
 
 ## Xtend標準スワイプの検証
 
