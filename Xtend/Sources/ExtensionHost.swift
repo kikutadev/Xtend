@@ -24,9 +24,9 @@ struct ExtensionPackage {
     var settingsPage: SettingsPage? {
         let options = manifest.optionsUI?.page ?? manifest.optionsPage
         let popup = manifest.action?.defaultPopup
-        var candidates: [(String?, Bool)] = manifest.optionsUI?.openInTab == true
-            ? [(options, true), (popup, false)]
-            : [(popup, false), (options, true)]
+        // Xtend opens this as a full settings screen, not Chrome's small toolbar
+        // bubble. Prefer a dedicated options page whenever the extension has one.
+        var candidates: [(String?, Bool)] = [(options, true), (popup, false)]
         // Preserve packages already using a popup.html without declaring it.
         if options == nil && popup == nil { candidates.append(("popup.html", false)) }
         for (path, wide) in candidates {
