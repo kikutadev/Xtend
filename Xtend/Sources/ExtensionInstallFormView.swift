@@ -11,6 +11,7 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
     private let zipButton = UIButton(type: .system)
     private let githubTokenField = UITextField()
     private let clearTokenButton = UIButton(type: .system)
+    private let sourceNote = UILabel()
     private var busy = false
 
     override init(frame: CGRect) {
@@ -25,7 +26,7 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
         addArrangedSubview(heading)
 
         urlField.borderStyle = .roundedRect
-        urlField.placeholder = "Chrome Web Store / GitHubのURL"
+        urlField.placeholder = "Chrome拡張機能のURL"
         urlField.keyboardType = .URL
         urlField.textContentType = .URL
         urlField.autocorrectionType = .no
@@ -76,14 +77,13 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
         zipButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         addArrangedSubview(zipButton)
 
-        let note = UILabel()
-        note.text = "GitHubのリポジトリURLから最新ReleaseのZIPを取得します。Privateは読み取り用トークンが必要です。"
-        note.font = .preferredFont(forTextStyle: .footnote)
-        note.adjustsFontForContentSizeCategory = true
-        note.textColor = .secondaryLabel
-        note.numberOfLines = 0
+        sourceNote.font = .preferredFont(forTextStyle: .footnote)
+        sourceNote.adjustsFontForContentSizeCategory = true
+        sourceNote.textColor = .secondaryLabel
+        sourceNote.numberOfLines = 0
+        sourceNote.accessibilityIdentifier = "xtend.install.source-note"
         setCustomSpacing(6, after: zipButton)
-        addArrangedSubview(note)
+        addArrangedSubview(sourceNote)
         updateInstallButton()
     }
 
@@ -111,6 +111,9 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
         let isGitHub = GitHubReleaseRepository(input: value) != nil
         githubTokenField.isHidden = !isGitHub
         clearTokenButton.isHidden = !isGitHub || GitHubReleaseCredentials.load() == nil
+        sourceNote.text = isGitHub
+            ? "GitHubの最新ReleaseからZIPを取得します。非公開リポジトリは読み取り用トークンが必要です。"
+            : "Chrome Web StoreのURLから追加できます。ZIPファイルも利用できます。"
         installButton.isEnabled = !busy && !value.isEmpty
     }
 

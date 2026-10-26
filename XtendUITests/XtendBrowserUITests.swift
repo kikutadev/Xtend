@@ -194,6 +194,22 @@ final class XtendBrowserUITests: XCTestCase {
         // X's back arrows are checked separately in the live manual scenario.
     }
 
+    func testNyattoUpdateCheckUsesWebStoreInsteadOfGitHub() throws {
+        try launchExistingBrowser()
+        openSettings()
+        let update = app.buttons["にゃっとランドforXの更新を確認"]
+        let scroll = app.scrollViews.firstMatch
+        for _ in 0..<5 where !update.isHittable {
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(update.waitForExistence(timeout: 10), "Installed Nyatto needs a manual update check")
+        update.tap()
+        XCTAssertFalse(app.alerts["にゃっとランドforXのGitHub取得元"].exists,
+                       "Web Store extensions must not ask for a GitHub clone URL")
+        XCTAssertFalse(app.textFields["GitHubクローンURL"].exists)
+        captureBrowserEvidence("nyatto-webstore-update-check")
+    }
+
     func testManualReloadReturnsToXBrowser() throws {
         try launchExistingBrowser()
         openSettings()

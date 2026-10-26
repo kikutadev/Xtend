@@ -7,6 +7,7 @@ struct InstalledExtensionInfo {
     let icon: UIImage?
     let issue: String?
     var hasSettings = false
+    var chromeWebStoreURL: URL?
 }
 
 @MainActor
@@ -89,7 +90,23 @@ enum InstalledExtensionCatalog {
         }
         var entry = InstalledExtensionInfo(id: id, name: name, version: manifest.version, icon: icon, issue: nil)
         entry.hasSettings = ExtensionPackage(id: id, root: root.standardizedFileURL, manifest: manifest).settingsPage != nil
+        entry.chromeWebStoreURL = chromeWebStoreURL(for: id, root: root)
         return entry
+    }
+
+    static func chromeWebStoreURL(for id: String, root: URL) -> URL? {
+        // Prefer the verified source recorded at install time over an unrelated GitHub repository.
+        let metadataURL = root.appendingPathComponent(".xtend-install.json")
+        if let data = try? Data(contentsOf: metadataURL),
+           let metadata = try? JSONDecoder().decode(ExtensionInstallMetadata.self, from: data),
+           metadata.id == id,
+           case .chromeWebStore(let url) = metadata.source,
+           (try? ExtensionInstallStore.extensionID(from: url)) == id {
+            return url
+        }
+        // Existing Nyatto installs may predate install metadata.
+        return id == ExtensionInstallStore.supportedExtensionID
+            ? ExtensionInstallStore.defaultStoreURL : nil
     }
 
     private static func localized(_ name: String, locale: String?, root: URL) -> String {

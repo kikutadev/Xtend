@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import ZIPFoundation
 @testable import Xtend
 
 @MainActor
@@ -20,6 +21,70 @@ final class RecommendedExtensionsTests: XCTestCase {
         let nyatto = try XCTUnwrap(button(in: view, id: "xtend.recommend.install.にゃっとランドforX"))
         nyatto.sendActions(for: .touchUpInside)
         XCTAssertEqual(received, ExtensionInstallStore.defaultStoreURL.absoluteString)
+    }
+
+    func testNyattoInstallShowsWebStoreGuidanceWithoutGitHubToken() throws {
+        let view = ExtensionInstallFormView()
+        let field = try XCTUnwrap(view.arrangedSubviews.compactMap { $0 as? UITextField }.first)
+        let note = try XCTUnwrap(view.arrangedSubviews.compactMap { $0 as? UILabel }
+            .first { $0.accessibilityIdentifier == "xtend.install.source-note" })
+        let token = try XCTUnwrap(view.arrangedSubviews.compactMap { $0 as? UITextField }
+            .first { $0.accessibilityLabel == "GitHubの読み取り用トークン" })
+
+        XCTAssertTrue(note.text?.contains("Chrome Web Store") == true)
+        XCTAssertFalse(note.text?.contains("GitHub") == true)
+        XCTAssertTrue(token.isHidden)
+
+        field.text = ExtensionInstallStore.defaultStoreURL.absoluteString
+        field.sendActions(for: .editingChanged)
+        XCTAssertTrue(note.text?.contains("Chrome Web Store") == true)
+        XCTAssertFalse(note.text?.contains("GitHub") == true)
+        XCTAssertTrue(token.isHidden)
+
+        field.text = "https://github.com/kikutadev/x-ad-hider"
+        field.sendActions(for: .editingChanged)
+        XCTAssertTrue(note.text?.contains("GitHub") == true)
+        XCTAssertFalse(token.isHidden)
+    }
+
+    func testUpdateSourceSelectionPreservesChromeWebStore() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        // Legacy Nyatto installations had no metadata and must never ask for a GitHub URL.
+        XCTAssertEqual(InstalledExtensionCatalog.chromeWebStoreURL(
+            for: ExtensionInstallStore.supportedExtensionID, root: root),
+            ExtensionInstallStore.defaultStoreURL)
+        let id = "abcdefghijklmnopabcdefghijklmnop"
+        let url = URL(string: "https://chromewebstore.google.com/detail/example/\(id)")!
+        let metadata = ExtensionInstallMetadata(id: id, version: "1.0.0", source: .chromeWebStore(url))
+        try JSONEncoder().encode(metadata).write(to: root.appendingPathComponent(".xtend-install.json"))
+        XCTAssertEqual(InstalledExtensionCatalog.chromeWebStoreURL(for: id, root: root), url)
+        // A GitHub/ZIP source must not be misclassified as a Web Store extension.
+        XCTAssertNil(InstalledExtensionCatalog.chromeWebStoreURL(for: "different-extension", root: root))
+    }
+
+    func testWebStoreVersionInspectionDoesNotInstallPackage() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let extensionRoot = folder.appendingPathComponent("extension")
+        try FileManager.default.createDirectory(at: extensionRoot, withIntermediateDirectories: true)
+        let manifest = """
+            {"manifest_version":3,"name":"Demo X Tool","version":"2.3.1",
+             "content_scripts":[{"matches":["https://x.com/*"],"js":["content.js"]}]}
+            """
+        try manifest.write(to: extensionRoot.appendingPathComponent("manifest.json"),
+                           atomically: true, encoding: .utf8)
+        try "console.log('test');".write(to: extensionRoot.appendingPathComponent("content.js"),
+                                       atomically: true, encoding: .utf8)
+        let archive = folder.appendingPathComponent("package.zip")
+        try FileManager.default.zipItem(at: extensionRoot, to: archive)
+        let id = "abcdefghijklmnopabcdefghijklmnop"
+        let source = URL(string: "https://chromewebstore.google.com/detail/demo/\(id)")!
+        let checked = try ExtensionURLInstaller.inspectWebStorePayload(Data(contentsOf: archive), storeURL: source)
+        XCTAssertEqual(checked.version, "2.3.1")
+        XCTAssertEqual(checked.extensionID, id)
+        XCTAssertEqual(checked.storeURL, source)
     }
 
     func testInstalledAndBusyRecommendationsCannotInstallAgain() throws {
