@@ -21,6 +21,8 @@
 
 **追加検証上の注意：** 既存の長い`testSwipeNavigationOnLoggedInX`を強化して専用テストと連続実行した際、UITest Runnerが`Test crashed with signal kill`で終了。新規の`testTimelineSwitchOnActualX`自体は成功。原因（アプリ・Runner・Simulator負荷）は未特定で、アプリのクラッシュと断定しない。従来テストの長さと不安定さを増やす変更は採用せず、専用テストでタブ選択を検証する。
 
+**メモリA/B（2026-10-26）：** MacのヘッドレスPlaywright WebKitで、同じ模擬タイムラインを表示し、変更前/後それぞれブラウザを新規起動して24回往復切り替え。`before → after → after → before → before → after`の計6回。各3回の中央値はWebKit試験プロセスのRSSで117.3→117.5 MiB（切り替え後）、`footprint`で確認した同プロセスの物理フットプリントは20→20 MiB、ピーク23→23 MiB。いずれも単一のWebKit試験プロセスの数値であり、iOSのXtend/別プロセスのWebKit/実Xの使用量ではない。明確な差は検出できなかった。再実行は`scripts/measure-webkit-memory.mjs`を参照。実Xログイン済みのSimulatorは別作業のXCUITestが稼働しており、起動アプリを差し替えて行う実XのA/B測定は未実施。
+
 **残り：** 実Xのスワイプ確定から投稿描画までの時間とメモリは未計測。合成WebKitテストの短縮値を実Xの改善量とは扱わない。実機の負荷・連続スワイプ時の安定性も未確認。実Xの性能悪化・表示不具合が確認された場合は採用しない。将来の隣接タブの常時先読みは効果とリソース消費を別途判断する。
 
 ## 今後追加する拡張機能・操作改善
