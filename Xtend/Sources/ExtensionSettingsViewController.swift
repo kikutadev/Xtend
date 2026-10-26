@@ -109,6 +109,9 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         progress.spacing = 8
         stack.addArrangedSubview(progress)
 
+        stack.setCustomSpacing(24, after: progress)
+        stack.addArrangedSubview(recommendations)
+
         var reloadConfig = UIButton.Configuration.borderedProminent()
         reloadConfig.title = "Xのページを再読み込み"
         reloadConfig.image = UIImage(systemName: "arrow.clockwise")
@@ -125,8 +128,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         hint.numberOfLines = 0
         hint.textColor = .secondaryLabel
         stack.addArrangedSubview(hint)
-        stack.setCustomSpacing(30, after: hint)
-        stack.addArrangedSubview(recommendations)
+
     }
 
     private func refreshInstalled(animated: Bool) {
