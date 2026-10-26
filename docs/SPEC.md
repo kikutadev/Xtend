@@ -17,7 +17,7 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、Xの操作ジェスチャー�
 ### にゃっとランドforX（推奨・任意）
 
 - 対応するChrome Web Store拡張機能IDは`kchlmbffcbaambfigakeiamkhgacemng`のみ。
-- 初回起動時と設定画面に、にゃっとランドforX、X Ad Hider、X Timeline Filter、x-home-anchorのおすすめ一覧を表示する。Chrome Web Storeのにゃっとランドは「追加」から導入する。X Ad HiderとX Timeline FilterのGitHub配布元はPrivateなので、トークン未登録時は「追加」からURL入力・トークン欄へ誘導し、登録済みの場合のみインストール処理へ進む。追加済み・取得処理中はボタンを無効にする。配布ZIPのみのx-home-anchorはダウンロード先を開き、ZIPインストールを案内する。各候補の配布元ページを開く・リンクをコピーする操作も提供する。初回画面と設定画面のインストール操作は同じ部品を使い、URL欄は空欄から始まる。利用者がURLを入力するかおすすめの「追加」を押した場合のみインストールできる。導入せずにXを閲覧でき、導入後も一覧を表示して利用者がXへ進む。
+- 初回起動時と設定画面に、にゃっとランドforX、X Ad Hider、X Timeline Filter、x-home-anchorのおすすめ一覧を表示する。Chrome Web Storeのにゃっとランドは「追加」から導入する。X Ad HiderとX Timeline Filterは公開GitHub Releasesから認証不要で直接追加する。追加済み・取得処理中はボタンを無効にする。配布ZIPのみのx-home-anchorはダウンロード先を開き、ZIPインストールを案内する。各候補の配布元ページを開く・リンクをコピーする操作も提供する。初回画面と設定画面のインストール操作は同じ部品を使い、URL欄は空欄から始まる。利用者がURLを入力するかおすすめの「追加」を押した場合のみインストールできる。導入せずにXを閲覧でき、導入後も一覧を表示して利用者がXへ進む。
 - Chrome Web Storeから取得する場合は、Googleの配信先からCRX3を取得し、署名・拡張機能ID・配信元を検証する。展開後、Manifest V3、必要なスクリプト・権限なども検証する。
 - ローカルZIPからのインストールもできる。ZIPは拡張機能のファイル構成を検証するが、**Chrome Web Storeの開発者署名は検証できない**。
 - インストール先はアプリ専用の`Application Support/Extensions/kchlmbffcbaambfigakeiamkhgacemng/`。

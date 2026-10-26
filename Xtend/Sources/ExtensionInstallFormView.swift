@@ -90,13 +90,6 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
     @available(*, unavailable)
     required init(coder: NSCoder) { fatalError() }
 
-    /// おすすめのPrivateリポジトリは、認証情報が必要ならURL欄へ誘導する。
-    func prepareGitHubURL(_ value: String) {
-        urlField.text = value
-        updateInstallButton()
-        githubTokenField.becomeFirstResponder()
-    }
-
     func didFinishInstallation() {
         githubTokenField.text = nil
         githubTokenField.placeholder = GitHubReleaseCredentials.load() == nil
@@ -139,13 +132,10 @@ final class ExtensionInstallFormView: UIStackView, UITextFieldDelegate {
     }
 }
 
-/// 初回案内と設定画面で共有するおすすめ一覧。Privateの取得は明示的な認証が必要。
+/// 初回案内と設定画面で共有するおすすめ一覧。
 @MainActor
 final class RecommendedExtensionsView: UIStackView {
     var onInstallURL: ((String) -> Void)?
-    var onRequireGitHubToken: ((String) -> Void)?
-    var hasGitHubCredentials: () -> Bool = { GitHubReleaseCredentials.load() != nil }
-
     private struct Recommendation {
         let title: String
         let detail: String
@@ -153,7 +143,6 @@ final class RecommendedExtensionsView: UIStackView {
         let sourceLabel: String
         let installURL: String?
         let fixedID: String?
-        let privateGitHub: Bool
         let note: String?
 
         var trackedSource: String? { fixedID ?? installURL }
@@ -164,27 +153,25 @@ final class RecommendedExtensionsView: UIStackView {
             title: "にゃっとランドforX", detail: "Xでの交流や反応を見やすくする",
             source: ExtensionInstallStore.defaultStoreURL, sourceLabel: "Chrome Web Store",
             installURL: ExtensionInstallStore.defaultStoreURL.absoluteString,
-            fixedID: ExtensionInstallStore.supportedExtensionID, privateGitHub: false, note: nil
+            fixedID: ExtensionInstallStore.supportedExtensionID, note: nil
         ),
         Recommendation(
             title: "X Ad Hider", detail: "Xの広告ポストを非表示にする",
             source: URL(string: "https://github.com/kikutadev/x-ad-hider")!, sourceLabel: "GitHub",
             installURL: "https://github.com/kikutadev/x-ad-hider",
-            fixedID: nil, privateGitHub: true,
-            note: "Privateリポジトリ。追加にはGitHubの読み取り用トークンが必要です。"
+            fixedID: nil, note: nil
         ),
         Recommendation(
             title: "X Timeline Filter", detail: "指定したアカウントの投稿だけを表示する",
             source: URL(string: "https://github.com/kikutadev/x-timeline-filter")!, sourceLabel: "GitHub",
             installURL: "https://github.com/kikutadev/x-timeline-filter",
-            fixedID: nil, privateGitHub: true,
-            note: "Privateリポジトリ。追加にはGitHubの読み取り用トークンが必要です。"
+            fixedID: nil, note: nil
         ),
         Recommendation(
             title: "x-home-anchor", detail: "ホームの閲覧位置を維持する",
             source: URL(string: "https://github.com/akiweb8528/x-home-anchor/tree/main/release")!,
             sourceLabel: "配布ZIPを開く", installURL: nil,
-            fixedID: ExtensionPackage.homeAnchorID, privateGitHub: false,
+            fixedID: ExtensionPackage.homeAnchorID,
             note: "配布ZIPを保存し「ZIPでインストール」から選択してください。公開Releaseはありません。"
         )
     ]
@@ -262,11 +249,7 @@ final class RecommendedExtensionsView: UIStackView {
             button.accessibilityIdentifier = "xtend.recommend.install.\(item.title)"
             button.addAction(UIAction { [weak self] _ in
                 guard let self else { return }
-                if item.privateGitHub && !self.hasGitHubCredentials() {
-                    self.onRequireGitHubToken?(installURL)
-                } else {
-                    self.onInstallURL?(installURL)
-                }
+                self.onInstallURL?(installURL)
             }, for: .touchUpInside)
             button.setContentHuggingPriority(.required, for: .horizontal)
             header.addArrangedSubview(button)

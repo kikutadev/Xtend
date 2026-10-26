@@ -30,6 +30,9 @@ final class CommunityExtensionStoreTests: XCTestCase {
             let runtime = ExtensionRuntime(installedRoots: store.installedRoots())
             XCTAssertTrue(runtime.loadIssues.isEmpty)
             XCTAssertEqual(runtime.packages.count, store.installedRoots().count)
+            let (configuration, host) = try runtime.makeBrowserConfiguration()
+            XCTAssertNotNil(host)
+            XCTAssertGreaterThan(configuration.userContentController.userScripts.count, 1)
         }
     }
 
