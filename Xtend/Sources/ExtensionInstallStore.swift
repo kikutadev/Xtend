@@ -138,11 +138,15 @@ final class ExtensionInstallStore {
         }
 
         let zipPayload = try await Self.verifiedDownload(extensionID: extensionID)
-        return try installZIPData(
-            zipPayload,
-            expectedExtensionID: extensionID,
-            source: .chromeWebStore(storeURL)
-        )
+        return try installVerifiedWebStoreZIP(zipPayload, storeURL: storeURL)
+    }
+
+    func installVerifiedWebStoreZIP(_ zipPayload: Data, storeURL: URL) throws -> InstalledExtensionManifest {
+        let extensionID = try Self.extensionID(from: storeURL)
+        guard extensionID == Self.supportedExtensionID else {
+            throw ExtensionInstallError.unsupportedExtension(extensionID)
+        }
+        return try installZIPData(zipPayload, expectedExtensionID: extensionID, source: .chromeWebStore(storeURL))
     }
 
     static func verifiedDownload(extensionID: String) async throws -> Data {

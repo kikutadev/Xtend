@@ -173,11 +173,59 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
 
     private func checkRelease(_ item: InstalledExtensionInfo) {
         guard !busy else { return }
+        if let storeURL = item.chromeWebStoreURL {
+            checkWebStoreUpdate(for: item, from: storeURL)
+            return
+        }
         let linked = GitHubReleaseLinks.get(item.id)
         if let linked, let repo = GitHubReleaseRepository(input: linked.repository) {
             fetchRelease(for: item, repository: repo, token: nil)
         } else {
             promptForRepository(item)
+        }
+    }
+
+    private func checkWebStoreUpdate(for item: InstalledExtensionInfo, from storeURL: URL) {
+        guard !busy else { return }
+        setBusy(true, message: "Chrome Web Storeの最新版を確認しています…")
+        Task { [weak self] in
+            do {
+                let checked = try await ExtensionURLInstaller.checkWebStoreUpdate(storeURL)
+                guard let self else { return }
+                setBusy(false, message: nil)
+                let needsUpdate = GitHubReleaseVersion.needsUpdate(
+                    installed: item.version, latestTag: checked.version, installedTag: nil)
+                let alert = UIAlertController(title: needsUpdate ? "更新があります" : "最新です",
+                    message: "インストール済み：\(item.version)\nChrome Web Store：\(checked.version)",
+                    preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "閉じる", style: .cancel))
+                if needsUpdate {
+                    alert.addAction(UIAlertAction(title: "最新版を取り込む", style: .default) { [weak self] _ in
+                        self?.applyWebStoreUpdate(checked)
+                    })
+                }
+                present(alert, animated: true)
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
+            }
+        }
+    }
+
+    private func applyWebStoreUpdate(_ checked: CheckedWebStoreUpdate) {
+        guard !busy else { return }
+        setBusy(true, message: "Chrome Web Storeから更新しています…")
+        Task { [weak self] in
+            do {
+                try await Task.detached(priority: .userInitiated) { try checked.install() }.value
+                guard let self else { return }
+                setBusy(false, message: nil)
+                refreshInstalled(animated: true)
+                onChange()
+            } catch {
+                self?.setBusy(false, message: nil)
+                self?.showError(error)
+            }
         }
     }
 

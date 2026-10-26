@@ -46,7 +46,12 @@ final class CommunityExtensionStore {
     func installFromChromeWebStore(_ url: URL) async throws -> (id: String, manifest: InstalledExtensionManifest) {
         let id = try ExtensionInstallStore.extensionID(from: url)
         let payload = try await ExtensionInstallStore.verifiedDownload(extensionID: id)
-        return try install(data: payload, storeID: id, source: .chromeWebStore(url))
+        return try installVerifiedWebStoreZIP(payload, storeURL: url)
+    }
+
+    func installVerifiedWebStoreZIP(_ payload: Data, storeURL: URL) throws -> (id: String, manifest: InstalledExtensionManifest) {
+        let id = try ExtensionInstallStore.extensionID(from: storeURL)
+        return try install(data: payload, storeID: id, source: .chromeWebStore(storeURL))
     }
 
     func uninstall(id: String) throws {
