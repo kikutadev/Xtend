@@ -20,6 +20,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var warmupScheduled = false
     private var visibleURLObservation: NSKeyValueObservation?
     private var preloadSuspended = false
+    #if DEBUG
+    private var benchmarkScheduled = false
+    private var benchmarkRunning = false
+    #endif
     private var preloadEnabled: Bool {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--xtend-test-beta-preload") { return true }
@@ -538,6 +542,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         updateNavigationControls(for: webView)
         updateSettingsButton(for: webView)
         schedulePreload()
+        #if DEBUG
+        schedulePageViewBenchmark()
+        #endif
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -817,6 +824,9 @@ private extension BrowserViewController {
         NSLog("XTEND_BETA: standby ready target=%ld", target)
         #endif
         standbyReady = true
+        #if DEBUG
+        schedulePageViewBenchmark()
+        #endif
         setBetaBridge(true, in: webView)
         setBetaBridge(true, in: browser)
         #if DEBUG
@@ -904,6 +914,131 @@ private extension BrowserViewController {
     }
 
     #if DEBUG
+    /// Simulator-only, repeatable A/B of real X page-view latency. Never used
+    /// for normal users. Only durations/counts are logged, not post contents.
+    private func schedulePageViewBenchmark(attempt: Int = 0) {
+        guard ProcessInfo.processInfo.arguments.contains("--xtend-benchmark-pageview"),
+              !benchmarkRunning, !benchmarkScheduled, attempt < 40 else { return }
+        benchmarkScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 4.0 : 0.8)) { [weak self] in
+            guard let self else { return }
+            self.benchmarkScheduled = false
+            guard let browser = self.webView, browser.url?.path == "/home",
+                  (!self.preloadEnabled || self.standbyReady) else {
+                self.schedulePageViewBenchmark(attempt: attempt + 1)
+                return
+            }
+            browser.evaluateJavaScript(Self.selectedTabScript) { [weak self, weak browser] result, _ in
+                guard let self, let browser, self.webView === browser else { return }
+                guard let selected = result as? Int, selected == 0 || selected == 1 else {
+                    self.schedulePageViewBenchmark(attempt: attempt + 1)
+                    return
+                }
+                self.benchmarkRunning = true
+                NSLog("XTEND_PAGEVIEW_BENCH start mode=%@ selected=%ld", self.preloadEnabled ? "warm" : "standard", selected)
+                self.runPageViewBenchmark(target: 1 - selected, remaining: 10, samples: [])
+            }
+        }
+    }
+
+    private static let benchmarkXTabSwitch = """
+      const list = [...document.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')]
+        .find(e => e.querySelectorAll('[role="tab"]').length >= 2);
+      const tabs = list?.querySelectorAll('[role="tab"]');
+      if (!tabs || !tabs[target]) return {ok:false,reason:'no-tabs'};
+      const signature = () => [...document.querySelectorAll('[data-testid="tweet"]')].slice(0,3)
+        .map(e => (e.innerText || '').slice(0,180)).join('|');
+      const prior = signature();
+      const start = performance.now();
+      tabs[target].click();
+      const observation = await new Promise(resolve => {
+        function poll() {
+          const posts = document.querySelectorAll('[data-testid="tweet"]').length;
+          const selected = tabs[target]?.getAttribute('aria-selected') === 'true';
+          if (selected && posts > 0 && signature() !== prior) {
+            requestAnimationFrame(() => requestAnimationFrame(() =>
+              resolve({ok:true,domMs:performance.now()-start,posts})));
+          } else if (performance.now()-start > 7000) {
+            resolve({ok:false,reason:'timeout',posts,selected});
+          } else { setTimeout(poll, 20); }
+        }
+        poll();
+      });
+      return observation;
+      """
+
+    private func runPageViewBenchmark(target: Int, remaining: Int, samples: [Double]) {
+        guard remaining > 0 else {
+            let ordered = samples.sorted()
+            let median = ordered.isEmpty ? -1 : (ordered[(ordered.count-1)/2] + ordered[ordered.count/2])/2
+            NSLog("XTEND_PAGEVIEW_BENCH summary mode=%@ valid=%ld medianMs=%.1f samples=%@",
+                  preloadEnabled ? "warm" : "standard", samples.count, median, String(describing: samples))
+            benchmarkRunning = false
+            return
+        }
+        guard let browser = webView, browser.url?.path == "/home" else {
+            NSLog("XTEND_PAGEVIEW_BENCH abort navigation")
+            benchmarkRunning = false
+            return
+        }
+        let started = CACurrentMediaTime()
+        let finish: (Bool, Int) -> Void = { [weak self] valid, posts in
+            guard let self, let current = self.webView else { return }
+            guard valid else {
+                NSLog("XTEND_PAGEVIEW_BENCH failed mode=%@ run=%ld", self.preloadEnabled ? "warm" : "standard", 11-remaining)
+                self.benchmarkRunning = false
+                return
+            }
+            current.takeSnapshot(with: nil) { [weak self] image, error in
+                guard let self else { return }
+                let duration = (CACurrentMediaTime() - started)*1000
+                guard image != nil, error == nil else {
+                    NSLog("XTEND_PAGEVIEW_BENCH failed snapshot run=%ld", 11-remaining)
+                    self.benchmarkRunning = false
+                    return
+                }
+                NSLog("XTEND_PAGEVIEW_BENCH sample mode=%@ run=%ld tab=%ld ms=%.1f posts=%ld",
+                      self.preloadEnabled ? "warm" : "standard", 11-remaining, target, duration, posts)
+                DispatchQueue.main.asyncAfter(deadline: .now()+0.55) { [weak self] in
+                    self?.runPageViewBenchmark(target: 1-target, remaining: remaining-1, samples: samples+[duration])
+                }
+            }
+        }
+        if preloadEnabled {
+            guard standbyReady, standbyTarget == target else {
+                NSLog("XTEND_PAGEVIEW_BENCH failed standby not ready")
+                benchmarkRunning = false
+                return
+            }
+            let previous = browser
+            swapPreloadedTab(target)
+            func poll(_ tries: Int) {
+                guard tries < 350 else { finish(false, 0); return }
+                if let next = self.webView, next !== previous, self.visibleTab == target {
+                    next.evaluateJavaScript("document.querySelectorAll('[data-testid=\"tweet\"]').length") { result, _ in
+                        let posts = result as? Int ?? 0
+                        finish(posts > 0, posts)
+                    }
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now()+0.02) { poll(tries+1) }
+                }
+            }
+            poll(0)
+        } else {
+            browser.callAsyncJavaScript(Self.benchmarkXTabSwitch, arguments: ["target":target], in: nil,
+                in: .page) { result in
+                switch result {
+                case .success(let value):
+                    let outcome = value as? [String:Any] ?? [:]
+                    finish((outcome["ok"] as? Bool) == true, outcome["posts"] as? Int ?? 0)
+                case .failure(let error):
+                    NSLog("XTEND_PAGEVIEW_BENCH JS error=%@", String(describing: error))
+                    finish(false, 0)
+                }
+            }
+        }
+    }
+
     /// Reports DOM lifetime and rendered-post count, not post text or account data.
     /// A true warm switch keeps the same timeOrigin and populated DOM.
     private func auditBetaWebView(_ browser: WKWebView, stage: String) {
