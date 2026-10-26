@@ -563,7 +563,11 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func reportNavigationFailure(_ error: Error, in webView: WKWebView) {
-        if standbyView === webView { releasePreload(); return }
+        if standbyView === webView {
+            // WebKit can cancel an intermediate provisional navigation normally.
+            if (error as NSError).code != NSURLErrorCancelled { releasePreload() }
+            return
+        }
         guard self.webView === webView,
               (error as NSError).code != NSURLErrorCancelled else { return }
         pageLoadFailed = true
@@ -696,12 +700,14 @@ private extension BrowserViewController {
         NSLog("XTEND_BETA: schedule enabled=%@ suspended=%@ standby=%@", String(preloadEnabled), String(preloadSuspended), String(standbyView != nil))
         #endif
         guard preloadEnabled, !preloadSuspended, standbyView == nil, !warmupScheduled,
+              UIApplication.shared.applicationState == .active,
               webView?.url?.path == "/home" else { return }
         warmupScheduled = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             guard let self else { return }
             self.warmupScheduled = false
             guard self.preloadEnabled, !self.preloadSuspended, self.standbyView == nil,
+                  UIApplication.shared.applicationState == .active,
                   let browser = self.webView, browser.url?.path == "/home", self.presentedViewController == nil else { return }
             browser.evaluateJavaScript(Self.selectedTabScript) { [weak self, weak browser] result, error in
                 #if DEBUG
@@ -722,7 +728,9 @@ private extension BrowserViewController {
         #if DEBUG
         NSLog("XTEND_BETA: preload selected=%ld", selected)
         #endif
-        guard standbyView == nil, let runtime, let browser = webView, browser.url?.path == "/home",
+        guard preloadEnabled, !preloadSuspended, standbyView == nil,
+              UIApplication.shared.applicationState == .active,
+              let runtime, let browser = webView, browser.url?.path == "/home",
               let (config, host) = try? runtime.makeBrowserConfiguration() else { return }
         installSettingsMenu(into: config)
         installBetaBridge(into: config)
@@ -919,7 +927,10 @@ private extension BrowserViewController {
         releasePreload()
     }
 
-    @objc private func releasePreloadInBackground() { releasePreload() }
+    @objc private func releasePreloadInBackground() {
+        // A pending asynchronous warm-up must not recreate WebKit in background.
+        releasePreload()
+    }
 
     @objc private func resumePreload() { schedulePreload() }
 
