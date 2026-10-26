@@ -124,6 +124,18 @@ python3 scripts/verify-swipe-evidence.py .build/SwipeEvidenceAttachments
 
 画像判定はXの明るいテーマ・現在のモバイルレイアウト向けの補助検証で、固定座標に投稿の動画や操作ボタンが現れた場合はジェスチャーが意図的に無効化されることがあります。**XCTestの終了コードだけで切替成功と判断しない**こと。Simulatorでの確認は実iPhoneの性能・WKWebViewの競合を保証しません。
 
+### Xホームの第二WebView先読みプローブ（DEBUG限定）
+
+第二WebViewの先読みが成立するかを調べる開発用プローブです。**通常起動では動作せず、先読み切り替え機能としては未完成**です。既存のログイン済みSimulatorで、Xホームを表示できる状態に限ります。プローブは第二WebViewを背面に生成し、Xの標準タブをクリックして`Following`を表示します。検証ログにはタブ選択状態とセル件数のみを出します。
+
+```sh
+xcrun simctl launch booted org.example.xtend --xtend-probe-preload
+xcrun simctl spawn booted log show --last 2m --style compact \
+  --predicate 'process == "Xtend" AND eventMessage CONTAINS "XTEND_PREWARM_PROBE"'
+```
+
+`footprint -p <Xtend PID> -p <WebContent PID> ... --noCategories` で関連プロセスの物理メモリを測ります。第二WebViewの実プロセスを特定してから計測し、共有Simulatorの他作業が入ったサンプルは除外してください。単にWebViewを生成するだけでは、ネイティブでタブ切り替えする体験の完成を意味しません。
+
 ## 配布時の注意
 
 - `.build/`、`DerivedData/`、`xcuserdata/`、`.ipa`、`.xcarchive`、署名鍵・証明書・プロビジョニングファイルをGitに追加しないでください。

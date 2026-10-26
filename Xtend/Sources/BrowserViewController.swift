@@ -7,6 +7,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var runtime: ExtensionRuntime?
     private var extensionHost: ExtensionHost?
     private var webView: WKWebView?
+    #if DEBUG
+    private var prewarmProbeView: WKWebView?
+    private var prewarmProbeHost: ExtensionHost?
+    #endif
     private weak var navigationBackButton: UIButton?
     private weak var settingsButton: UIButton?
     private var pageLoadFailed = false
@@ -58,6 +62,11 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func buildBrowser(_ url: URL) {
+        #if DEBUG
+        prewarmProbeView?.removeFromSuperview()
+        prewarmProbeView = nil
+        prewarmProbeHost = nil
+        #endif
         let runtime = ExtensionRuntime()
         let configuration: WKWebViewConfiguration
         let host: ExtensionHost?
@@ -91,7 +100,61 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         updateNavigationControls(for: browser, url: url)
         view.sendSubviewToBack(browser)
         browser.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy))
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--xtend-probe-preload") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self, weak browser] in
+                guard let self, let browser, self.webView === browser else { return }
+                self.startPrewarmProbe()
+            }
+        }
+        #endif
     }
+
+    #if DEBUG
+    /// Isolated experiment: warm a second X runtime without changing the visible
+    /// page. It is never enabled in a production launch.
+    private func startPrewarmProbe() {
+        guard prewarmProbeView == nil, let runtime, let visible = webView,
+              visible.url?.path == "/home", let url = URL(string: "https://x.com/home") else { return }
+        guard let (configuration, host) = try? runtime.makeBrowserConfiguration() else { return }
+        let alternate = WKWebView(frame: .zero, configuration: configuration)
+        host?.attach(to: alternate)
+        alternate.translatesAutoresizingMaskIntoConstraints = false
+        alternate.isOpaque = true
+        view.insertSubview(alternate, belowSubview: visible)
+        NSLayoutConstraint.activate([
+            alternate.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            alternate.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            alternate.topAnchor.constraint(equalTo: view.topAnchor),
+            alternate.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        prewarmProbeView = alternate
+        prewarmProbeHost = host
+        NSLog("XTEND_PREWARM_PROBE: second WebView created")
+        alternate.load(URLRequest(url: url))
+        for delay in [4.0, 9.0, 16.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak alternate] in
+                guard let alternate else { return }
+                let script = """
+                (() => {
+                  const lists = [...document.querySelectorAll('[data-testid="ScrollSnap-List"][role="tablist"]')];
+                  const list = lists.find(x => x.querySelectorAll('[role="tab"]').length >= 2);
+                  const tabs = list?.querySelectorAll('[role="tab"]');
+                  if (!tabs) return {state:'waiting', url:location.pathname};
+                  if (tabs[1].getAttribute('aria-selected') !== 'true') tabs[1].click();
+                  return {state:'following-clicked', url:location.pathname,
+                    selected:tabs[1].getAttribute('aria-selected'),
+                    cells:document.querySelectorAll('[data-testid="cellInnerDiv"]').length};
+                })()
+                """
+                alternate.evaluateJavaScript(script) { result, error in
+                    NSLog("XTEND_PREWARM_PROBE: after %.0fs result=%@ error=%@", delay,
+                          String(describing: result), String(describing: error))
+                }
+            }
+        }
+    }
+    #endif
 
     private func configure(_ webView: WKWebView) {
         webView.translatesAutoresizingMaskIntoConstraints = false
