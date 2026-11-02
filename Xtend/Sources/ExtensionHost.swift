@@ -235,6 +235,22 @@ final class ExtensionHost: NSObject {
             try ChromeShim.javascript(manifest: package.manifest, extensionID: package.id),
             to: controller, world: .page, time: .atDocumentStart
         )
+        if extensionID == ExtensionInstallStore.supportedExtensionID {
+            // Hide the keyboard-only setting on iPhone; keep Nyatto's package untouched.
+            addScript(
+                """
+                (() => {
+                  const style = document.createElement('style');
+                  style.textContent = `details[aria-label="キーボードショートカット"],
+                    details:has(> summary [data-i18n="keyboardShortcuts"]) { display: none !important; }`;
+                  const root = document.head || document.documentElement;
+                  if (root) root.appendChild(style);
+                  else document.addEventListener('DOMContentLoaded', () => document.head?.appendChild(style), { once: true });
+                })();
+                """,
+                to: controller, world: .page, time: .atDocumentStart
+            )
+        }
     }
 
     private func installBridge(
