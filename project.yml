@@ -16,6 +16,15 @@ targets:
   Xtend:
     type: application
     platform: iOS
+    info:
+      path: Xtend/Info.plist
+      properties:
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default Configuration
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
     sources:
       - path: Xtend/Sources
       - path: Xtend/Resources/Assets.xcassets
