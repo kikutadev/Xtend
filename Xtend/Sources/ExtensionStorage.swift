@@ -24,7 +24,7 @@ final class ExtensionStorage {
     }
 
     func get(area: String, keys: Any?) throws -> [String: Any] {
-        let values = try namespace(area: area)
+        let values = enforceNyattoPresentation(try namespace(area: area), area: area, includeMissing: true)
 
         if keys == nil || keys is NSNull {
             return values
@@ -58,7 +58,7 @@ final class ExtensionStorage {
         var values = try namespace(area: area)
         var changes: [String: [String: Any]] = [:]
 
-        for (key, newValue) in items {
+        for (key, newValue) in enforceNyattoPresentation(items, area: area, includeMissing: false) {
             let oldValue = values[key]
             if jsonEquivalent(oldValue, newValue) {
                 continue
@@ -100,6 +100,31 @@ final class ExtensionStorage {
         try saveNamespace(values, area: area)
         emitChanges(changes, area: area)
         return changes
+    }
+
+    /// Hide Nyatto's keyboard-only guidance in Xtend, including saved settings and onboarding.
+    /// Keep keyboard navigation and all other extension features untouched.
+    private func enforceNyattoPresentation(
+        _ values: [String: Any], area: String, includeMissing: Bool
+    ) -> [String: Any] {
+        guard extensionID == ExtensionInstallStore.supportedExtensionID else { return values }
+        if area == "local" {
+            guard includeMissing || values["xff:shortcut-intro:v1"] != nil else { return values }
+            var result = values
+            result["xff:shortcut-intro:v1"] = true // Mark the keyboard-only introduction as dismissed.
+            return result
+        }
+        guard area == "sync", includeMissing || values["xff:settings"] != nil else { return values }
+        var result = values
+        var settings = result["xff:settings"] as? [String: Any] ?? [:]
+        for key in [
+            "shortcutCatGuideEnabled", "shortcutStarterEnabled",
+            "shortcutGoHintEnabled", "shortcutPostKeysEnabled"
+        ] {
+            settings[key] = false
+        }
+        result["xff:settings"] = settings
+        return result
     }
 
     private func namespace(area: String) throws -> [String: Any] {
