@@ -48,6 +48,26 @@ struct GitHubReleaseRepository: Equatable, Sendable {
     }
 }
 
+/// Sources shipped in Xtend's public recommendations. Older ZIP installs may
+/// have no GitHub source metadata; match only these exact built-in titles.
+enum PublicExtensionReleases {
+    static let adHider = "https://github.com/kikutadev/x-ad-hider"
+    static let timelineFilter = "https://github.com/kikutadev/x-timeline-filter"
+
+    static func repository(forInstalledName name: String) -> GitHubReleaseRepository? {
+        switch name {
+        case "X Ad Hider": GitHubReleaseRepository(input: adHider)
+        case "X Timeline Filter": GitHubReleaseRepository(input: timelineFilter)
+        default: nil
+        }
+    }
+
+    static func isKnownPublic(_ repository: GitHubReleaseRepository) -> Bool {
+        repository == GitHubReleaseRepository(input: adHider) ||
+            repository == GitHubReleaseRepository(input: timelineFilter)
+    }
+}
+
 struct GitHubRelease: Decodable, Sendable {
     struct Asset: Decodable, Sendable {
         let id: Int
@@ -153,6 +173,14 @@ enum GitHubReleaseLinks {
         return try? JSONDecoder().decode(GitHubReleaseLink.self, from: data)
     }
 
+    /// Prefer the user's saved GitHub source, falling back to our published
+    /// recommendation source for existing ZIP installs that lack source metadata.
+    static func repository(id: String, installedName: String) -> GitHubReleaseRepository? {
+        if let linked = get(id),
+           let saved = GitHubReleaseRepository(input: linked.repository) { return saved }
+        return PublicExtensionReleases.repository(forInstalledName: installedName)
+    }
+
     static func save(id: String, repository: GitHubReleaseRepository, tag: String?) {
         let value = GitHubReleaseLink(repository: repository.webURL.absoluteString, installedTag: tag)
         guard let data = try? JSONEncoder().encode(value) else { return }
@@ -196,7 +224,8 @@ enum GitHubReleaseInstaller {
                       session: URLSession = .shared,
                       credentialsService: String = GitHubReleaseCredentials.defaultService) async throws -> GitHubReleaseCheck {
         let token = tokenOverride?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            ?? GitHubReleaseCredentials.load(service: credentialsService)
+            ?? (PublicExtensionReleases.isKnownPublic(repository)
+                ? nil : GitHubReleaseCredentials.load(service: credentialsService))
         let release = try await fetchLatest(repository: repository, token: token, session: session)
         return GitHubReleaseCheck(release: release,
             needsUpdate: GitHubReleaseVersion.needsUpdate(installed: installedVersion,
@@ -233,7 +262,8 @@ enum GitHubReleaseInstaller {
                               existingID: String? = nil, session: URLSession = .shared,
                               credentialsService: String = GitHubReleaseCredentials.defaultService) async throws -> String {
         let token = newToken?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            ?? GitHubReleaseCredentials.load(service: credentialsService)
+            ?? (PublicExtensionReleases.isKnownPublic(repository)
+                ? nil : GitHubReleaseCredentials.load(service: credentialsService))
         let release = try await fetchLatest(repository: repository, token: token, session: session)
         let asset = try release.extensionZIP()
 

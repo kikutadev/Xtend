@@ -206,9 +206,8 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
             checkWebStoreUpdate(for: item, from: storeURL)
             return
         }
-        let linked = GitHubReleaseLinks.get(item.id)
-        if let linked, let repo = GitHubReleaseRepository(input: linked.repository) {
-            fetchRelease(for: item, repository: repo, token: nil)
+        if let repository = GitHubReleaseLinks.repository(id: item.id, installedName: item.name) {
+            fetchRelease(for: item, repository: repository, token: nil)
         } else {
             promptForRepository(item)
         }

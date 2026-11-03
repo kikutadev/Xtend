@@ -61,6 +61,46 @@ final class GitHubReleaseInstallerTests: XCTestCase {
         XCTAssertEqual(GitHubReleaseLinks.get(id)?.installedTag, "v0.1.0")
     }
 
+    func testPublicRecommendationsResolveExistingZIPWithoutRepositoryPrompt() throws {
+        for (name, expectedURL) in [
+            ("X Timeline Filter", PublicExtensionReleases.timelineFilter),
+            ("X Ad Hider", PublicExtensionReleases.adHider)
+        ] {
+            let id = "test-public-update-" + UUID().uuidString
+            defer { GitHubReleaseLinks.remove(id) }
+            let resolved = try XCTUnwrap(GitHubReleaseLinks.repository(id: id, installedName: name))
+            XCTAssertEqual(resolved.webURL.absoluteString, expectedURL)
+            XCTAssertTrue(PublicExtensionReleases.isKnownPublic(resolved))
+        }
+        let unknownID = "test-unidentified-" + UUID().uuidString
+        XCTAssertNil(GitHubReleaseLinks.repository(id: unknownID, installedName: "Unrelated Extension"))
+        XCTAssertNil(GitHubReleaseLinks.repository(id: unknownID, installedName: "X Timeline Filter Copy"))
+        XCTAssertFalse(PublicExtensionReleases.isKnownPublic(
+            GitHubReleaseRepository(input: "https://github.com/example/x-timeline-filter")!))
+    }
+
+    func testSavedSourceTakesPriorityOverPublicRecommendationFallback() throws {
+        let id = "test-existing-source-" + UUID().uuidString
+        defer { GitHubReleaseLinks.remove(id) }
+        let selected = try XCTUnwrap(GitHubReleaseRepository(input: "https://github.com/example/custom"))
+        GitHubReleaseLinks.save(id: id, repository: selected, tag: "v1.0")
+        XCTAssertEqual(GitHubReleaseLinks.repository(id: id, installedName: "X Timeline Filter"), selected)
+    }
+
+    func testPublicReleaseCheckUsesNoGitHubToken() async throws {
+        let repo = try XCTUnwrap(PublicExtensionReleases.repository(forInstalledName: "X Timeline Filter"))
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockGitHubReleaseProtocol.self]
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+        MockGitHubReleaseProtocol.state.set(payload: Data("public-release-fixture".utf8))
+        let result = try await GitHubReleaseInstaller.check(
+            repository: repo, installedVersion: "0.1.0", installedTag: nil,
+            session: session, credentialsService: "xtend-public-test-" + UUID().uuidString)
+        XCTAssertEqual(result.release.tagName, "v0.2.0")
+        XCTAssertTrue(result.needsUpdate)
+    }
+
     func testGitHubTokenUsesDeviceKeychain() throws {
         let service = "Xtend.GitHubReleases.Test.\(UUID().uuidString)"
         defer { GitHubReleaseCredentials.remove(service: service) }
@@ -247,7 +287,10 @@ private final class MockGitHubReleaseProtocol: URLProtocol, @unchecked Sendable 
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
             return
         }
-        guard request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-token" else {
+        let isPublicSource = url.path == "/repos/kikutadev/x-timeline-filter/releases/latest"
+        let authorization = request.value(forHTTPHeaderField: "Authorization")
+        guard (isPublicSource && authorization == nil) ||
+              (!isPublicSource && authorization == "Bearer fixture-token") else {
             let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil,
                                            headerFields: ["Content-Type": "application/json"])!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
