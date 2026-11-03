@@ -1,6 +1,28 @@
 import UIKit
 import WebKit
 
+enum XPromoPreferences {
+    private static let prefix = "xtend.hidePromotions."
+    private static func read(_ key: String) -> Bool {
+        UserDefaults.standard.object(forKey: prefix + key) as? Bool ?? true
+    }
+    static var enabled: Bool {
+        get { read("enabled") }
+        set { UserDefaults.standard.set(newValue, forKey: prefix + "enabled") }
+    }
+    static var getApp: Bool {
+        get { read("getApp") }
+        set { UserDefaults.standard.set(newValue, forKey: prefix + "getApp") }
+    }
+    static var subscribe: Bool {
+        get { read("subscribe") }
+        set { UserDefaults.standard.set(newValue, forKey: prefix + "subscribe") }
+    }
+    static var javascriptObject: String {
+        "{enabled: \(enabled), getApp: \(getApp), subscribe: \(subscribe)}"
+    }
+}
+
 enum BetaTimelinePreferences {
     static let key = "xtend.beta.timelinePreload"
     static var enabled: Bool { UserDefaults.standard.bool(forKey: key) }
@@ -158,7 +180,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         #endif
         let showTip = forceTip || !UserDefaults.standard.bool(forKey: Self.settingsTipSeenKey)
         controller.addUserScript(WKUserScript(
-            source: "const __xtendShowSettingsTip = \(showTip ? "true" : "false");\n" + Self.settingsMenuScript,
+            source: "const __xtendShowSettingsTip = \(showTip ? "true" : "false");\n"
+                + "const __xtendPromoSettings = \(XPromoPreferences.javascriptObject);\n"
+                + Self.settingsMenuScript,
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true,
             in: world
@@ -205,10 +229,19 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
       if (!bridge) return;
       const entryID = 'xtend-native-settings-entry';
       const tipID = 'xtend-settings-tip';
+      const promoStyle = document.createElement('style');
+      promoStyle.textContent = '[data-xtend-hidden-menu-promo],[data-xtend-hidden-page-promo]{display:none!important}';
+      (document.head || document.documentElement).appendChild(promoStyle);
       let tipCompleted = !__xtendShowSettingsTip;
       const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
       let lastLogin = null;
       let queued = false;
+      let promoSettings = __xtendPromoSettings;
+
+      globalThis.__xtendSetPromoSettings = next => {
+        promoSettings = next;
+        schedule();
+      };
 
       function loginVisible() {
         const path = location.pathname;
@@ -227,6 +260,56 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
           const r = panel.getBoundingClientRect();
           return r.width > 160 && r.width < innerWidth && r.height >= innerHeight * .8 && r.left < 12 && !!panel.querySelector('a[href]');
         }) || null;
+      }
+
+      const hiddenPromoAttribute = 'data-xtend-hidden-menu-promo';
+      const pagePromoAttribute = 'data-xtend-hidden-page-promo';
+      const interactiveSelector = 'a[href], button, [role="link"], [role="button"]';
+
+      function labelsFor(item) {
+        return [item.getAttribute('aria-label'), item.textContent]
+          .filter(Boolean)
+          .map(value => value.replace(/\s+/g, ' ').trim().toLowerCase());
+      }
+
+      function hideLabel(label) {
+        return promoSettings.enabled &&
+          ((label === 'get the app' && promoSettings.getApp) ||
+           (label === 'subscribe' && promoSettings.subscribe));
+      }
+
+      function setHidden(item, attribute, hidden) {
+        if (hidden) item.setAttribute(attribute, '');
+        else item.removeAttribute(attribute);
+      }
+
+      function hideMenuPromotions(drawer) {
+        for (const item of drawer.querySelectorAll(interactiveSelector)) {
+          setHidden(item, hiddenPromoAttribute, labelsFor(item).some(hideLabel));
+        }
+      }
+
+      function hidePagePromotions() {
+        // When both filters are off, only previously hidden nodes need restoring.
+        const active = promoSettings.enabled && (promoSettings.getApp || promoSettings.subscribe);
+        const selector = active ? interactiveSelector : '[' + pagePromoAttribute + ']';
+        for (const item of document.querySelectorAll(selector)) {
+          const marked = item.hasAttribute(pagePromoAttribute);
+          if (!marked) {
+            // Avoid reading text from every timeline post on each X DOM update.
+            const rect = item.getBoundingClientRect();
+            if (rect.width <= 0 || rect.top < 0 || rect.top >= 150) continue;
+          }
+
+          const labels = labelsFor(item);
+          const premiumLink = item.tagName === 'A' &&
+            item.getAttribute('href') === '/i/premium_sign_up';
+          const eligible = !item.closest('article,[data-testid="tweet"]');
+          const hide = eligible &&
+            (labels.includes('get the app') && hideLabel('get the app') ||
+             premiumLink && labels.includes('subscribe') && hideLabel('subscribe'));
+          setHidden(item, pagePromoAttribute, hide);
+        }
       }
 
       function insertSettings(drawer) {
@@ -355,11 +438,15 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
           bridge.postMessage({ action: 'login', visible });
         }
         const drawer = findDrawer();
-        if (drawer) insertSettings(drawer);
+        if (drawer) {
+          hideMenuPromotions(drawer);
+          insertSettings(drawer);
+        }
         // Reposition the highlight after X's drawer slide animation finishes.
         if (drawer && drawer !== lastDrawer && !tipCompleted) setTimeout(schedule, 350);
         lastDrawer = drawer;
         updateTip(drawer);
+        hidePagePromotions();
       }
       function schedule() {
         if (queued) return;
@@ -439,6 +526,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
                 }
             },
             onChange: { [weak self] in self?.markExtensionConfigurationChanged() },
+            onPromoPreferencesChanged: { [weak self] in self?.applyPromoPreferences() },
             onFinish: { [weak self] in
                 self?.applyExtensionChanges()
                 self?.applyPreloadSetting()
@@ -452,6 +540,14 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         }
         navigation.presentationController?.delegate = self
         present(navigation, animated: true)
+    }
+
+    private func applyPromoPreferences() {
+        let script = "globalThis.__xtendSetPromoSettings?.(\(XPromoPreferences.javascriptObject))"
+        let world = WKContentWorld.world(name: "Xtend.Settings")
+        for browser in [webView, standbyView].compactMap({ $0 }) {
+            browser.evaluateJavaScript(script, in: nil, in: world, completionHandler: nil)
+        }
     }
 
     func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
