@@ -27,7 +27,7 @@ Keep `chrome.storage.local` and Xtend's device-local `chrome.storage.sync` APIs 
 
 - iPhone 17 Pro Simulator / iOS 26.4: 13 `ExtensionStorageTests` passed, covering UserDefaults migration, JSON-file migration, both legacy sources holding different keys, unknown JSON values up to 12 MiB, isolation, persistence, change notifications, uninstall, corruption and failure rollback.
 - A manual simulator migration check found a previously saved partial history visible after SQLite adoption; full historical recovery was not verified. This environment-specific check is not a committed test.
-- The separate legacy-source merge unit test explicitly demonstrates old follower and newer following keys are both preserved when a file-based namespace and UserDefaults namespace coexist.
+- The legacy-source merge unit test verifies that distinct keys from file-backed and UserDefaults namespaces are both preserved.
 - This branch updates only Xtend's common extension storage backend and uninstall cleanup, not WebKit localStorage/IndexedDB or any installed extension source code.
 
 - The shipped SQLite-backed `ExtensionStorage` itself was benchmarked on the same iPhone 17 Pro Simulator with an 8 MiB synthetic namespace: 80 activity writes had median 1.063ms (p95 1.367ms); individual keyed reads had median 0.883ms. The prior full-JSON UserDefaults implementation measured roughly 45.5ms write / 21.1ms read under the same synthetic namespace in its earlier isolated experiment. Hardware and test-run differences may affect results.
