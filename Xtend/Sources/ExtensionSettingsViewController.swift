@@ -20,6 +20,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
     private var busy = false
     private let getAppSwitch = UISwitch()
     private let subscribeSwitch = UISwitch()
+    private let notificationSwitch = UISwitch()
 
     init(onReload: @escaping () -> Void, onChange: @escaping () -> Void,
          onPromoPreferencesChanged: @escaping () -> Void, onFinish: @escaping () -> Void) {
@@ -177,6 +178,8 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
         getAppSwitch.isOn = XPromoPreferences.getApp
         subscribeSwitch.accessibilityIdentifier = "xtend.cleanup.subscribe"
         subscribeSwitch.isOn = XPromoPreferences.subscribe
+        notificationSwitch.accessibilityIdentifier = "xtend.cleanup.notifications"
+        notificationSwitch.isOn = XPromoPreferences.notifications
 
         func toggleRow(_ text: String, control: UISwitch, inset: CGFloat = 0) -> UIView {
             let label = UILabel()
@@ -197,6 +200,7 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
             XPromoPreferences.enabled = control.isOn
             getAppSwitch.isEnabled = control.isOn
             subscribeSwitch.isEnabled = control.isOn
+            notificationSwitch.isEnabled = control.isOn
             self.onPromoPreferencesChanged()
         }, for: .valueChanged)
 
@@ -212,13 +216,21 @@ final class ExtensionSettingsViewController: UIViewController, UIDocumentPickerD
             self?.onPromoPreferencesChanged()
         }, for: .valueChanged)
 
+        notificationSwitch.addAction(UIAction { [weak self] action in
+            guard let control = action.sender as? UISwitch else { return }
+            XPromoPreferences.notifications = control.isOn
+            self?.onPromoPreferencesChanged()
+        }, for: .valueChanged)
+
         getAppSwitch.isEnabled = masterSwitch.isOn
         subscribeSwitch.isEnabled = masterSwitch.isOn
+        notificationSwitch.isEnabled = masterSwitch.isOn
 
         let section = UIStackView(arrangedSubviews: [
             toggleRow("邪魔なものを消す", control: masterSwitch),
             toggleRow("Get the app", control: getAppSwitch, inset: 16),
-            toggleRow("Subscribe", control: subscribeSwitch, inset: 16)
+            toggleRow("Subscribe", control: subscribeSwitch, inset: 16),
+            toggleRow("通知をオンにする案内", control: notificationSwitch, inset: 16)
         ])
         section.axis = .vertical
         section.spacing = 14

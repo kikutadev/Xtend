@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class BuiltInNavigationTests: XCTestCase {
     func testPromoPreferencesAndSettingsSwitchesApplyWithoutReload() throws {
-        let keys = ["enabled", "getApp", "subscribe"].map { "xtend.hidePromotions." + $0 }
+        let keys = ["enabled", "getApp", "subscribe", "notifications"].map { "xtend.hidePromotions." + $0 }
         let originals = keys.map { UserDefaults.standard.object(forKey: $0) }
         defer {
             for (key, value) in zip(keys, originals) {
@@ -17,6 +17,7 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertTrue(XPromoPreferences.enabled)
         XCTAssertTrue(XPromoPreferences.getApp)
         XCTAssertTrue(XPromoPreferences.subscribe)
+        XCTAssertTrue(XPromoPreferences.notifications)
 
         var changes = 0
         let settings = ExtensionSettingsViewController(
@@ -33,14 +34,17 @@ final class BuiltInNavigationTests: XCTestCase {
         let master = try XCTUnwrap(toggle("xtend.cleanup.enabled", in: settings.view))
         let getApp = try XCTUnwrap(toggle("xtend.cleanup.getApp", in: settings.view))
         let subscribe = try XCTUnwrap(toggle("xtend.cleanup.subscribe", in: settings.view))
+        let notification = try XCTUnwrap(toggle("xtend.cleanup.notifications", in: settings.view))
         XCTAssertTrue(master.isOn)
         XCTAssertTrue(getApp.isOn)
         XCTAssertTrue(subscribe.isOn)
+        XCTAssertTrue(notification.isOn)
 
         getApp.isOn = false
         getApp.sendActions(for: .valueChanged)
         XCTAssertFalse(XPromoPreferences.getApp)
         XCTAssertTrue(XPromoPreferences.subscribe)
+        XCTAssertTrue(XPromoPreferences.notifications)
         XCTAssertEqual(changes, 1)
 
         master.isOn = false
@@ -48,6 +52,7 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertFalse(XPromoPreferences.enabled)
         XCTAssertFalse(getApp.isEnabled)
         XCTAssertFalse(subscribe.isEnabled)
+        XCTAssertFalse(notification.isEnabled)
         XCTAssertEqual(changes, 2)
 
         master.isOn = true
@@ -55,11 +60,17 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertTrue(XPromoPreferences.enabled)
         XCTAssertFalse(XPromoPreferences.getApp)
         XCTAssertTrue(XPromoPreferences.subscribe)
+        XCTAssertTrue(XPromoPreferences.notifications)
         XCTAssertTrue(getApp.isEnabled)
         XCTAssertTrue(subscribe.isEnabled)
+        XCTAssertTrue(notification.isEnabled)
         XCTAssertEqual(changes, 3)
+        notification.isOn = false
+        notification.sendActions(for: .valueChanged)
+        XCTAssertFalse(XPromoPreferences.notifications)
+        XCTAssertEqual(changes, 4)
         XCTAssertEqual(XPromoPreferences.javascriptObject,
-                       "{enabled: true, getApp: false, subscribe: true}")
+                       "{enabled: true, getApp: false, subscribe: true, notifications: false}")
     }
 
     func testPromoFilterIsInjectedInTheExistingSettingsWorld() throws {
@@ -71,6 +82,8 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertTrue(settingsScript.source.contains("__xtendPromoSettings"))
         XCTAssertTrue(settingsScript.source.contains("__xtendSetPromoSettings"))
         XCTAssertTrue(settingsScript.source.contains("data-xtend-hidden-menu-promo"))
+        XCTAssertTrue(settingsScript.source.contains("data-xtend-hidden-notification-promo"))
+        XCTAssertTrue(settingsScript.source.contains("never miss what's happening"))
         XCTAssertTrue(settingsScript.isForMainFrameOnly)
     }
 

@@ -18,8 +18,12 @@ enum XPromoPreferences {
         get { read("subscribe") }
         set { UserDefaults.standard.set(newValue, forKey: prefix + "subscribe") }
     }
+    static var notifications: Bool {
+        get { read("notifications") }
+        set { UserDefaults.standard.set(newValue, forKey: prefix + "notifications") }
+    }
     static var javascriptObject: String {
-        "{enabled: \(enabled), getApp: \(getApp), subscribe: \(subscribe)}"
+        "{enabled: \(enabled), getApp: \(getApp), subscribe: \(subscribe), notifications: \(notifications)}"
     }
 }
 
@@ -230,7 +234,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
       const entryID = 'xtend-native-settings-entry';
       const tipID = 'xtend-settings-tip';
       const promoStyle = document.createElement('style');
-      promoStyle.textContent = '[data-xtend-hidden-menu-promo],[data-xtend-hidden-page-promo]{display:none!important}';
+      promoStyle.textContent = '[data-xtend-hidden-menu-promo],[data-xtend-hidden-page-promo],[data-xtend-hidden-notification-promo]{display:none!important}';
       (document.head || document.documentElement).appendChild(promoStyle);
       let tipCompleted = !__xtendShowSettingsTip;
       const loginPaths = ['/i/flow/login', '/i/flow/signup', '/i/flow/password_reset', '/login', '/signup', '/account/access'];
@@ -309,6 +313,64 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             (labels.includes('get the app') && hideLabel('get the app') ||
              premiumLink && labels.includes('subscribe') && hideLabel('subscribe'));
           setHidden(item, pagePromoAttribute, hide);
+        }
+      }
+
+      // X can display a push-notification upsell as a dialog or a small banner.
+      // Match its distinctive heading only; never hide tweets or the notifications timeline.
+      const notificationPromoAttribute = 'data-xtend-hidden-notification-promo';
+      const notificationPromoTitle = "never miss what's happening";
+
+      function isNotificationPromoText(text) {
+        const normalized = (text || '').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+        return normalized === notificationPromoTitle || normalized === notificationPromoTitle + '.';
+      }
+
+      function isNotificationPromo(container) {
+        if (!container || container.closest('article,[data-testid="tweet"]')) return false;
+        return [...container.querySelectorAll('h1,h2,h3,[role="heading"],span')]
+          .some(heading => !heading.closest('article,[data-testid="tweet"]') &&
+            isNotificationPromoText(heading.textContent));
+      }
+
+      function notificationDialogContainer(dialog) {
+        // X's sheet backdrop is sometimes a sibling of the dialog. Hide both,
+        // but do not climb into the page root or an unrelated dialog.
+        for (let node = dialog.parentElement, depth = 0; node && depth < 3; node = node.parentElement, depth++) {
+          if (node === document.body || node === document.documentElement) break;
+          if (node.querySelector('[data-testid="mask"]') && node.querySelector('[role="dialog"]')) return node;
+        }
+        return dialog;
+      }
+
+      function hideNotificationPromos() {
+        const active = promoSettings.enabled && promoSettings.notifications;
+        for (const old of document.querySelectorAll('[' + notificationPromoAttribute + ']')) {
+          if (!active || !isNotificationPromo(old)) old.removeAttribute(notificationPromoAttribute);
+        }
+        if (!active) return;
+
+        for (const dialog of document.querySelectorAll('[role="dialog"],[role="alertdialog"]')) {
+          if (isNotificationPromo(dialog)) {
+            notificationDialogContainer(dialog).setAttribute(notificationPromoAttribute, '');
+          }
+        }
+
+        // An inline banner has no dialog. Hide only a compact prompt container
+        // with a control, never the timeline column or a whole page section.
+        for (const heading of document.querySelectorAll('h1,h2,h3,[role="heading"]')) {
+          if (!isNotificationPromoText(heading.textContent) ||
+              heading.closest('article,[data-testid="tweet"],[role="dialog"],[role="alertdialog"]')) continue;
+          for (let parent = heading.parentElement, depth = 0; parent && depth < 4; parent = parent.parentElement, depth++) {
+            if (parent === document.body || parent === document.documentElement ||
+                parent.querySelector('article,[data-testid="tweet"]')) break;
+            const rect = parent.getBoundingClientRect();
+            if (rect.height > 0 && rect.height <= innerHeight * .5 &&
+                parent.textContent.length < 400 && parent.querySelector('button,[role="button"]')) {
+              parent.setAttribute(notificationPromoAttribute, '');
+              break;
+            }
+          }
         }
       }
 
@@ -447,6 +509,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         lastDrawer = drawer;
         updateTip(drawer);
         hidePagePromotions();
+        hideNotificationPromos();
       }
       function schedule() {
         if (queued) return;
