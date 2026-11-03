@@ -160,14 +160,14 @@ final class RecommendedExtensionsView: UIStackView {
         ),
         Recommendation(
             title: "X Ad Hider", detail: "Xの広告ポストを非表示にする",
-            source: URL(string: "https://github.com/kikutadev/x-ad-hider")!, sourceLabel: "GitHub",
-            installURL: "https://github.com/kikutadev/x-ad-hider",
+            source: URL(string: PublicExtensionReleases.adHider)!, sourceLabel: "GitHub",
+            installURL: PublicExtensionReleases.adHider,
             fixedID: nil, note: nil
         ),
         Recommendation(
             title: "X Timeline Filter", detail: "指定したアカウントの投稿だけを表示する",
-            source: URL(string: "https://github.com/kikutadev/x-timeline-filter")!, sourceLabel: "GitHub",
-            installURL: "https://github.com/kikutadev/x-timeline-filter",
+            source: URL(string: PublicExtensionReleases.timelineFilter)!, sourceLabel: "GitHub",
+            installURL: PublicExtensionReleases.timelineFilter,
             fixedID: nil, note: nil
         ),
         Recommendation(
