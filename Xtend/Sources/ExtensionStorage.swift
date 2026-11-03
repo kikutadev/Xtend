@@ -37,20 +37,23 @@ final class ExtensionStorage {
 
     func get(area: String, keys: Any?) throws -> [String: Any] {
         try migrateIfNeeded(area: area)
-        if keys == nil || keys is NSNull { return try namespace(area: area) }
+        if keys == nil || keys is NSNull {
+            let values = try namespace(area: area)
+            return enforceNyattoPresentation(values, area: area, includeMissing: true)
+        }
         if let key = keys as? String {
-            guard let value = try read(key: key, area: area) else { return [:] }
+            guard let value = try readPresentation(key: key, area: area) else { return [:] }
             return [key: value]
         }
         if let keyList = keys as? [String] {
             var result: [String: Any] = [:]
-            for key in keyList { if let value = try read(key: key, area: area) { result[key] = value } }
+            for key in keyList { if let value = try readPresentation(key: key, area: area) { result[key] = value } }
             return result
         }
         if let defaultsByKey = keys as? [String: Any] {
             var result: [String: Any] = [:]
             for (key, fallback) in defaultsByKey {
-                result[key] = try read(key: key, area: area) ?? fallback
+                result[key] = try readPresentation(key: key, area: area) ?? fallback
             }
             return result
         }
@@ -60,8 +63,9 @@ final class ExtensionStorage {
     @discardableResult
     func set(area: String, items: [String: Any], quotaBytes: Int? = nil) throws -> [String: [String: Any]] {
         try migrateIfNeeded(area: area)
+        let normalizedItems = enforceNyattoPresentation(items, area: area, includeMissing: false)
         var newData: [String: String] = [:]
-        for (key, value) in items { newData[key] = try jsonString(value) }
+        for (key, value) in normalizedItems { newData[key] = try jsonString(value) }
         let changes: [String: [String: Any]] = try transaction {
             if let quotaBytes {
                 var bytes = try getBytesInUse(area: area, keys: nil)
@@ -76,7 +80,7 @@ final class ExtensionStorage {
             var updates: [String: [String: Any]] = [:]
             for (key, json) in newData {
                 let old = try read(key: key, area: area)
-                let newValue = items[key]!
+                let newValue = normalizedItems[key]!
                 if jsonEquivalent(old, newValue) { continue }
                 try execute("INSERT INTO values_store (extension_id, area, key, json) VALUES (?, ?, ?, ?) " +
                             "ON CONFLICT(extension_id, area, key) DO UPDATE SET json=excluded.json",
@@ -253,6 +257,39 @@ final class ExtensionStorage {
             guard step == SQLITE_ROW else { throw StorageError.ioFailure }
             result[try columnString(stmt, index: 0)] = try parse(columnString(stmt, index: 1))
         }
+    }
+
+    /// Nyatto's keyboard-only presentation is hidden even for absent saved settings.
+    /// Other extensions keep direct indexed SQLite reads.
+    private func readPresentation(key: String, area: String) throws -> Any? {
+        let stored = try read(key: key, area: area)
+        guard extensionID == ExtensionInstallStore.supportedExtensionID else { return stored }
+        var values: [String: Any] = [:]
+        if let stored { values[key] = stored }
+        return enforceNyattoPresentation(values, area: area, includeMissing: true)[key]
+    }
+
+    private func enforceNyattoPresentation(
+        _ values: [String: Any], area: String, includeMissing: Bool
+    ) -> [String: Any] {
+        guard extensionID == ExtensionInstallStore.supportedExtensionID else { return values }
+        if area == "local" {
+            guard includeMissing || values["xff:shortcut-intro:v1"] != nil else { return values }
+            var result = values
+            result["xff:shortcut-intro:v1"] = true
+            return result
+        }
+        guard area == "sync", includeMissing || values["xff:settings"] != nil else { return values }
+        var result = values
+        var settings = result["xff:settings"] as? [String: Any] ?? [:]
+        for key in [
+            "shortcutCatGuideEnabled", "shortcutStarterEnabled",
+            "shortcutGoHintEnabled", "shortcutPostKeysEnabled"
+        ] {
+            settings[key] = false
+        }
+        result["xff:settings"] = settings
+        return result
     }
 
     private func read(key: String, area: String) throws -> Any? {

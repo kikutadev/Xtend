@@ -42,6 +42,50 @@ final class ExtensionStorageTests: XCTestCase {
         XCTAssertEqual(recorder.extensionIDs, ["extension-a", "extension-b"])
     }
 
+    func testNyattoKeyboardGuidesStayOffWithoutChangingOtherFeatures() throws {
+        let suite = "XtendTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(suite, isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let nyatto = ExtensionStorage(
+            extensionID: ExtensionInstallStore.supportedExtensionID, defaults: defaults, storageDirectory: directory
+        )
+        let other = ExtensionStorage(extensionID: "another-extension", defaults: defaults, storageDirectory: directory)
+        let guideKeys = [
+            "shortcutCatGuideEnabled", "shortcutStarterEnabled",
+            "shortcutGoHintEnabled", "shortcutPostKeysEnabled"
+        ]
+
+        // Even without persisted settings, Nyatto must see the four hints disabled.
+        let defaultsResult = try XCTUnwrap(nyatto.get(area: "sync", keys: "xff:settings")["xff:settings"] as? [String: Any])
+        for key in guideKeys { XCTAssertEqual(defaultsResult[key] as? Bool, false) }
+        XCTAssertEqual(try nyatto.get(area: "local", keys: "xff:shortcut-intro:v1")["xff:shortcut-intro:v1"] as? Bool, true)
+        XCTAssertNil(try nyatto.get(area: "local", keys: "unrelated")["unrelated"])
+        _ = try nyatto.set(area: "local", items: ["xff:shortcut-intro:v1": false])
+        XCTAssertEqual(try nyatto.get(area: "local", keys: nil)["xff:shortcut-intro:v1"] as? Bool, true)
+        XCTAssertTrue(try other.get(area: "sync", keys: nil).isEmpty)
+
+        var attempted: [String: Any] = ["showQuickDock": true, "timelineArrowKeysEnabled": true]
+        for key in guideKeys { attempted[key] = true }
+        _ = try nyatto.set(area: "sync", items: ["xff:settings": attempted])
+        _ = try other.set(area: "sync", items: ["xff:settings": attempted])
+        for query: Any? in [nil, "xff:settings", ["xff:settings"], ["xff:settings": [:]]] {
+            let settings = try XCTUnwrap(nyatto.get(area: "sync", keys: query)["xff:settings"] as? [String: Any])
+            for key in guideKeys { XCTAssertEqual(settings[key] as? Bool, false) }
+            XCTAssertEqual(settings["showQuickDock"] as? Bool, true)
+            XCTAssertEqual(settings["timelineArrowKeysEnabled"] as? Bool, true)
+        }
+        let otherSettings = try XCTUnwrap(other.get(area: "sync", keys: "xff:settings")["xff:settings"] as? [String: Any])
+        for key in guideKeys { XCTAssertEqual(otherSettings[key] as? Bool, true) }
+
+        _ = try nyatto.remove(area: "sync", keys: "xff:settings")
+        let removedResult = try XCTUnwrap(nyatto.get(area: "sync", keys: "xff:settings")["xff:settings"] as? [String: Any])
+        for key in guideKeys { XCTAssertEqual(removedResult[key] as? Bool, false) }
+    }
+
     func testLocalAndSyncPersistAfterRecreatingStorage() throws {
         let suite = "XtendTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

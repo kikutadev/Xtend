@@ -471,14 +471,16 @@ final class ExtensionPopupViewController: UIViewController, WKNavigationDelegate
         browser.layer.masksToBounds = true
         browser.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(browser)
-        let width = browser.widthAnchor.constraint(equalToConstant: page.prefersWideLayout ? 420 : 350)
+        // Use the device's available width for extension settings instead of squeezing
+        // full dashboards into a 350-420pt desktop-popup-sized column.
+        let width = browser.widthAnchor.constraint(equalToConstant: page.prefersWideLayout ? 1040 : 560)
         width.priority = .defaultHigh
         NSLayoutConstraint.activate([
             browser.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
             browser.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             browser.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
             width,
-            browser.widthAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.widthAnchor, constant: -24)
+            browser.widthAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.widthAnchor, constant: -16)
         ])
         let url = URL(string: "\(ExtensionResourceSchemeHandler.scheme)://\(extensionID)/\(page.path)")!
         browser.load(URLRequest(url: url))

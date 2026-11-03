@@ -46,6 +46,12 @@ final class ExtensionSettingsPageTests: XCTestCase {
         let optionsOnly = try package(options: "settings/index.html")
         defer { try? FileManager.default.removeItem(at: optionsOnly.root) }
         XCTAssertEqual(optionsOnly.settingsPage?.path, "settings/index.html")
+        // Even extensions opting out of Chrome's options tab get their wider
+        // options page instead of a cramped toolbar popup inside Xtend.
+        let embeddedOptions = try package(popup: "popup.html", options: "settings/index.html")
+        defer { try? FileManager.default.removeItem(at: embeddedOptions.root) }
+        XCTAssertEqual(embeddedOptions.settingsPage?.path, "settings/index.html")
+        XCTAssertTrue(embeddedOptions.settingsPage?.prefersWideLayout == true)
     }
 
     func testUnsafeOrMissingSettingsPageIsNotExposed() throws {

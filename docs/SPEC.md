@@ -66,6 +66,7 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、Xの操作ジェスチャー�
 
 - 共通の拡張機能ホストが、拡張機能IDごとにJavaScript実行領域、保存領域、リソース配信を分離する。X上のコンテンツスクリプトとCSS、基本的な`chrome.storage`等を実行する。Chromeのservice workerや未実装API、全拡張機能の動作は保証しない。にゃっとランドの画像パック応答のみ既存の専用処理を維持する。
 - にゃっとランドのContent Scriptsはインストール済み`manifest.json`の順序、JavaScript実行領域（MAIN／ISOLATED）、読み込みタイミングに従ってX／Twitter上で実行する。
+- Xtendでは、にゃっとランドのキーボードショートカット案内（ねこせんせー・基本のキー・g の続き・選んだポストのキー）とその初回案内を無効化し、にゃっとランドの設定画面からも該当セクションを非表示にする。Xのタッチ操作・キーボード操作自体や他の拡張機能の設定は変更しない。
 - モバイル版Xにデスクトップ向けプロフィールリンクが存在しない場合、にゃっとランドの本人別履歴のため、専用の `NyattoMobileXAdapter` を当該拡張機能の実行領域にのみ適用し、開いたアカウントメニューで本人のハンドルを確認できた場合に限り互換リンクを補完する。通知や投稿の著者から本人を推定しない。ログアウト・アカウント切替時、または表示中のアカウントメニューを確認できない場合には既存の識別状態を無効化する。履歴自体の保存は共通の `chrome.storage` を使う。
 - ブラウザ上で必要な`chrome.runtime`、`chrome.storage.local`、`chrome.storage.sync`等のAPIを限定的に提供する。`storage.sync`は**端末内の保存領域**であり、Chromeアカウントとの同期ではない。
 - `chrome.storage.local`と`chrome.storage.sync`は拡張機能ID・領域・キーごとにXtendのSQLiteへ保存する。旧`UserDefaults`または拡張機能別JSONファイルは初回アクセス時にデータを保持して移行する。`localStorage`/`IndexedDB`はWebKit標準の保存領域を使い、SQLiteへ転送しない。
