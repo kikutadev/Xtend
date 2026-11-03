@@ -22,7 +22,7 @@ function item(text, ariaLabel = null, href = null) {
   };
 }
 
-function loadMenu(entries) {
+function loadMenu(entries, { notificationPrompt = false, notificationBanner = false } = {}) {
   let observer;
   let expanded = true;
   const outsideSubscribe = item('Subscribe', null, '/i/premium_sign_up');
@@ -31,6 +31,52 @@ function loadMenu(entries) {
   postGetApp.closest = () => ({ id: 'tweet' });
   const offscreenSubscribe = item('Subscribe', null, '/i/premium_sign_up');
   offscreenSubscribe.getBoundingClientRect = () => ({ width: 100, top: 500 });
+  const promptHeading = {
+    textContent: 'Never miss what’s happening.',
+    closest: () => null,
+  };
+  const unrelatedPostHeading = {
+    textContent: 'Never miss what’s happening.',
+    closest: () => ({ id: 'tweet' }),
+  };
+  const bannerContainer = {
+    attrs: new Map(), textContent: 'Never miss what’s happening. Turn on notifications',
+    parentElement: null,
+    querySelector: selector => selector === 'button,[role="button"]' ? {} : null,
+    getBoundingClientRect: () => ({ width: 320, height: 170 }),
+    setAttribute(name, value) { this.attrs.set(name, value); },
+    removeAttribute(name) { this.attrs.delete(name); },
+    hasAttribute(name) { return this.attrs.has(name); },
+    closest: () => null,
+    querySelectorAll: selector => selector.includes('h1') ? [bannerHeading] : [],
+  };
+  const bannerHeading = {
+    textContent: 'Never miss what’s happening.', parentElement: bannerContainer,
+    closest: () => null,
+  };
+  const dialogMask = {};
+  const promptOverlay = {
+    attrs: new Map(), parentElement: null,
+    closest: () => null,
+    querySelectorAll: selector => selector.includes('span') ? [promptHeading] : [],
+    querySelector: selector => selector === '[data-testid="mask"]' ? dialogMask :
+      selector === '[role="dialog"]' ? promptDialog : null,
+    setAttribute(name, value) { this.attrs.set(name, value); },
+    removeAttribute(name) { this.attrs.delete(name); },
+    hasAttribute(name) { return this.attrs.has(name); },
+  };
+  const promptDialog = {
+    parentElement: promptOverlay,
+    closest: () => null,
+    querySelectorAll: selector => selector.includes('span') ? [promptHeading] : [],
+    setAttribute: () => { throw new Error('Should hide the backdrop as well as the dialog'); },
+  };
+  const unrelatedPostDialog = {
+    parentElement: null,
+    closest: () => null,
+    querySelectorAll: selector => selector.includes('span') ? [unrelatedPostHeading] : [],
+    setAttribute: () => { throw new Error('Must not hide post content'); },
+  };
   const injectedStyles = [];
   const drawer = {
     querySelector(selector) {
@@ -54,6 +100,14 @@ function loadMenu(entries) {
     },
     querySelectorAll(selector) {
       if (selector === '[role="dialog"]') return [drawer];
+      if (selector === '[role="dialog"],[role="alertdialog"]') {
+        return notificationPrompt ? [promptDialog, unrelatedPostDialog] : [];
+      }
+      if (selector === 'h1,h2,h3,[role="heading"]') return notificationBanner ? [bannerHeading] : [];
+      if (selector === '[data-xtend-hidden-notification-promo]') {
+        return [promptOverlay, bannerContainer]
+          .filter(node => node.hasAttribute('data-xtend-hidden-notification-promo'));
+      }
       if (selector === 'a[href="/i/premium_sign_up"]') return [outsideSubscribe];
       if (selector.startsWith('a[href], button,')) {
         return [outsideSubscribe, headerGetApp, postGetApp, offscreenSubscribe];
@@ -72,7 +126,7 @@ function loadMenu(entries) {
     innerWidth: 390,
     innerHeight: 844,
     __xtendShowSettingsTip: false,
-    __xtendPromoSettings: { enabled: true, getApp: true, subscribe: true },
+    __xtendPromoSettings: { enabled: true, getApp: true, subscribe: true, notifications: true },
     requestAnimationFrame: callback => callback(),
     MutationObserver: class {
       constructor(callback) { observer = callback; }
@@ -88,6 +142,8 @@ function loadMenu(entries) {
     headerGetApp,
     postGetApp,
     offscreenSubscribe,
+    promptOverlay,
+    bannerContainer,
     injectedStyles,
     updatePreferences: state => context.__xtendSetPromoSettings(state),
   };
@@ -162,5 +218,27 @@ restored.outsideSubscribe.getBoundingClientRect = () => ({ width: 0, top: 0 });
 restored.updatePreferences({ enabled: false, getApp: true, subscribe: true });
 assert.equal(restored.outsideSubscribe.hasAttribute(pageMarker), false);
 assert.equal(restored.headerGetApp.hasAttribute(pageMarker), false);
+
+// Notification promo suppression also hides its backdrop, without hiding a post
+// that quotes the same words. It must restore the dialog on toggle off.
+const notification = loadMenu([item('Bookmarks')], { notificationPrompt: true });
+const notificationMarker = 'data-xtend-hidden-notification-promo';
+assert.equal(notification.promptOverlay.hasAttribute(notificationMarker), true,
+  'The entire push-notification prompt and backdrop must be hidden');
+notification.updatePreferences({ enabled: true, getApp: true, subscribe: true, notifications: false });
+assert.equal(notification.promptOverlay.hasAttribute(notificationMarker), false,
+  'Turning off only the notification filter restores the prompt');
+notification.updatePreferences({ enabled: true, getApp: true, subscribe: true, notifications: true });
+assert.equal(notification.promptOverlay.hasAttribute(notificationMarker), true);
+notification.updatePreferences({ enabled: false, getApp: true, subscribe: true, notifications: true });
+assert.equal(notification.promptOverlay.hasAttribute(notificationMarker), false,
+  'The master switch restores the notification prompt');
+
+const banner = loadMenu([item('Bookmarks')], { notificationBanner: true });
+assert.equal(banner.bannerContainer.hasAttribute(notificationMarker), true,
+  'The compact notification banner is hidden instead of just its heading');
+banner.updatePreferences({ enabled: true, getApp: true, subscribe: true, notifications: false });
+assert.equal(banner.bannerContainer.hasAttribute(notificationMarker), false,
+  'The notification banner is restored on individual toggle off');
 
 console.log('Xtend menu promo preferences and live updates: PASS');
