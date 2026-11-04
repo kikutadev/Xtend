@@ -45,6 +45,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     private var visibleTab: Int?
     private var warmupScheduled = false
     private var visibleURLObservation: NSKeyValueObservation?
+    private var backHistoryObservation: NSKeyValueObservation?
     private var preloadSuspended = false
     #if DEBUG
     private var benchmarkScheduled = false
@@ -163,7 +164,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
         webView.isOpaque = false
         webView.backgroundColor = .systemBackground
-        installHomeForwardSwipe(on: webView)
 
         view.addSubview(webView)
         NSLayoutConstraint.activate([
@@ -777,37 +777,22 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         settingsButton?.isHidden = !pageLoadFailed && !isLogin
     }
 
-    private func installHomeForwardSwipe(on webView: WKWebView) {
-        let gesture = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleHomeForwardSwipe(_:)))
-        gesture.name = "Xtend.HomeForwardSwipe"
-        gesture.edges = .right
-        webView.addGestureRecognizer(gesture)
-    }
-
-    @objc private func handleHomeForwardSwipe(_ gesture: UIScreenEdgePanGestureRecognizer) {
-        guard gesture.state == .ended,
-              let browser = gesture.view as? WKWebView, browser === webView,
-              isXURL(browser.url), browser.url?.path == "/home",
-              browser.canGoForward else { return }
-        let distance = -gesture.translation(in: browser).x
-        let velocity = -gesture.velocity(in: browser).x
-        guard distance >= max(64, browser.bounds.width * 0.17)
-                || (distance >= 42 && velocity >= 550) else { return }
-        browser.goForward()
-    }
-
     private func updateNavigationControls(for webView: WKWebView, url: URL? = nil) {
-        let currentURL = url ?? webView.url
-        let onX = isXURL(currentURL)
-        let onHome = onX && currentURL?.path == "/home"
-        navigationBackButton?.isHidden = onX
-        // On X home, the left edge belongs to X's profile drawer. Elsewhere,
-        // restore WebKit's interactive history gestures in both directions.
-        webView.allowsBackForwardNavigationGestures = !onHome
-        // On home, the opposite edge still provides browser Forward without
-        // competing with the profile drawer or the timeline tab gestures.
-        webView.gestureRecognizers?
-            .first { $0.name == "Xtend.HomeForwardSwipe" }?.isEnabled = onHome
+        navigationBackButton?.isHidden = isXURL(url ?? webView.url)
+        // Browser history always belongs to WebKit on every route.
+        webView.allowsBackForwardNavigationGestures = true
+        updateBackAvailability(in: webView)
+    }
+
+    private func updateBackAvailability(in browser: WKWebView) {
+        // X's drawer gesture only participates when WebKit has no Back entry.
+        // Keep this in the same isolated world as xtend-swipe.js.
+        browser.evaluateJavaScript(
+            "globalThis.__xtendCanGoBack = \(browser.canGoBack ? "true" : "false");",
+            in: nil,
+            in: WKContentWorld.world(name: "Xtend.Navigation"),
+            completionHandler: nil
+        )
     }
 
     private func isXURL(_ url: URL?) -> Bool {
@@ -943,7 +928,6 @@ private extension BrowserViewController {
         alternate.scrollView.contentInsetAdjustmentBehavior = .automatic
         alternate.isOpaque = false
         alternate.backgroundColor = .systemBackground
-        installHomeForwardSwipe(on: alternate)
         view.insertSubview(alternate, belowSubview: browser)
         NSLayoutConstraint.activate([
             alternate.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -1269,12 +1253,15 @@ private extension BrowserViewController {
     }
 
     private func observeVisibleURL() {
+        backHistoryObservation = webView?.observe(\.canGoBack, options: [.initial, .new]) { [weak self] browser, _ in
+            Task { @MainActor [weak self, weak browser] in
+                guard let self, let browser, self.webView === browser else { return }
+                self.updateBackAvailability(in: browser)
+            }
+        }
         visibleURLObservation = webView?.observe(\.url, options: [.new]) { [weak self] browser, _ in
             Task { @MainActor [weak self, weak browser] in
                 guard let self, let browser, self.webView === browser else { return }
-                // X uses pushState/replaceState, which does not always trigger
-                // WKNavigationDelegate. Update gesture ownership on SPA routes.
-                self.updateNavigationControls(for: browser)
                 if browser.url?.path == "/home" { self.schedulePreload() }
                 else { self.releasePreload() }
             }
