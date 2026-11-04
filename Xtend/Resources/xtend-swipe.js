@@ -264,6 +264,7 @@
       const target = event.target;
       const menu = findMenu(doc);
       const edge = touch.clientX <= EDGE_WIDTH;
+      const forwardEdge = touch.clientX >= win.innerWidth - EDGE_WIDTH;
       let mode;
       let surface = null;
       let toggle = null;
@@ -272,11 +273,13 @@
         mode = 'menu-close';
         surface = menu.menu;
         toggle = menu.toggle;
-      } else if (edge && menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
+      } else if (edge && win.location.pathname === '/home' &&
+                 menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
         mode = 'menu-open';
         toggle = menu.toggle;
       } else {
-        if (edge || isExcluded(target)) return;
+        // On home, the far right edge belongs to native browser Forward.
+        if (edge || forwardEdge || isExcluded(target)) return;
         if (!target.closest('[data-testid="primaryColumn"]')) return;
         if (!getTabTarget(doc, true) && !getTabTarget(doc, false)) return;
         mode = 'tab';

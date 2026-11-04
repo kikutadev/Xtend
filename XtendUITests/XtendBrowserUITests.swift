@@ -186,6 +186,49 @@ final class XtendBrowserUITests: XCTestCase {
         XCTAssertTrue(web.exists)
     }
 
+    func testHistorySwipeBackAndForwardOnActualX() throws {
+        try launchExistingBrowser()
+        let web = app.webViews.firstMatch
+        dismissXOverlays(in: web)
+
+        let homeTab = web.buttons.matching(NSPredicate(
+            format: "label ==[cd] %@ OR label ==[cd] %@", "For you", "おすすめ"
+        )).firstMatch
+        guard homeTab.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Log into X on this Simulator before testing real history navigation.")
+        }
+
+        // The home left edge is reserved for X's drawer. Use its Profile link
+        // to create an actual X SPA history entry before testing history swipes.
+        let drawerStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.44))
+        let drawerEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.44))
+        drawerStart.press(forDuration: 0.1, thenDragTo: drawerEnd)
+
+        let profileLink = web.links.matching(NSPredicate(
+            format: "label ==[cd] %@ OR label ==[cd] %@", "Profile", "プロフィール"
+        )).firstMatch
+        XCTAssertTrue(profileLink.waitForExistence(timeout: 10), "X drawer must expose Profile")
+        profileLink.tap()
+
+        let postsTab = web.buttons.matching(NSPredicate(
+            format: "label ==[cd] %@ OR label ==[cd] %@", "Posts", "ポスト"
+        )).firstMatch
+        XCTAssertTrue(postsTab.waitForExistence(timeout: 12), "Profile must open via SPA navigation")
+        captureBrowserEvidence("history-profile-before-back")
+
+        let backStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.51))
+        let backEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.51))
+        backStart.press(forDuration: 0.1, thenDragTo: backEnd)
+        XCTAssertTrue(homeTab.waitForExistence(timeout: 12), "Left edge swipe must return to home")
+        captureBrowserEvidence("history-home-after-back")
+
+        let forwardStart = web.coordinate(withNormalizedOffset: CGVector(dx: 0.995, dy: 0.51))
+        let forwardEnd = web.coordinate(withNormalizedOffset: CGVector(dx: 0.19, dy: 0.51))
+        forwardStart.press(forDuration: 0.1, thenDragTo: forwardEnd)
+        XCTAssertTrue(postsTab.waitForExistence(timeout: 12), "Right edge swipe must revisit Profile")
+        captureBrowserEvidence("history-profile-after-forward")
+    }
+
     func testSwipeNavigationOnLoggedInX() throws {
         try runSwipeScenario()
     }
@@ -193,6 +236,12 @@ final class XtendBrowserUITests: XCTestCase {
     private func runSwipeScenario() throws {
         try launchExistingBrowser()
         let web = app.webViews.firstMatch
+        let homeTab = web.buttons.matching(NSPredicate(
+            format: "label ==[cd] %@ OR label ==[cd] %@", "For you", "おすすめ"
+        )).firstMatch
+        guard homeTab.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Log into X on this Simulator before testing home swipes.")
+        }
         // Simulator evidence is captured for visual inspection because X's tab
         // selection is not consistently exposed through WebKit accessibility.
         func evidence(_ name: String) {
