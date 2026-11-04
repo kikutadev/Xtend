@@ -131,26 +131,23 @@ final class BuiltInNavigationTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: oldSwipe.path))
     }
 
-    func testXHomeKeepsDrawerEdgeAndProvidesForwardEdge() throws {
+    func testXHomeUsesNativeBackAndForwardGestures() throws {
         let controller = BrowserViewController(initialURL: URL(string: "https://x.com/home")!)
         controller.loadViewIfNeeded()
         let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
-        XCTAssertFalse(browser.allowsBackForwardNavigationGestures)
-        let forward = try XCTUnwrap(browser.gestureRecognizers?.first {
-            $0.name == "Xtend.HomeForwardSwipe"
-        } as? UIScreenEdgePanGestureRecognizer)
-        XCTAssertEqual(forward.edges, .right)
-        XCTAssertTrue(forward.isEnabled)
+        XCTAssertTrue(browser.allowsBackForwardNavigationGestures)
+        XCTAssertFalse(browser.gestureRecognizers?.contains { $0.name == "Xtend.HomeForwardSwipe" } ?? true)
+        XCTAssertTrue(browser.configuration.userContentController.userScripts.contains {
+            $0.source.contains("win.__xtendCanGoBack === false")
+        })
     }
 
-    func testXDetailPageRestoresNativeBackAndForwardGestures() throws {
+    func testXDetailPageUsesSameNativeHistoryGestures() throws {
         let controller = BrowserViewController(initialURL: URL(string: "https://x.com/example/status/123")!)
         controller.loadViewIfNeeded()
         let browser = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? WKWebView }.first)
         XCTAssertTrue(browser.allowsBackForwardNavigationGestures)
-        XCTAssertFalse(browser.gestureRecognizers?.first {
-            $0.name == "Xtend.HomeForwardSwipe"
-        }?.isEnabled ?? true)
+        XCTAssertFalse(browser.gestureRecognizers?.contains { $0.name == "Xtend.HomeForwardSwipe" } ?? true)
     }
 
     func testExternalLoginPageKeepsWebViewBackGesture() throws {

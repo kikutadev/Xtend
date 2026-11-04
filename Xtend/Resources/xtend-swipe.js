@@ -274,11 +274,12 @@
         surface = menu.menu;
         toggle = menu.toggle;
       } else if (edge && win.location.pathname === '/home' &&
+                 win.__xtendCanGoBack === false &&
                  menu && !menu.open && !target.closest(MENU_INTERACTION_SELECTOR)) {
         mode = 'menu-open';
         toggle = menu.toggle;
       } else {
-        // On home, the far right edge belongs to native browser Forward.
+        // Both screen edges belong to native history when available.
         if (edge || forwardEdge || isExcluded(target)) return;
         if (!target.closest('[data-testid="primaryColumn"]')) return;
         if (!getTabTarget(doc, true) && !getTabTarget(doc, false)) return;
