@@ -43,6 +43,27 @@ xcrun simctl launch booted org.example.xtend
 
 Releaseビルドは `-configuration Release` に変更します。生成先は `.build/DerivedData/Build/Products/Release-iphonesimulator/Xtend.app` です。いずれもSimulator専用で、iPhone実機にインストールできません。
 
+## 個人用ビルドへローカルの拡張機能をプリインストール
+
+公開Xtendには拡張機能の配布ZIPを含めません。手元のみに存在するZIPを個人用のビルドへ組み込む場合は、通常のXcode署名前に追加する方式を使用します。
+
+```sh
+mkdir -p Xtend/LocalExtensions
+cp /path/to/private-extension-version-chrome.zip Xtend/LocalExtensions/
+xcodegen generate
+xcodebuild -project Xtend.xcodeproj -scheme Xtend \
+  -configuration Debug -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath .build/PersonalDerivedData CODE_SIGNING_ALLOWED=NO \
+  XTEND_EMBED_LOCAL_EXTENSIONS=YES build
+```
+
+- `Xtend/LocalExtensions/` はGit管理対象外です。名前にバージョンを含むZIPを配置し、同じ拡張機能の異なるバージョンを同時に置かないでください。
+- `XTEND_EMBED_LOCAL_EXTENSIONS=YES` を指定しないビルドはZIPを組み込みません。同じDerivedDataを使っても以前のZIPが残らないようビルド工程で消去します。
+- アプリ初回起動時に既存のX向け汎用ZIP検証・インストーラーを実行します。失敗したZIPのみ無視し、Xの起動は継続します。設定の保存先は従来と同じ端末内です。自動同期・定期更新はありません。
+- 一度インストールされたZIPは、同名・同バージョンでの再インストールをしません。手動で削除した拡張機能を、同じZIPの次回起動で復活させません。
+- 実iPhone用には署名設定と `-destination 'generic/platform=iOS'` に変更します。**この個人用アプリを外部へ配布すると、ZIPの中身も受取人に渡ります。**
+- すでにインストールしてあるXtendのデータコンテナ（ログイン状態・他の拡張機能）はアプリ更新では削除しません。
+
 ## 自動テスト（Phase 2）
 
 `xcodegen generate`後、`xcrun simctl list devices available`でSimulatorのIDを確認して実行します。

@@ -25,3 +25,6 @@
 **/xcuserdata/
 *.ipa
 *.xcarchive/
+
+# Never commit personal/private extension binaries. Embedded only for explicit local builds.
+Xtend/LocalExtensions/

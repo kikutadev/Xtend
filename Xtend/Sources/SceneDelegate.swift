@@ -11,6 +11,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         options connectionOptions: UIScene.ConnectionOptions
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
+        // Only personal builds include PreinstalledExtensions. Normal builds do nothing.
+        _ = BundledExtensionInstaller.installIfPresent()
         let window = UIWindow(windowScene: windowScene)
         if UserDefaults.standard.bool(forKey: Self.openedXKey) {
             window.rootViewController = BrowserViewController()

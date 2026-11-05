@@ -30,6 +30,10 @@ targets:
       - path: Xtend/Resources/Assets.xcassets
       - path: Xtend/Resources/xtend-swipe.js
       - path: Xtend/Resources/xtend-quote-longpress.js
+    postBuildScripts:
+      - name: Embed locally provided extensions (opt-in)
+        script: "\"${PROJECT_DIR}/scripts/embed-local-extensions.sh\""
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: ZIPFoundation
     settings:

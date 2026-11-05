@@ -13,6 +13,7 @@ Xtendは、iPhoneの`WKWebView`でXを閲覧し、Xの操作ジェスチャー�
 ## 初回起動と拡張機能
 
 - X向けManifest V3 `content_scripts` を持つChrome拡張機能は、ID・拡張名ごとの登録を必要とせずにChrome Web StoreのURL、GitHubの最新Release、またはZIPから追加できる。にゃっとランドforXのみ既存の専用アセット処理を維持する。
+- 通常ビルドは外部拡張機能を一切同梱しない。開発者が `XTEND_EMBED_LOCAL_EXTENSIONS=YES` を指定した**個人用ビルドだけ**、Git管理外の `Xtend/LocalExtensions/*.zip` をアプリ内の `PreinstalledExtensions/` へコピーする。初回起動時に既存の汎用ZIPインストーラーで検証・導入し、設定画面のインストール済み一覧にも表示する。同じZIPの再インストールは行わず、既存の同等・新版は保持する。利用者が削除した同じZIPを起動ごとに復活させない。ビルド済みアプリに含めたZIPはアプリを入手した人に閲覧可能であり、Private GitHubの権限制御とは別である。
 
 ### にゃっとランドforX（推奨・任意）
 

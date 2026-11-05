@@ -24,6 +24,8 @@
 		571A01FBC23E9BA16BE45C12 /* NyattoSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210BC29AF8B22D47382FD39 /* NyattoSupport.swift */; };
 		5825BBB577C7FC8FF245F736 /* RecommendedExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8FE4C42E020F65FF322AAC1 /* RecommendedExtensionsTests.swift */; };
 		58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B884C456033A9D3781F2BC /* CRX3Package.swift */; };
+		5D631C8874904C5FBE8D9149 /* BundledExtensionInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB5F1C6CF8F8902F621B3AA /* BundledExtensionInstaller.swift */; };
+		5EA301A05C7D3A932BA9EE6A /* BundledExtensionInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EB79B8D000FB33766666967 /* BundledExtensionInstallerTests.swift */; };
 		5F427D9F8324760852BAC185 /* GenericExtensionSettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595A8FBFC153409715E802D9 /* GenericExtensionSettingsUITests.swift */; };
 		63EAA3269941DF7058CD6FC1 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 4C808A67CB794F23FE6E1456 /* ZIPFoundation */; };
 		6977CB461138C0C63ABC3594 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14307402EA85E945B44C3A40 /* Assets.xcassets */; };
@@ -75,6 +77,7 @@
 		3F4B186C3B6735B86B62C5C1 /* XtendUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42C7F7272D498831080B4BEC /* XtendTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = XtendTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A678E57174F3902A4809A96 /* ExtensionHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionHost.swift; sourceTree = "<group>"; };
+		4EB79B8D000FB33766666967 /* BundledExtensionInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledExtensionInstallerTests.swift; sourceTree = "<group>"; };
 		4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5523AE88483B76D72E8E474B /* ChromeShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeShim.swift; sourceTree = "<group>"; };
 		5592C79FE1D7F301160BCB03 /* GitHubReleaseInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseInstallerTests.swift; sourceTree = "<group>"; };
@@ -98,6 +101,7 @@
 		C9A0B3A225F68901F4EACA4A /* XtendNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtendNavigation.swift; sourceTree = "<group>"; };
 		D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityExtensionStore.swift; sourceTree = "<group>"; };
 		DC87E259B9E47A6BC7598A0F /* Xtend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Xtend.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCB5F1C6CF8F8902F621B3AA /* BundledExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledExtensionInstaller.swift; sourceTree = "<group>"; };
 		DE901A1EF81BF2D6C727F668 /* ExtensionURLInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionURLInstaller.swift; sourceTree = "<group>"; };
 		E2EBBE0A7FAD6F79FDCFEF8E /* SceneLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneLifecycleTests.swift; sourceTree = "<group>"; };
 		E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSafetyTests.swift; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 			children = (
 				4F425B1F8E6BB6C25B406C4A /* AppDelegate.swift */,
 				0B65B670E94294446AA43DB6 /* BrowserViewController.swift */,
+				DCB5F1C6CF8F8902F621B3AA /* BundledExtensionInstaller.swift */,
 				89E4F9066DC4E28B64C61BAB /* ChromeBridge.swift */,
 				5523AE88483B76D72E8E474B /* ChromeShim.swift */,
 				D64ED11E778D4D7928992171 /* CommunityExtensionStore.swift */,
@@ -164,6 +169,7 @@
 			children = (
 				F4BA83DE7CFD06459BD25A53 /* BrowserExtensionReloadTests.swift */,
 				C20A5E5DB7A84B8C65243AB5 /* BuiltInNavigationTests.swift */,
+				4EB79B8D000FB33766666967 /* BundledExtensionInstallerTests.swift */,
 				2E07A2C451741C1304BE9488 /* ChromeStorageAPITests.swift */,
 				7558D8FF33DE33A37E920C68 /* CommunityExtensionStoreTests.swift */,
 				E6002653DE93D889288764E4 /* ExtensionSafetyTests.swift */,
@@ -253,6 +259,7 @@
 				E5A129DFD536E285C7DE36EA /* Sources */,
 				33B662768518587BF1850E9D /* Resources */,
 				436693AC91E8F50EB87F5CAF /* Frameworks */,
+				A94458D50E7A9D72EE8A7CA1 /* Embed locally provided extensions (opt-in) */,
 			);
 			buildRules = (
 			);
@@ -320,6 +327,28 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A94458D50E7A9D72EE8A7CA1 /* Embed locally provided extensions (opt-in) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed locally provided extensions (opt-in)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PROJECT_DIR}/scripts/embed-local-extensions.sh\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		39EA82A7196094F1975D20ED /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -327,6 +356,7 @@
 			files = (
 				05A80BEDA40B7B544A6D6480 /* BrowserExtensionReloadTests.swift in Sources */,
 				1A07EBBE7C79D5A10B54D7F5 /* BuiltInNavigationTests.swift in Sources */,
+				5EA301A05C7D3A932BA9EE6A /* BundledExtensionInstallerTests.swift in Sources */,
 				AB6633AA532D83793FD357F2 /* ChromeStorageAPITests.swift in Sources */,
 				E77C08D280A366AA8F4D85EE /* CommunityExtensionStoreTests.swift in Sources */,
 				C0B27444C680CE537CA520F0 /* ExtensionSafetyTests.swift in Sources */,
@@ -353,6 +383,7 @@
 			files = (
 				4B7FFE18A5A184A61FC08D7D /* AppDelegate.swift in Sources */,
 				AF5C24C511279E1020C56C34 /* BrowserViewController.swift in Sources */,
+				5D631C8874904C5FBE8D9149 /* BundledExtensionInstaller.swift in Sources */,
 				58F648D6D274B7DCD7D94A8E /* CRX3Package.swift in Sources */,
 				705D9CE2121420F3D89B193A /* ChromeBridge.swift in Sources */,
 				4C3835E262C10D875A6BDEBE /* ChromeShim.swift in Sources */,
